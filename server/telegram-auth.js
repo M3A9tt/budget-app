@@ -14,7 +14,7 @@ export async function validateTelegramInitData(raw,botToken,ownerId,now=Math.flo
     const expected=Uint8Array.from(hash.match(/../g),v=>parseInt(v,16));let difference=0;
     for(let i=0;i<actual.length;i++)difference|=actual[i]^expected[i];if(difference)return null;
     const user=JSON.parse(params.get('user')||'null');
-    if(!user||!Number.isSafeInteger(user.id)||String(user.id)!==String(ownerId)||user.is_bot)return null;
+    if(!user||!Number.isSafeInteger(user.id)||!(Array.isArray(ownerId)?ownerId.map(String):[String(ownerId)]).includes(String(user.id))||user.is_bot)return null;
     return user;
   }catch{return null;}
 }

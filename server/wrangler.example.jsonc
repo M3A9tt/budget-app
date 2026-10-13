@@ -16,6 +16,7 @@
   },
   "vars": {
     "TELEGRAM_OWNER_ID": "REPLACE_WITH_YOUR_NUMERIC_TELEGRAM_ID",
+    "TELEGRAM_ALLOWED_IDS": "",
     "MINI_APP_URL": "https://REPLACE_WITH_NEW_WORKER.workers.dev"
   },
   "assets": {

@@ -1,3 +1,4 @@
+import {allowedUsers,isAllowedUser} from './users.js';
 import {dashboard,EMPTY} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
@@ -6,7 +7,6 @@ import {validateTelegramInitData} from './telegram-auth.js';
 import {putTransaction,migrateData,historicalRub} from '../src/ledger.js';
 import {parseEntry} from '../src/quick-entry.js';
 
-const DEFAULTS={transactions:[],accounts:[],debts:[],goals:[],customCats:[],transfers:[],recurring:[],history:[],lunchDayOff:[],settings:{budget:0,lunchDaily:400,workDays:22},rates:{RUB:1,USD:92,EUR:100,GBP:117,CNY:12.7,TRY:2.8}};
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 async function equalSecret(a,b) {
   if(!a||!b)return false;
@@ -31,23 +31,33 @@ export function periodSummary(data,from,to,title) {
   const extra=`\nК предыдущему периоду той же длины: ${fmt(expense-previous)} (по записанным операциям)\nВ накоплениях сейчас: ${fmt(savings)}\nСвободно после резерва и платежей: ${fmt(planning.free)}${planning.days?' · до дохода '+planning.days+' дн.':''}`;
   return `${title}\n${from} — ${to}\nРасходы: ${fmt(expense)}\nДоходы: ${fmt(income)}\nОбеды за счёт компании: ${fmt(lunch)}\nНа обычных счетах: ${fmt(actual)}${top.length?'\n'+top.join('\n'):''}\nУчтено операций: ${txs.length}.${extra} Незаписанные покупки в итог не входят.`;
 }
-async function readState(env) {
-  const row=await env.DB.prepare("SELECT revision,data FROM finance_state WHERE id='owner'").first();
-  if(!row)throw new Error('Сначала импортируйте JSON-бэкап в новую базу');
-  return {revision:row.revision,data:JSON.parse(row.data)};
+async function readState(env,userId) {
+  if(!isAllowedUser(env,userId))throw new Error('Нет доступа');
+  // One-time copy, only for the configured owner; old tables stay untouched.
+  if(String(userId)===String(env.TELEGRAM_OWNER_ID)&&!await env.DB.prepare('SELECT user_id FROM legacy_owner_migrations WHERE user_id=?').bind(String(userId)).first())await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) SELECT ?,revision,data,updated_at FROM finance_state WHERE id='owner'").bind(String(userId)),
+    env.DB.prepare('INSERT OR IGNORE INTO user_idempotency(user_id,id,request_hash,result,created_at) SELECT ?,id,request_hash,result,created_at FROM idempotency').bind(String(userId)),
+    env.DB.prepare('INSERT OR IGNORE INTO user_state_backups(user_id,revision,data,created_at) SELECT ?,revision,data,created_at FROM state_backups').bind(String(userId)),
+    env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) SELECT ?,id,created_at FROM reports_sent').bind(String(userId)),
+    env.DB.prepare('INSERT OR IGNORE INTO legacy_owner_migrations(user_id,created_at) VALUES(?,?)').bind(String(userId),Date.now())
+  ]);
+  await env.DB.prepare('INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) VALUES(?,0,?,?)').bind(String(userId),JSON.stringify(EMPTY),new Date().toISOString()).run();
+  const row=await env.DB.prepare('SELECT revision,data FROM user_finance_state WHERE user_id=?').bind(String(userId)).first();
+  return {revision:row.revision,data:JSON.parse(row.data),userId:String(userId),uninitialized:row.revision===0};
 }
-async function writeTransaction(env,input,key) {
+async function writeTransaction(env,userId,input,key) {
   if(!key||key.length>160)throw new Error('Нужен уникальный Idempotency-Key');
+  const state=await readState(env,userId);
   const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])])):value;
   const requestHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(canonical(input)))))).map(b=>b.toString(16).padStart(2,'0')).join('');
-  const prior=await env.DB.prepare('SELECT result,request_hash FROM idempotency WHERE id=?').bind(key).first();
+  const prior=await env.DB.prepare('SELECT result,request_hash FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,key).first();
   if(prior){if(prior.request_hash!==requestHash)throw new Error('Ключ уже использован для другой операции');return JSON.parse(prior.result);}
-  const state=await readState(env),next=putTransaction(state.data,input),tx=next.history[0].after;
+  const next=putTransaction(state.data,input),tx=next.history[0].after;
   const result={transaction:tx,revision:state.revision+1};
   // SQLite transaction: INSERT result succeeds only for the matching snapshot.
   const rows=await env.DB.batch([
-    env.DB.prepare("INSERT INTO idempotency(id,request_hash,result,created_at) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM finance_state WHERE id='owner' AND revision=?)").bind(key,requestHash,JSON.stringify(result),Date.now(),state.revision),
-    env.DB.prepare("UPDATE finance_state SET data=?,revision=revision+1,updated_at=? WHERE id='owner' AND revision=? AND EXISTS(SELECT 1 FROM idempotency WHERE id=?)").bind(JSON.stringify(next),new Date().toISOString(),state.revision,key)
+    env.DB.prepare("INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM user_finance_state WHERE user_id=? AND revision=?)").bind(userId,key,requestHash,JSON.stringify(result),Date.now(),userId,state.revision),
+    env.DB.prepare("UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND EXISTS(SELECT 1 FROM user_idempotency WHERE user_id=? AND id=?)").bind(JSON.stringify(next),new Date().toISOString(),userId,state.revision,userId,key)
   ]);
   if(rows[1].meta.changes!==1)throw new Error('Конфликт обновления. Повторите с тем же ключом');
   return result;
@@ -60,25 +70,31 @@ async function telegram(env,method,body) {
 async function handleTelegram(update,env) {
   const source=update.callback_query?.from||update.message?.from;
   const chat=update.callback_query?.message?.chat||update.message?.chat;
-  if(!source||String(source.id)!==env.TELEGRAM_OWNER_ID||chat?.type!=='private'||String(chat.id)!==env.TELEGRAM_OWNER_ID)return;
+  if(!source||!Number.isSafeInteger(source.id)||source.id<=0||source.is_bot||chat?.type!=='private'||String(chat.id)!==String(source.id))return;
+  const command=(update.message?.text||'').trim();
+  if(command==='/id'||(!isAllowedUser(env,source.id)&&command==='/start')){
+    await telegram(env,'sendMessage',{chat_id:chat.id,text:`Ваш Telegram ID: ${source.id}${isAllowedUser(env,source.id)?'':'\nПопросите владельца приложения добавить этот ID в список доступа.'}`});return;
+  }
+  if(!isAllowedUser(env,source.id))return;
+  const userId=String(source.id);
   const send=text=>telegram(env,'sendMessage',{chat_id:chat.id,text});
   try {
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
       if(data.startsWith('save:')) {
-        const id=data.slice(5),draft=await env.DB.prepare('SELECT * FROM telegram_drafts WHERE id=? AND owner=?').bind(id,env.TELEGRAM_OWNER_ID).first();
+        const id=data.slice(5),draft=await env.DB.prepare('SELECT * FROM telegram_drafts WHERE id=? AND owner=?').bind(id,userId).first();
         if(!draft||draft.expires_at<Date.now())throw new Error('Карточка устарела — отправьте покупку заново');
-        const result=await writeTransaction(env,JSON.parse(draft.payload),'tg-draft:'+id);
-        await env.DB.prepare('UPDATE telegram_drafts SET consumed=1 WHERE id=?').bind(id).run();
+        const result=await writeTransaction(env,userId,JSON.parse(draft.payload),'tg-draft:'+id);
+        await env.DB.prepare('UPDATE telegram_drafts SET consumed=1 WHERE id=? AND owner=?').bind(id,userId).run();
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Записано'});
         await telegram(env,'editMessageText',{chat_id:chat.id,message_id:callback.message.message_id,text:`Записано: ${result.transaction.note} · ${result.transaction.amount} ₽\nID: ${result.transaction.id}`,reply_markup:{inline_keyboard:[]}});
       }
       return;
     }
     const text=(update.message.text||'').trim();
-    if(text==='/start'||text==='/help'){await send('Пишите: кофе 180 Сбер или обед 379,50. Бот сначала покажет карточку — запись только после кнопки. /today — день, /week — 7 дней, /month — текущий месяц.');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
-    if(text==='/web'){const code=await issueWebCode(env);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
-    const state=await readState(env),today=moscowDate();
+    if(text==='/start'||text==='/help'){await readState(env,userId);await send('Пишите: кофе 180 Сбер или обед 379,50. Бот сначала покажет карточку — запись только после кнопки. /today — день, /week — 7 дней, /month — текущий месяц.');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
+    if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
+    const state=await readState(env,userId),today=moscowDate();
     if(['/today','/week','/month'].includes(text)) {
       const start=new Date(today+'T12:00:00Z');
       if(text==='/week')start.setUTCDate(start.getUTCDate()-6);
@@ -87,7 +103,7 @@ async function handleTelegram(update,env) {
     }
     const draft=parseEntry(text,state.data.accounts,state.data.customCats||[],today);
     const id=crypto.randomUUID();
-    await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,env.TELEGRAM_OWNER_ID,JSON.stringify(draft),Date.now()+600000).run();
+    await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,userId,JSON.stringify(draft),Date.now()+600000).run();
     const account=state.data.accounts.find(a=>a.id===draft.accountId)?.name||(draft.type==='lunch'?'Оплата компанией':'Без счёта');
     await telegram(env,'sendMessage',{chat_id:chat.id,text:`Проверьте: ${draft.note}\n${draft.amount} ₽ · ${account}\nКатегория: ${draft.cat}\nДата: ${draft.date}`,reply_markup:{inline_keyboard:[[{text:'Записать',callback_data:'save:'+id}]]}});
   } catch(e){await send(e.message);}
@@ -102,30 +118,30 @@ export default {
     if(!url.pathname.startsWith('/api/v1/'))return env.ASSETS?env.ASSETS.fetch(request):json({error:'Not found'},404);
     if(['/api/v1/auth/login','/api/v1/auth/logout'].includes(url.pathname))return webAuthRoute(request,env,url.pathname);
     const auth=request.headers.get('Authorization')||'';
-    const telegramUser=auth.startsWith('tma ')?await validateTelegramInitData(auth.slice(4),env.TELEGRAM_BOT_TOKEN,env.TELEGRAM_OWNER_ID):null;
+    const telegramUser=auth.startsWith('tma ')?await validateTelegramInitData(auth.slice(4),env.TELEGRAM_BOT_TOKEN,allowedUsers(env)):null;
     const apiAccess=auth.startsWith('Bearer ')&&await equalSecret(auth,env.API_TOKEN?'Bearer '+env.API_TOKEN:null);
     const sessionAccess=!auth&&await webSession(request,env);
     if(sessionAccess&&!['GET','HEAD'].includes(request.method)&&request.headers.get('Origin')!==url.origin)return json({error:'Invalid origin'},403);
     if(!telegramUser&&!apiAccess&&!sessionAccess)return json({error:'Откройте приложение заново из меню Telegram-бота'},401);
+    const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
+    if(!isAllowedUser(env,userId))return json({error:'Нет доступа к этому профилю'},403);
     try {
-      if(request.method==='GET'&&url.pathname==='/api/v1/state'){const row=await env.DB.prepare("SELECT revision,data FROM finance_state WHERE id='owner'").first();return json(row?{revision:row.revision,data:JSON.parse(row.data)}:{revision:0,data:DEFAULTS,uninitialized:true});}
+      if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
-        const input=await request.json(),data=migrateData(input.data,DEFAULTS);
-        // Import cannot replace the state without its exact expected revision.
-        const current=await env.DB.prepare("SELECT revision FROM finance_state WHERE id='owner'").first();
-        if((current?.revision??0)!==input.expectedRevision)return json({error:'Revision conflict'},409);
+        const input=await request.json(),data=migrateData(input.data,EMPTY),current=await readState(env,userId);
+        if(current.revision!==input.expectedRevision)return json({error:'Revision conflict'},409);
         delete data._pinHash;
-        const result=current?(await env.DB.batch([
-          env.DB.prepare("INSERT OR IGNORE INTO state_backups(revision,data,created_at) SELECT revision,data,updated_at FROM finance_state WHERE id='owner' AND revision=?").bind(input.expectedRevision),
-          env.DB.prepare("UPDATE finance_state SET data=?,revision=revision+1,updated_at=? WHERE id='owner' AND revision=?").bind(JSON.stringify(data),new Date().toISOString(),input.expectedRevision)
-        ]))[1]:await env.DB.prepare("INSERT OR IGNORE INTO finance_state(id,data,revision,updated_at) VALUES('owner',?,1,?)").bind(JSON.stringify(data),new Date().toISOString()).run();
-        if(result.meta.changes!==1)return json({error:'Revision conflict'},409);
-        await env.DB.prepare('DELETE FROM state_backups WHERE revision < ?').bind(Math.max(0,input.expectedRevision-49)).run();
+        const rows=await env.DB.batch([
+          env.DB.prepare('INSERT OR IGNORE INTO user_state_backups(user_id,revision,data,created_at) SELECT user_id,revision,data,updated_at FROM user_finance_state WHERE user_id=? AND revision=?').bind(userId,input.expectedRevision),
+          env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(JSON.stringify(data),new Date().toISOString(),userId,input.expectedRevision)
+        ]);
+        if(rows[1].meta.changes!==1)return json({error:'Revision conflict'},409);
+        await env.DB.prepare('DELETE FROM user_state_backups WHERE user_id=? AND revision < ?').bind(userId,Math.max(0,input.expectedRevision-49)).run();
         return json({revision:input.expectedRevision+1});
       }
-      if(request.method==='POST'&&url.pathname==='/api/v1/transactions')return json(await writeTransaction(env,await request.json(),request.headers.get('Idempotency-Key')),201);
+      if(request.method==='POST'&&url.pathname==='/api/v1/transactions')return json(await writeTransaction(env,userId,await request.json(),request.headers.get('Idempotency-Key')),201);
       if(request.method==='GET'&&url.pathname==='/api/v1/summary') {
-        const state=await readState(env);return json({text:periodSummary(state.data,url.searchParams.get('from')||moscowDate(),url.searchParams.get('to')||moscowDate(),'Расходы')});
+        const state=await readState(env,userId);return json({text:periodSummary(state.data,url.searchParams.get('from')||moscowDate(),url.searchParams.get('to')||moscowDate(),'Расходы')});
       }
       return json({error:'Not found'},404);
     }catch(e){return json({error:e.message},400);}
@@ -134,12 +150,17 @@ export default {
     // Hourly wake-up; reports at 21:00 Moscow. No dependency on an open browser.
     ctx.waitUntil((async()=>{
       const now=new Date(event.scheduledTime);
-      const exists=await env.DB.prepare("SELECT revision FROM finance_state WHERE id='owner'").first();if(!exists)return;
-      const state=await readState(env),reports=notificationJobs(state.data,now);
-      for(const report of reports){const claim=await env.DB.prepare('INSERT OR IGNORE INTO reports_sent(id,created_at) VALUES(?,?)').bind(report.id,Date.now()).run();if(!claim.meta.changes)continue;
-        try{await telegram(env,'sendMessage',{chat_id:env.TELEGRAM_OWNER_ID,text:report.text||periodSummary(state.data,report.from,report.to,report.title)});}catch(e){await env.DB.prepare('DELETE FROM reports_sent WHERE id=?').bind(report.id).run();throw e;}}
-      await env.DB.prepare('DELETE FROM web_codes WHERE expires_at<?').bind(Date.now()).run();
-      await env.DB.prepare('DELETE FROM web_sessions WHERE expires_at<?').bind(Date.now()).run();
+      if(isAllowedUser(env,env.TELEGRAM_OWNER_ID))await readState(env,String(env.TELEGRAM_OWNER_ID));
+      const profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
+      for(const profile of profiles.results){
+        const userId=profile.user_id;if(!isAllowedUser(env,userId)||profile.revision===0)continue;
+        const data=JSON.parse(profile.data),reports=notificationJobs(data,now);
+        for(const report of reports){const claim=await env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,report.id,Date.now()).run();if(!claim.meta.changes)continue;
+          try{await telegram(env,'sendMessage',{chat_id:userId,text:report.text||periodSummary(data,report.from,report.to,report.title)});}catch{await env.DB.prepare('DELETE FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,report.id).run();}
+        }
+      }
+      await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();
+      await env.DB.prepare('DELETE FROM user_web_sessions WHERE expires_at<?').bind(Date.now()).run();
       await env.DB.prepare('DELETE FROM telegram_drafts WHERE expires_at<?').bind(Date.now()).run();
     })());
   }
