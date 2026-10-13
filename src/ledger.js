@@ -127,6 +127,7 @@ export function migrateData(input, defaults) {
   validateReminderSettings(data.settings);
   if(data.settings.rememberEntryChoices!==undefined&&typeof data.settings.rememberEntryChoices!=='boolean')throw Error('Неверная настройка быстрого ввода');
   for (const a of data.accounts) if (!a.id || !Number.isFinite(a.balance) || !currencies.has(a.currency||'RUB')) throw new Error('Неверный счёт в бэкапе');
+  for(const a of data.accounts){if(a.annualRate!==undefined&&(!Number.isFinite(a.annualRate)||a.annualRate<0))throw Error('Неверная ставка вклада');if(a.maturityDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(a.maturityDate)||Number.isNaN(Date.parse(a.maturityDate))||new Date(a.maturityDate+'T12:00:00Z').toISOString().slice(0,10)!==a.maturityDate))throw Error('Неверная дата окончания вклада');}
   for (const tx of data.transactions) {
     if (!tx.id || !Number.isFinite(tx.amount) || tx.amount <= 0 || !currencies.has(tx.currency||'RUB') || !/^\d{4}-\d{2}-\d{2}$/.test(tx.date||'') || Number.isNaN(Date.parse(tx.date+'T00:00:00Z')) || new Date(tx.date+'T00:00:00Z').toISOString().slice(0,10)!==tx.date || (tx.tags!==undefined&&!Array.isArray(tx.tags))) throw new Error('Неверная операция в бэкапе');
   }
