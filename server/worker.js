@@ -1,6 +1,7 @@
+import {entryDefaults} from '../src/entry-assist.js';
 import {dayChecks,setDayCheck,habitCallback,habitAmount} from './habits.js';
 import {allAllowedUsers,hasAccess,ensureInvites} from './users.js';
-import {dashboard,EMPTY} from '../src/mini-model.js';
+import {dashboard,EMPTY,CATEGORIES} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
@@ -161,11 +162,12 @@ async function handleTelegram(update,env) {
       await send(periodSummary(state.data,from,today,'Сводка расходов'));return;
     }
     if(await habitAmount(env,userId,text,habitApi))return;
-    const draft=parseEntry(text,state.data.accounts,state.data.customCats||[],today);
+    const defaults=state.data.settings.rememberEntryChoices===false?{}:entryDefaults(state.data,/зарплат|аванс|доход/i.test(text)?'income':'expense',today,CATEGORIES.concat(state.data.customCats||[]));
+    const draft=parseEntry(text,state.data.accounts,state.data.customCats||[],today,defaults);
     const id=crypto.randomUUID();
     await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,userId,JSON.stringify(draft),Date.now()+600000).run();
     const account=state.data.accounts.find(a=>a.id===draft.accountId)?.name||(draft.type==='lunch'?'Оплата компанией':'Без счёта');
-    await telegram(env,'sendMessage',{chat_id:chat.id,text:`Проверьте: ${draft.note}\n${draft.amount} ₽ · ${account}\nКатегория: ${draft.cat}\nДата: ${draft.date}`,reply_markup:{inline_keyboard:[[{text:'Записать',callback_data:'save:'+id}]]}});
+    await telegram(env,'sendMessage',{chat_id:chat.id,text:`Проверьте: ${draft.note}\n${draft.amount} ₽ · ${account}\nКатегория: ${draft.cat}\nОплата: ${{sbp:'СБП',card:'Карта',cash:'Наличные',bank:'Банковский перевод',unknown:'Не указана'}[draft.paymentMethod]||'Не указана'}\nДата: ${draft.date}`,reply_markup:{inline_keyboard:[[{text:'Записать',callback_data:'save:'+id}]]}});
   } catch(e){await send(e.message);}
 }
 export default {
