@@ -1,6 +1,6 @@
-import {allowedUsers,isAllowedUser} from './users.js';
+import {allAllowedUsers,hasAccess,ensureInvites} from './users.js';
 import {dashboard,EMPTY} from '../src/mini-model.js';
-import {issueWebCode,webSession,webAuthRoute} from './web-auth.js';
+import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
 // Separate new D1 database. This Worker never writes to legacy Supabase.
@@ -32,7 +32,7 @@ export function periodSummary(data,from,to,title) {
   return `${title}\n${from} — ${to}\nРасходы: ${fmt(expense)}\nДоходы: ${fmt(income)}\nОбеды за счёт компании: ${fmt(lunch)}\nНа обычных счетах: ${fmt(actual)}${top.length?'\n'+top.join('\n'):''}\nУчтено операций: ${txs.length}.${extra} Незаписанные покупки в итог не входят.`;
 }
 async function readState(env,userId) {
-  if(!isAllowedUser(env,userId))throw new Error('Нет доступа');
+  if(!await hasAccess(env,userId))throw new Error('Нет доступа');
   // One-time copy, only for the configured owner; old tables stay untouched.
   if(String(userId)===String(env.TELEGRAM_OWNER_ID)&&!await env.DB.prepare('SELECT user_id FROM legacy_owner_migrations WHERE user_id=?').bind(String(userId)).first())await env.DB.batch([
     env.DB.prepare("INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) SELECT ?,revision,data,updated_at FROM finance_state WHERE id='owner'").bind(String(userId)),
@@ -65,22 +65,65 @@ async function writeTransaction(env,userId,input,key) {
 async function telegram(env,method,body) {
   if(!env.TELEGRAM_BOT_TOKEN)throw new Error('Telegram не настроен');
   const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const result=await r.json();if(!r.ok||!result.ok)throw new Error('Не удалось доставить сообщение Telegram');return result.result;
+  const result=await r.json();if(method==='editMessageText'&&result.description?.includes('message is not modified'))return null;if(!r.ok||!result.ok)throw new Error('Не удалось доставить сообщение Telegram');return result.result;
+}
+async function saveNotification(env,userId,action){
+ const state=await readState(env,userId),settings={...state.data.settings};
+ if(action.startsWith('hour:')){const hour=Number(action.slice(5));if(!/^\d{1,2}$/.test(action.slice(5))||hour<0||hour>23)throw Error('Час от 0 до 23');settings.reportHour=hour;}
+ else if(['reminders','dailyReport','weeklyReport','monthlyReport'].includes(action))settings[action]=settings[action]===false;
+ else throw Error('Неизвестная настройка');
+ const rows=await env.DB.batch([
+  env.DB.prepare('INSERT OR IGNORE INTO user_state_backups(user_id,revision,data,created_at) SELECT user_id,revision,data,updated_at FROM user_finance_state WHERE user_id=? AND revision=?').bind(userId,state.revision),
+  env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(JSON.stringify({...state.data,settings}),new Date().toISOString(),userId,state.revision)
+ ]);
+ if(rows[1].meta.changes!==1)throw Error('Настройки изменились. Откройте /reminders заново.');
+}
+async function showNotifications(env,userId,messageId){
+ const {data}=await readState(env,userId),s=data.settings;
+ const keyboard=[...['reminders','dailyReport','weeklyReport','monthlyReport'].map((k,i)=>[{text:(s[k]===false?'⬜ ':'✅ ')+['Напоминать, если нет записей','Итоги дня','Итоги недели · вс','Итоги месяца · 1-го'][i],callback_data:'notify:'+k}]),...Array.from({length:6},(_,row)=>Array.from({length:4},(_,col)=>{const h=row*4+col;return{text:((s.reportHour??21)===h?'✓ ':'')+String(h).padStart(2,'0')+':00',callback_data:'notify:hour:'+h};}))];
+ await telegram(env,messageId?'editMessageText':'sendMessage',{chat_id:userId,...(messageId?{message_id:messageId}:{}),text:'Напоминания и отчёты\nНажмите, чтобы включить или выключить.\nОбщее время отправки: '+String(s.reportHour??21).padStart(2,'0')+':00 по Москве.\nНапоминание приходит, если за день нет записей. Эти же настройки видны в мини-аппе.',reply_markup:{inline_keyboard:keyboard}});
 }
 async function handleTelegram(update,env) {
   const source=update.callback_query?.from||update.message?.from;
   const chat=update.callback_query?.message?.chat||update.message?.chat;
   if(!source||!Number.isSafeInteger(source.id)||source.id<=0||source.is_bot||chat?.type!=='private'||String(chat.id)!==String(source.id))return;
   const command=(update.message?.text||'').trim();
-  if(command==='/id'||(!isAllowedUser(env,source.id)&&command==='/start')){
-    await telegram(env,'sendMessage',{chat_id:chat.id,text:`Ваш Telegram ID: ${source.id}${isAllowedUser(env,source.id)?'':'\nПопросите владельца приложения добавить этот ID в список доступа.'}`});return;
+  if(command.startsWith('/start invite_')){
+    await ensureInvites(env);
+    const token=command.slice('/start invite_'.length);
+    if(!/^[a-f0-9]{32}$/.test(token)){await telegram(env,'sendMessage',{chat_id:chat.id,text:'Приглашение недействительно.'});return;}
+    const hash=await hashToken(token);
+    const row=await env.DB.prepare('SELECT * FROM user_invites WHERE hash=? AND owner_id=?').bind(hash,String(env.TELEGRAM_OWNER_ID)).first();
+    if(!row||row.expires_at<Date.now()||row.claimed_user&&row.claimed_user!==String(source.id)){await telegram(env,'sendMessage',{chat_id:chat.id,text:'Приглашение истекло или уже использовано. Попросите новую ссылку.'});return;}
+    if(!await hasAccess(env,source.id)){
+      const result=await env.DB.prepare('UPDATE user_invites SET claimed_user=? WHERE hash=? AND claimed_user IS NULL AND expires_at>?').bind(String(source.id),hash,Date.now()).run();
+      if(!result.meta.changes){await telegram(env,'sendMessage',{chat_id:chat.id,text:'Приглашение уже использовано.'});return;}
+    }
+    update.message.text='/start';
   }
-  if(!isAllowedUser(env,source.id))return;
+
+  if(command==='/id'||(!await hasAccess(env,source.id)&&command==='/start')){
+    await telegram(env,'sendMessage',{chat_id:chat.id,text:command==='/id'?`Ваш Telegram ID: ${source.id}`:'Попросите владельца прислать ссылку-приглашение. Он может создать её командой /invite.'});return;
+  }
+  if(!await hasAccess(env,source.id))return;
   const userId=String(source.id);
   const send=text=>telegram(env,'sendMessage',{chat_id:chat.id,text});
   try {
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
+      if(data.startsWith('notify:')){
+        const action=data.slice(7);
+        await saveNotification(env,userId,action);
+        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Сохранено'});
+        await showNotifications(env,userId,callback.message.message_id);return;
+      }
+      if(data.startsWith('revoke:')&&userId===String(env.TELEGRAM_OWNER_ID)){
+        const id=data.slice(7);
+        await ensureInvites(env);
+        await env.DB.prepare('DELETE FROM user_invites WHERE claimed_user=? AND owner_id=?').bind(id,userId).run();
+        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Доступ по приглашению закрыт'});
+        await send('Доступ по приглашению закрыт. Данные сохранены.');return;
+      }
       if(data.startsWith('save:')) {
         const id=data.slice(5),draft=await env.DB.prepare('SELECT * FROM telegram_drafts WHERE id=? AND owner=?').bind(id,userId).first();
         if(!draft||draft.expires_at<Date.now())throw new Error('Карточка устарела — отправьте покупку заново');
@@ -92,7 +135,22 @@ async function handleTelegram(update,env) {
       return;
     }
     const text=(update.message.text||'').trim();
-    if(text==='/start'||text==='/help'){await readState(env,userId);await send('Пишите: кофе 180 Сбер или обед 379,50. Бот сначала покажет карточку — запись только после кнопки. /today — день, /week — 7 дней, /month — текущий месяц.');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
+    if(text==='/start'||text==='/help'){await readState(env,userId);await send('Пишите: кофе 180 Сбер или обед 379,50. Бот сначала покажет карточку — запись только после кнопки. /today — день, /week — 7 дней, /month — текущий месяц. /reminders — время и переключатели напоминаний и отчётов. /invite — пригласить друга (для владельца).');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
+    if(text==='/reminders'){await showNotifications(env,userId);return;}
+    if(text==='/invite'){
+      if(userId!==String(env.TELEGRAM_OWNER_ID)){await send('Приглашения создаёт владелец приложения.');return;}
+      await ensureInvites(env);
+      const token=crypto.randomUUID().replaceAll('-',''),bot=await telegram(env,'getMe',{});
+      if(!bot.username)throw Error('Не удалось получить адрес бота');
+      await env.DB.prepare('INSERT INTO user_invites(hash,owner_id,expires_at) VALUES(?,?,?)').bind(await hashToken(token),userId,Date.now()+86400000).run();
+      await send('Отправьте другу эту ссылку:\nhttps://t.me/'+bot.username+'?start=invite_'+token+'\nОдно приглашение для одного человека, действует 24 часа. У друга будет отдельный пустой бюджет.');return;
+    }
+    if(text==='/friends'){
+      if(userId!==String(env.TELEGRAM_OWNER_ID)){await send('Список приглашений доступен владельцу.');return;}
+      await ensureInvites(env);
+      const rows=await env.DB.prepare('SELECT claimed_user FROM user_invites WHERE claimed_user IS NOT NULL AND owner_id=?').bind(userId).all();
+      await telegram(env,'sendMessage',{chat_id:chat.id,text:rows.results.length?'Приглашённые пользователи. Кнопка закрывает доступ, сохраняя данные.':'Пока никто не принял приглашение. Создать ссылку: /invite',reply_markup:{inline_keyboard:rows.results.map((r,i)=>[{text:'Закрыть доступ гостю '+(i+1),callback_data:'revoke:'+r.claimed_user}])}});return;
+    }
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
     const state=await readState(env,userId),today=moscowDate();
     if(['/today','/week','/month'].includes(text)) {
@@ -118,13 +176,13 @@ export default {
     if(!url.pathname.startsWith('/api/v1/'))return env.ASSETS?env.ASSETS.fetch(request):json({error:'Not found'},404);
     if(['/api/v1/auth/login','/api/v1/auth/logout'].includes(url.pathname))return webAuthRoute(request,env,url.pathname);
     const auth=request.headers.get('Authorization')||'';
-    const telegramUser=auth.startsWith('tma ')?await validateTelegramInitData(auth.slice(4),env.TELEGRAM_BOT_TOKEN,allowedUsers(env)):null;
+    const telegramUser=auth.startsWith('tma ')?await validateTelegramInitData(auth.slice(4),env.TELEGRAM_BOT_TOKEN,await allAllowedUsers(env)):null;
     const apiAccess=auth.startsWith('Bearer ')&&await equalSecret(auth,env.API_TOKEN?'Bearer '+env.API_TOKEN:null);
     const sessionAccess=!auth&&await webSession(request,env);
     if(sessionAccess&&!['GET','HEAD'].includes(request.method)&&request.headers.get('Origin')!==url.origin)return json({error:'Invalid origin'},403);
     if(!telegramUser&&!apiAccess&&!sessionAccess)return json({error:'Откройте приложение заново из меню Telegram-бота'},401);
     const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
-    if(!isAllowedUser(env,userId))return json({error:'Нет доступа к этому профилю'},403);
+    if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
     try {
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
@@ -150,10 +208,10 @@ export default {
     // Hourly wake-up; reports at 21:00 Moscow. No dependency on an open browser.
     ctx.waitUntil((async()=>{
       const now=new Date(event.scheduledTime);
-      if(isAllowedUser(env,env.TELEGRAM_OWNER_ID))await readState(env,String(env.TELEGRAM_OWNER_ID));
+      if(await hasAccess(env,env.TELEGRAM_OWNER_ID))await readState(env,String(env.TELEGRAM_OWNER_ID));
       const profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
       for(const profile of profiles.results){
-        const userId=profile.user_id;if(!isAllowedUser(env,userId)||profile.revision===0)continue;
+        const userId=profile.user_id;if(!await hasAccess(env,userId)||profile.revision===0)continue;
         const data=JSON.parse(profile.data),reports=notificationJobs(data,now);
         for(const report of reports){const claim=await env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,report.id,Date.now()).run();if(!claim.meta.changes)continue;
           try{await telegram(env,'sendMessage',{chat_id:userId,text:report.text||periodSummary(data,report.from,report.to,report.title)});}catch{await env.DB.prepare('DELETE FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,report.id).run();}

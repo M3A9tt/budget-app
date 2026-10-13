@@ -40,3 +40,6 @@ CREATE TABLE IF NOT EXISTS user_web_codes(hash TEXT PRIMARY KEY,user_id TEXT NOT
 CREATE TABLE IF NOT EXISTS user_web_sessions(hash TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS user_reports_sent(user_id TEXT NOT NULL,id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,id));
 CREATE TABLE IF NOT EXISTS legacy_owner_migrations(user_id TEXT PRIMARY KEY,created_at INTEGER NOT NULL);
+
+-- One-use invitations and invited membership, independent of financial state.
+CREATE TABLE IF NOT EXISTS user_invites(hash TEXT PRIMARY KEY,owner_id TEXT NOT NULL,expires_at INTEGER NOT NULL,claimed_user TEXT UNIQUE);
