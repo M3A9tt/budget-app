@@ -1,0 +1,26 @@
+/* Motion is presentation only: saves and navigation never wait for animation. */
+@keyframes budget-page-in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@keyframes budget-card-in{from{opacity:.35;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes budget-bar-in{from{transform:scaleY(.02);opacity:.3}to{transform:scaleY(1);opacity:1}}
+@keyframes budget-fill-in{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes budget-line-in{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes budget-toast-in{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
+@media(prefers-reduced-motion:no-preference){
+ .mini-page{animation:budget-page-in 240ms cubic-bezier(.22,1,.36,1) both}
+ .mini-page .ins-card{animation:budget-card-in 320ms cubic-bezier(.22,1,.36,1) both}
+ .mini-page .ins-card:nth-child(2){animation-delay:35ms}.mini-page .ins-card:nth-child(3){animation-delay:60ms}.mini-page .ins-card:nth-child(n+4){animation-delay:85ms}
+ .mini-shell button,.mini-shell a{transition:transform 140ms ease,background-color 180ms ease,border-color 180ms ease,color 180ms ease,box-shadow 180ms ease}
+ .mini-shell button:not(:disabled):active{transform:scale(.97)}
+ .mini-shell input,.mini-shell select,.mini-shell textarea{transition:border-color 160ms ease,box-shadow 160ms ease}
+ .mini-shell .ins-bar-stack{transform-origin:bottom;animation:budget-bar-in 460ms cubic-bezier(.22,1,.36,1) both;transition:height 320ms cubic-bezier(.22,1,.36,1)}
+ .mini-shell .ins-day:nth-child(2) .ins-bar-stack{animation-delay:20ms}.mini-shell .ins-day:nth-child(3) .ins-bar-stack{animation-delay:40ms}.mini-shell .ins-day:nth-child(n+4) .ins-bar-stack{animation-delay:60ms}
+ .mini-shell .ins-track>i,.mini-shell .mini-progress>span{transform-origin:left;animation:budget-fill-in 420ms cubic-bezier(.22,1,.36,1) both;transition:width 320ms cubic-bezier(.22,1,.36,1)}
+ .mini-shell .ins-allocation>span{transition:width 320ms cubic-bezier(.22,1,.36,1)}
+ .mini-shell .ins-forecast polyline{stroke-dasharray:1;animation:budget-line-in 650ms cubic-bezier(.22,1,.36,1) both}
+ .mini-shell .mini-toast{animation:budget-toast-in 200ms ease-out both}
+ .mini-shell .mini-alert{animation:budget-page-in 180ms ease-out both}
+ .mini-shell .mini-nav button[aria-current=page] svg{transform:translateY(-2px);transition:transform 180ms ease}
+ .mini-shell .ins-split>span{transition:flex 320ms ease}
+}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){.mini-shell .ins-account-strip button:hover,.mini-shell .ins-actions button:hover{transform:translateY(-2px);box-shadow:0 7px 20px #00000020}}
+@media(prefers-reduced-motion:reduce){.mini-shell *,.mini-shell *::before,.mini-shell *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.mini-shell .ins-forecast polyline{stroke-dasharray:none;stroke-dashoffset:0}}
