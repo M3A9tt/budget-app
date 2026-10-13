@@ -1,3 +1,4 @@
+import {dayChecks,setDayCheck,habitCallback,habitAmount} from './habits.js';
 import {allAllowedUsers,hasAccess,ensureInvites} from './users.js';
 import {dashboard,EMPTY} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
@@ -67,21 +68,19 @@ async function telegram(env,method,body) {
   const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const result=await r.json();if(method==='editMessageText'&&result.description?.includes('message is not modified'))return null;if(!r.ok||!result.ok)throw new Error('Не удалось доставить сообщение Telegram');return result.result;
 }
-async function saveNotification(env,userId,action){
- const state=await readState(env,userId),settings={...state.data.settings};
- if(action.startsWith('hour:')){const hour=Number(action.slice(5));if(!/^\d{1,2}$/.test(action.slice(5))||hour<0||hour>23)throw Error('Час от 0 до 23');settings.reportHour=hour;}
- else if(['reminders','dailyReport','weeklyReport','monthlyReport'].includes(action))settings[action]=settings[action]===false;
- else throw Error('Неизвестная настройка');
+async function mutateState(env,userId,change){
+ const state=await readState(env,userId),next=migrateData(change(structuredClone(state.data)),EMPTY);
  const rows=await env.DB.batch([
-  env.DB.prepare('INSERT OR IGNORE INTO user_state_backups(user_id,revision,data,created_at) SELECT user_id,revision,data,updated_at FROM user_finance_state WHERE user_id=? AND revision=?').bind(userId,state.revision),
-  env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(JSON.stringify({...state.data,settings}),new Date().toISOString(),userId,state.revision)
+ env.DB.prepare('INSERT OR IGNORE INTO user_state_backups(user_id,revision,data,created_at) SELECT user_id,revision,data,updated_at FROM user_finance_state WHERE user_id=? AND revision=?').bind(userId,state.revision),
+ env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(JSON.stringify(next),new Date().toISOString(),userId,state.revision)
  ]);
- if(rows[1].meta.changes!==1)throw Error('Настройки изменились. Откройте /reminders заново.');
+ if(rows[1].meta.changes!==1)throw Error('Данные изменились. Повтори действие.');
+ await env.DB.prepare('DELETE FROM user_state_backups WHERE user_id=? AND revision < ?').bind(userId,Math.max(0,state.revision-49)).run();
 }
-async function showNotifications(env,userId,messageId){
- const {data}=await readState(env,userId),s=data.settings;
- const keyboard=[...['reminders','dailyReport','weeklyReport','monthlyReport'].map((k,i)=>[{text:(s[k]===false?'⬜ ':'✅ ')+['Напоминать, если нет записей','Итоги дня','Итоги недели · вс','Итоги месяца · 1-го'][i],callback_data:'notify:'+k}]),...Array.from({length:6},(_,row)=>Array.from({length:4},(_,col)=>{const h=row*4+col;return{text:((s.reportHour??21)===h?'✓ ':'')+String(h).padStart(2,'0')+':00',callback_data:'notify:hour:'+h};}))];
- await telegram(env,messageId?'editMessageText':'sendMessage',{chat_id:userId,...(messageId?{message_id:messageId}:{}),text:'Напоминания и отчёты\nНажмите, чтобы включить или выключить.\nОбщее время отправки: '+String(s.reportHour??21).padStart(2,'0')+':00 по Москве.\nНапоминание приходит, если за день нет записей. Эти же настройки видны в мини-аппе.',reply_markup:{inline_keyboard:keyboard}});
+const habitApi={readState,mutateState,telegram};
+async function showNotifications(env,userId){
+ const url=new URL(env.MINI_APP_URL||'https://budget-staging.apersunov5.workers.dev');url.searchParams.set('settings','1');
+ await telegram(env,'sendMessage',{chat_id:userId,text:'Настройка напоминаний теперь внутри мини-аппы: Настройки → Твой ритм. Там можно выбрать текст, время, повторы и вопросы об обедах. Всё можно отключить.',reply_markup:{inline_keyboard:[[{text:'Настроить в мини-аппе',web_app:{url:url.href}}]]}});
 }
 async function handleTelegram(update,env) {
   const source=update.callback_query?.from||update.message?.from;
@@ -111,11 +110,10 @@ async function handleTelegram(update,env) {
   try {
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
+      if(await habitCallback(env,userId,callback,habitApi))return;
       if(data.startsWith('notify:')){
-        const action=data.slice(7);
-        await saveNotification(env,userId,action);
-        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Сохранено'});
-        await showNotifications(env,userId,callback.message.message_id);return;
+        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки перенесены в мини-аппу'});
+        await showNotifications(env,userId);return;
       }
       if(data.startsWith('revoke:')&&userId===String(env.TELEGRAM_OWNER_ID)){
         const id=data.slice(7);
@@ -127,7 +125,10 @@ async function handleTelegram(update,env) {
       if(data.startsWith('save:')) {
         const id=data.slice(5),draft=await env.DB.prepare('SELECT * FROM telegram_drafts WHERE id=? AND owner=?').bind(id,userId).first();
         if(!draft||draft.expires_at<Date.now())throw new Error('Карточка устарела — отправьте покупку заново');
-        const result=await writeTransaction(env,userId,JSON.parse(draft.payload),'tg-draft:'+id);
+        const payload=JSON.parse(draft.payload);
+        if(payload._lunchCheckDay){const check=(await dayChecks(env,userId,payload._lunchCheckDay)).find(r=>r.kind==='lunch');if(check?.status==='skipped')throw Error('Обед отмечен как пропущенный. Измени ответ в мини-аппе.');const current=await readState(env,userId);if(payload.type==='lunch'&&current.data.transactions.some(t=>t.date===payload.date&&(t.type==='lunch'||t.cat==='lunch')&&!t._lunchCheckDay))throw Error('Обед за этот день уже записан в приложении.');}
+        const result=await writeTransaction(env,userId,payload,payload._lunchCheckDay?'lunch-day:'+payload._lunchCheckDay:'tg-draft:'+id);
+        if(payload._lunchCheckDay)await setDayCheck(env,userId,payload._lunchCheckDay,'lunch','recorded');
         await env.DB.prepare('UPDATE telegram_drafts SET consumed=1 WHERE id=? AND owner=?').bind(id,userId).run();
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Записано'});
         await telegram(env,'editMessageText',{chat_id:chat.id,message_id:callback.message.message_id,text:`Записано: ${result.transaction.note} · ${result.transaction.amount} ₽\nID: ${result.transaction.id}`,reply_markup:{inline_keyboard:[]}});
@@ -159,6 +160,7 @@ async function handleTelegram(update,env) {
       const from=text==='/month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);
       await send(periodSummary(state.data,from,today,'Сводка расходов'));return;
     }
+    if(await habitAmount(env,userId,text,habitApi))return;
     const draft=parseEntry(text,state.data.accounts,state.data.customCats||[],today);
     const id=crypto.randomUUID();
     await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,userId,JSON.stringify(draft),Date.now()+600000).run();
@@ -212,9 +214,9 @@ export default {
       const profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
       for(const profile of profiles.results){
         const userId=profile.user_id;if(!await hasAccess(env,userId)||profile.revision===0)continue;
-        const data=JSON.parse(profile.data),reports=notificationJobs(data,now);
+        const data=JSON.parse(profile.data),day=moscowDate(now),responses=await dayChecks(env,userId,day),reports=notificationJobs(data,now,responses);
         for(const report of reports){const claim=await env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,report.id,Date.now()).run();if(!claim.meta.changes)continue;
-          try{await telegram(env,'sendMessage',{chat_id:userId,text:report.text||periodSummary(data,report.from,report.to,report.title)});}catch{await env.DB.prepare('DELETE FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,report.id).run();}
+          try{if(report.kind&&!responses.some(r=>r.kind===report.kind))await setDayCheck(env,userId,report.day,report.kind,'open');await telegram(env,'sendMessage',{chat_id:userId,text:report.text||periodSummary(data,report.from,report.to,report.title),...(report.reply_markup?{reply_markup:report.reply_markup}:{})});}catch{await env.DB.prepare('DELETE FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,report.id).run();}
         }
       }
       await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();

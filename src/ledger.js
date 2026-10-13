@@ -1,3 +1,4 @@
+import {validateReminderSettings} from './reminder-settings.js';
 export const roundMoney = n => Math.round((n + Number.EPSILON) * 100) / 100;
 export function parseMoney(value) {
   const s = String(value ?? '').trim().replace(/[\s\u00a0]/g, '').replace(',', '.');
@@ -123,6 +124,7 @@ export function migrateData(input, defaults) {
   const currencies=new Set(['RUB','USD','EUR','GBP','CNY','TRY']);
   for (const [currency,value] of Object.entries(data.rates)) if (!currencies.has(currency)||!Number.isFinite(value)||value<=0) throw new Error('Неверный курс в бэкапе');
   for (const key of ['budget','lunchDaily','workDays']) if (data.settings[key]!==undefined && (!Number.isFinite(data.settings[key])||data.settings[key]<0)) throw new Error('Неверная настройка: '+key);
+  validateReminderSettings(data.settings);
   for (const a of data.accounts) if (!a.id || !Number.isFinite(a.balance) || !currencies.has(a.currency||'RUB')) throw new Error('Неверный счёт в бэкапе');
   for (const tx of data.transactions) {
     if (!tx.id || !Number.isFinite(tx.amount) || tx.amount <= 0 || !currencies.has(tx.currency||'RUB') || !/^\d{4}-\d{2}-\d{2}$/.test(tx.date||'') || Number.isNaN(Date.parse(tx.date+'T00:00:00Z')) || new Date(tx.date+'T00:00:00Z').toISOString().slice(0,10)!==tx.date || (tx.tags!==undefined&&!Array.isArray(tx.tags))) throw new Error('Неверная операция в бэкапе');
