@@ -13,9 +13,9 @@ export function importAccountSources(doc){
  }
  return [...sources.values()].map(s=>({...s,currencies:[...s.currencies]}));
 }
-export function prepareImportAccounts(data,doc,bindings={}){
+export function prepareImportAccounts(data,doc,bindings={},options={}){
  let accounts=[...data.accounts];const mapping=new Map();
- for(const source of importAccountSources(doc)){
+ for(const source of importAccountSources({...doc,operations:doc.operations.filter((_,i)=>!options.excluded?.includes(i))})){
   const choice=bindings[source.key];
   if(!choice){const found=resolveImportAccount(data,source.name);if(found)mapping.set(source.key,found.id);continue;}
   if(choice.existing){const found=data.accounts.find(a=>a.id===choice.existing);if(!found)throw Error('Выбранный счёт больше не существует');mapping.set(source.key,found.id);continue;}
