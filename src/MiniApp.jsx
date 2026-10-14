@@ -44,7 +44,7 @@ export default function MiniApp(){
   const [historyLimit,setHistoryLimit]=useState(100);
   useEffect(()=>setHistoryLimit(100),[search,historyDate,chartFilter,historyType]);
   const data=state.data,today=todayMoscow(data.settings.timeZone),cats=useMemo(()=>CATEGORIES.concat(data.customCats||[]),[data.customCats]),summary=useMemo(()=>dashboard(data,today),[data,today]);
-  const track=useTelemetry(!demo&&data.settings.telemetryEnabled===true,page==='more'?tab:page,wide);
+  const track=useTelemetry(loaded&&!demo&&data.settings.telemetryEnabled!==false,page==='more'?tab:page,wide);
   const defaults=useMemo(()=>entryDefaults(data,'expense',today,cats),[data,today,cats]),suggestions=useMemo(()=>repeatSuggestions(data,today),[data,today]);
   const notify=text=>{setToast(text);try{tg?.HapticFeedback?.notificationOccurred('success');}catch{};setTimeout(()=>setToast(''),2600);};
   async function refresh(){if(demo||busyRef.current)return;try{const next=await apiRequest('state');next.data=migrateData(next.data,EMPTY);if(!busyRef.current&&next.revision>=ref.current.revision){ref.current=next;setState(next);setLoaded(true);setError('');}}catch(e){setError(e.message);}finally{setLoading(false);}}

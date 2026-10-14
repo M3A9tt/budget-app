@@ -1,3 +1,5 @@
+import {lunchChatMessage,lunchChatCallback,pruneLunchChat} from './lunch-chat.js';
+import {learningQueue,moderateLearning,pruneLearning} from './lunch-learning.js';
 import {botKeyboard,navigationCommand,summariesMenu,extraMenu,botHelp} from './bot-navigation.js';
 import {sendTestMessage} from './test-messages.js';
 import {telegramPresentation} from '../src/telegram-presentation.js';
@@ -88,6 +90,7 @@ async function mutateState(env,userId,change){
  await env.DB.prepare('DELETE FROM user_state_backups WHERE user_id=? AND revision < ?').bind(userId,Math.max(0,state.revision-49)).run();
 }
 const habitApi={readState,mutateState,telegram};
+const lunchChatApi={readState,writeTransaction,telegram,setDayCheck};
 async function showNotifications(env,userId){
  const url=new URL(env.MINI_APP_URL||'https://budget-staging.apersunov5.workers.dev');url.searchParams.set('settings','1');
  await telegram(env,'sendMessage',{chat_id:userId,text:'Настройка напоминаний теперь внутри мини-аппы: Настройки → Твой ритм. Там можно выбрать текст, время, повторы и вопросы об обедах. Всё можно отключить.',reply_markup:{inline_keyboard:[[{text:'Настроить в мини-аппе',web_app:{url:url.href}}]]}});
@@ -123,6 +126,7 @@ async function handleTelegram(update,env) {
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
       if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await telegram(env,'sendMessage',{chat_id:userId,text:'Ещё в Бюрджете',reply_markup:extraMenu(env.MINI_APP_URL)});else if(action==='updates')await send(releaseText());else if(action==='help')await showHome(botHelp);else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
+      if(await lunchChatCallback(env,userId,callback,lunchChatApi))return;
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
       if(await habitCallback(env,userId,callback,habitApi))return;
       if(data.startsWith('notify:')){
@@ -173,6 +177,7 @@ async function handleTelegram(update,env) {
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
     const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;
     if(['/today','/week','/month'].includes(text)){await showSummary({'/today':'day','/week':'week','/month':'month'}[text]);return;}
+    if(await lunchChatMessage(env,userId,update.message,lunchChatApi))return;
     if(await habitAmount(env,userId,text,habitApi))return;
     const defaults=state.data.settings.rememberEntryChoices===false?{}:entryDefaults(state.data,/зарплат|аванс|доход/i.test(text)?'income':'expense',today,CATEGORIES.concat(state.data.customCats||[]));
     const draft=parseEntry(text,state.data.accounts,state.data.customCats||[],today,defaults);
@@ -201,8 +206,9 @@ export default {
     const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
     if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
     try {
+      if(url.pathname==='/api/v1/admin/lunch-learning'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);if(request.method==='GET')return json(await learningQueue(env));if(request.method==='POST')return json(await moderateLearning(env,await request.json()));}
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
-      if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId);if(Number(request.headers.get('Content-Length')||0)>16000)return json({error:'Пакет слишком большой'},413);const text=await request.text();if(text.length>16000)return json({error:'Пакет слишком большой'},413);return json(await collectTelemetry(env,userId,JSON.parse(text),current.data.settings.telemetryEnabled));}
+      if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId);if(Number(request.headers.get('Content-Length')||0)>16000)return json({error:'Пакет слишком большой'},413);const text=await request.text();if(text.length>16000)return json({error:'Пакет слишком большой'},413);return json(await collectTelemetry(env,userId,JSON.parse(text),current.data.settings.telemetryEnabled!==false));}
       if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await request.json(),telegram,periodSummary));}
       if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await request.json(),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
@@ -241,6 +247,8 @@ export default {
       }
       if(now.getUTCMinutes()===0){
       await pruneTelemetry(env,now);
+      await pruneLearning(env);
+      await pruneLunchChat(env);
       await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();
       await env.DB.prepare('DELETE FROM user_web_sessions WHERE expires_at<?').bind(Date.now()).run();
       await env.DB.prepare('DELETE FROM telegram_drafts WHERE expires_at<?').bind(Date.now()).run();

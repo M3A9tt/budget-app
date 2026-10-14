@@ -3,3 +3,4 @@
 .mini-shell .entry-amount input:focus-visible{outline:none;box-shadow:none;border-bottom:1px solid #b4ed8955!important;border-radius:0}.mini-screen-back>.mini-text-button{width:auto;white-space:nowrap;flex-shrink:0;font-size:12px}
 .test-messages{margin-top:24px}.test-messages h3{display:flex;gap:9px;align-items:center}.test-message-status{font-size:12px;color:#b4ed89;white-space:nowrap}.test-messages .mini-tx:disabled{opacity:.55}
 .test-messages>summary{display:flex;align-items:center;gap:10px;color:#b4ed89;cursor:pointer}.test-messages[open]>summary{margin-bottom:14px}
+.learning-shape{background:#111722;padding:14px;border-radius:12px;white-space:pre-wrap;font-size:12px;color:#9fc5b1}.mini-card>summary{cursor:pointer}
