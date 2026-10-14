@@ -1,3 +1,6 @@
+import {deliverNotifications} from './notification-outbox.js';
+import {sendFeedback} from './feedback.js';
+import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {broadcastRelease} from './releases.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
 import {entryDefaults} from '../src/entry-assist.js';
@@ -31,7 +34,7 @@ export function periodSummary(data,from,to,title) {
   const start=new Date(from+'T12:00:00Z'),end=new Date(to+'T12:00:00Z');
   const days=Math.round((end-start)/86400000)+1;start.setUTCDate(start.getUTCDate()-days);end.setUTCDate(end.getUTCDate()-days);
   const previous=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&t.date>=start.toISOString().slice(0,10)&&t.date<=end.toISOString().slice(0,10)).reduce((n,t)=>n+rub(t),0);
-  const planning=dashboard({...EMPTY,...data,settings:{...EMPTY.settings,...data.settings}},moscowDate()),savings=data.accounts.filter(a=>a.accType==='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0);
+  const planning=dashboard({...EMPTY,...data,settings:{...EMPTY.settings,...data.settings}},clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date),savings=data.accounts.filter(a=>a.accType==='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0);
   const extra=`\nК предыдущему периоду той же длины: ${fmt(expense-previous)} (по записанным операциям)\nВ накоплениях сейчас: ${fmt(savings)}\nСвободно после резерва и платежей: ${fmt(planning.free)}${planning.days?' · до дохода '+planning.days+' дн.':''}`;
   return `${title}\n${from} — ${to}\nРасходы: ${fmt(expense)}\nДоходы: ${fmt(income)}\nОбеды за счёт компании: ${fmt(lunch)}\nНа обычных счетах: ${fmt(actual)}${top.length?'\n'+top.join('\n'):''}\nУчтено операций: ${txs.length}.${extra} Незаписанные покупки в итог не входят.`;
 }
@@ -157,7 +160,7 @@ async function handleTelegram(update,env) {
       await telegram(env,'sendMessage',{chat_id:chat.id,text:rows.results.length?'Приглашённые пользователи. Кнопка закрывает доступ, сохраняя данные.':'Пока никто не принял приглашение. Создать ссылку: /invite',reply_markup:{inline_keyboard:rows.results.map((r,i)=>[{text:'Закрыть доступ гостю '+(i+1),callback_data:'revoke:'+r.claimed_user}])}});return;
     }
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
-    const state=await readState(env,userId),today=moscowDate();
+    const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;
     if(['/today','/week','/month'].includes(text)) {
       const start=new Date(today+'T12:00:00Z');
       if(text==='/week')start.setUTCDate(start.getUTCDate()-6);
@@ -192,6 +195,7 @@ export default {
     const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
     if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
     try {
+      if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await request.json(),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
         const input=await request.json(),data=migrateData(input.data,EMPTY),current=await readState(env,userId);
@@ -213,22 +217,22 @@ export default {
     }catch(e){return json({error:e.message},400);}
   },
   async scheduled(event,env,ctx) {
-    // Hourly wake-up; reports at 21:00 Moscow. No dependency on an open browser.
+    // Minute wake-up in UTC; each profile uses its own IANA time zone.
     ctx.waitUntil((async()=>{
       const now=new Date(event.scheduledTime);
-      if(await hasAccess(env,env.TELEGRAM_OWNER_ID))await readState(env,String(env.TELEGRAM_OWNER_ID));
-      if(env.RELEASE_ANNOUNCEMENTS==='on')await broadcastRelease(env,telegram);
-      const profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
+      if(now.getUTCMinutes()===0&&await hasAccess(env,env.TELEGRAM_OWNER_ID))await readState(env,String(env.TELEGRAM_OWNER_ID));
+      if(now.getUTCMinutes()===0&&env.RELEASE_ANNOUNCEMENTS==='on')await broadcastRelease(env,telegram);
+      const allowed=await allAllowedUsers(env),profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
       for(const profile of profiles.results){
-        const userId=profile.user_id;if(!await hasAccess(env,userId)||profile.revision===0)continue;
-        const data=JSON.parse(profile.data),day=moscowDate(now),responses=await dayChecks(env,userId,day),reports=notificationJobs(data,now,responses);
-        for(const report of reports){const claim=await env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,report.id,Date.now()).run();if(!claim.meta.changes)continue;
-          try{if(report.kind&&!responses.some(r=>r.kind===report.kind))await setDayCheck(env,userId,report.day,report.kind,'open');await telegram(env,'sendMessage',{chat_id:userId,text:report.text||periodSummary(data,report.from,report.to,report.title),...(report.reply_markup?{reply_markup:report.reply_markup}:report.openPayments?{reply_markup:{inline_keyboard:[[{text:'Проверить планы',web_app:{url:env.MINI_APP_URL+'?payments=1'}}]]}}:{})});}catch{await env.DB.prepare('DELETE FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,report.id).run();}
-        }
+        const userId=profile.user_id;if(!allowed.includes(String(userId))||profile.revision===0)continue;
+        const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=data.settings?.expenseCheckEnabled||notificationJobs(data,now).some(r=>r.kind)?await dayChecks(env,userId,day):[],reports=notificationJobs(data,now,responses);
+        await deliverNotifications(env,userId,day,data,reports,responses,telegram,periodSummary,setDayCheck);
       }
+      if(now.getUTCMinutes()===0){
       await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();
       await env.DB.prepare('DELETE FROM user_web_sessions WHERE expires_at<?').bind(Date.now()).run();
       await env.DB.prepare('DELETE FROM telegram_drafts WHERE expires_at<?').bind(Date.now()).run();
+      }
     })());
   }
 };

@@ -1,3 +1,5 @@
+import {clockAt,DEFAULT_ZONE} from './time-settings.js';
+import {validateModules} from './modules.js';
 import {plannedPaid,planPeriod,planType} from './planned-model.js';
 import {validateReminderSettings} from './reminder-settings.js';
 export const roundMoney = n => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -74,9 +76,9 @@ export function putTransaction(data, input) {
   let next = old ? apply(data, old, -1) : data;
   const rule=input.recurringId&&data.recurring.find(r=>r.id===input.recurringId);
   if(input.recurringId&&!rule&&!old)throw Error('План операции больше не существует');
-  if(rule&&input.date>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(new Date()))throw Error('Будущую операцию оставьте планом; подтвердите после фактической оплаты или поступления');
+  if(rule&&input.date>clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date)throw Error('Будущую операцию оставьте планом; подтвердите после фактической оплаты или поступления');
   const period=rule?(input.recurringPeriod||planPeriod(rule,input.date)):undefined;
-  if(rule&&(input.type!==planType(rule)||!(rule.frequency==='once'?period==='once':/^\d{4}-(0[1-9]|1[0-2])$/.test(period))||(rule.skippedPeriods||[]).includes(period)))throw Error('Неверный или пропущенный период плана');
+  if(rule&&(input.type!==planType(rule)||!(rule.frequency==='once'?period==='once':['daily','weekly'].includes(rule.frequency)?/^\d{4}-\d{2}-\d{2}$/.test(period):/^\d{4}-(0[1-9]|1[0-2])$/.test(period))||(rule.skippedPeriods||[]).includes(period)))throw Error('Неверный или пропущенный период плана');
   if(rule&&plannedPaid({...data,transactions:data.transactions.filter(t=>t.id!==old?.id)}, {...rule,lastCreated:old?'':rule.lastCreated},period))throw Error('Этот период уже подтверждён');
   if(rule&&input.saveRecurringAmount&&(input.currency||'RUB')!==(rule.currency||'RUB'))throw Error('Чтобы обновить сумму плана, оставьте валюту плана или снимите флажок');
   const {saveRecurringAmount,...fields}=input;
@@ -132,23 +134,28 @@ export function migrateData(input, defaults) {
   }
   const data = {installments:[],reconciliations:[],...structuredClone(defaults), ...input, schemaVersion:2,
     settings:{...defaults.settings,...input.settings},rates:{...defaults.rates,...input.rates}};
+  const dateValid=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
+  for(const key of ['accounts','transactions','transfers','recurring','goals','debts','installments','reconciliations','customCats'])if(data[key].some(x=>!x||typeof x!=='object'||Array.isArray(x)))throw Error('Повреждённая запись: '+key);
+  if(data.settings.reserveRub!==undefined&&(!Number.isFinite(data.settings.reserveRub)||data.settings.reserveRub<0))throw Error('Неверный резерв');
+  if(data.settings.nextIncomeDate&&!dateValid(data.settings.nextIncomeDate))throw Error('Неверная дата следующего дохода');
   const currencies=new Set(['RUB','USD','EUR','GBP','CNY','TRY']);
   for (const [currency,value] of Object.entries(data.rates)) if (!currencies.has(currency)||!Number.isFinite(value)||value<=0) throw new Error('Неверный курс в бэкапе');
   for (const key of ['budget','lunchDaily','workDays']) if (data.settings[key]!==undefined && (!Number.isFinite(data.settings[key])||data.settings[key]<0)) throw new Error('Неверная настройка: '+key);
-  validateReminderSettings(data.settings);
+  validateReminderSettings(data.settings);validateModules(data.settings);
   if(data.settings.rememberEntryChoices!==undefined&&typeof data.settings.rememberEntryChoices!=='boolean')throw Error('Неверная настройка быстрого ввода');
   for (const a of data.accounts) if (!a.id || !Number.isFinite(a.balance) || !currencies.has(a.currency||'RUB')) throw new Error('Неверный счёт в бэкапе');
   for(const a of data.accounts){if(a.annualRate!==undefined&&(!Number.isFinite(a.annualRate)||a.annualRate<0))throw Error('Неверная ставка вклада');if(a.maturityDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(a.maturityDate)||Number.isNaN(Date.parse(a.maturityDate))||new Date(a.maturityDate+'T12:00:00Z').toISOString().slice(0,10)!==a.maturityDate))throw Error('Неверная дата окончания вклада');}
   for (const tx of data.transactions) {
-    if (!tx.id || !Number.isFinite(tx.amount) || tx.amount <= 0 || !currencies.has(tx.currency||'RUB') || !/^\d{4}-\d{2}-\d{2}$/.test(tx.date||'') || Number.isNaN(Date.parse(tx.date+'T00:00:00Z')) || new Date(tx.date+'T00:00:00Z').toISOString().slice(0,10)!==tx.date || (tx.tags!==undefined&&!Array.isArray(tx.tags))) throw new Error('Неверная операция в бэкапе');
+    if (!['expense','income','lunch'].includes(tx.type)||!tx.id || !Number.isFinite(tx.amount) || tx.amount <= 0 || !currencies.has(tx.currency||'RUB') || !/^\d{4}-\d{2}-\d{2}$/.test(tx.date||'') || Number.isNaN(Date.parse(tx.date+'T00:00:00Z')) || new Date(tx.date+'T00:00:00Z').toISOString().slice(0,10)!==tx.date || (tx.tags!==undefined&&!Array.isArray(tx.tags))) throw new Error('Неверная операция в бэкапе');
   }
-  for(const r of data.recurring){if(r.type!==undefined&&!['income','expense'].includes(r.type))throw Error('Неверный тип плана');if(r.frequency!==undefined&&!['monthly','once'].includes(r.frequency))throw Error('Неверный период плана');if(r.startDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(r.startDate)||Number.isNaN(Date.parse(r.startDate))||new Date(r.startDate+'T12:00:00Z').toISOString().slice(0,10)!==r.startDate))throw Error('Неверная дата плана');if(r.skippedPeriods!==undefined&&(!Array.isArray(r.skippedPeriods)||r.skippedPeriods.some(p=>p!=='once'&&!/^\d{4}-\d{2}$/.test(p))))throw Error('Неверный пропуск периода');}
+  for(const r of data.recurring){if(['once','daily','weekly'].includes(r.frequency)&&!dateValid(r.startDate))throw Error('Укажите первую дату плана');if(['daily','weekly'].includes(r.frequency)&&(Date.parse(new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings.timeZone||'Europe/Moscow'}).format(new Date())+'T12:00:00Z')-Date.parse(r.startDate+'T12:00:00Z'))/86400000/(r.frequency==='daily'?1:7)>9900)throw Error('Уточните начало плана: слишком много прошлых периодов');if(r.active!==undefined&&typeof r.active!=='boolean')throw Error('Неверное состояние плана');if(r.dueDay!==undefined&&(!Number.isInteger(r.dueDay)||r.dueDay<1||r.dueDay>31))throw Error('Неверный день плана');if(r.type!==undefined&&!['income','expense'].includes(r.type))throw Error('Неверный тип плана');if(r.frequency!==undefined&&!['daily','weekly','monthly','once'].includes(r.frequency))throw Error('Неверный период плана');if(r.startDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(r.startDate)||Number.isNaN(Date.parse(r.startDate))||new Date(r.startDate+'T12:00:00Z').toISOString().slice(0,10)!==r.startDate))throw Error('Неверная дата плана');if(r.skippedPeriods!==undefined&&(!Array.isArray(r.skippedPeriods)||r.skippedPeriods.some(p=>p!=='once'&&!/^\d{4}-\d{2}(?:-\d{2})?$/.test(p))))throw Error('Неверный пропуск периода');}
   for (const k of ['debts','goals','recurring']) for (const entity of data[k]) {
     if (!entity || !entity.id || (entity.payments!==undefined&&!Array.isArray(entity.payments))) throw new Error('Неверная запись: '+k);
     for (const field of ['amount','target','saved']) if (entity[field]!==undefined && (!Number.isFinite(entity[field])||entity[field]<0)) throw new Error('Неверная сумма: '+k);
   }
+  for(const t of data.transfers)if(!t.id||(!t.from&&!t.to)||(t.from&&t.from===t.to)||!Number.isFinite(t.amount)||t.amount<=0||!dateValid(t.date)||(t.fee!==undefined&&(!Number.isFinite(t.fee)||t.fee<0)))throw Error('Неверный перевод в бэкапе');
   for(const p of data.installments){if(!p.id||!Array.isArray(p.payments)||!Number.isFinite(p.total)||p.total<=0||!currencies.has(p.currency))throw new Error('Неверная рассрочка');for(const x of p.payments)if(!x.id||!Number.isFinite(x.amount)||x.amount<=0||!/^\d{4}-\d{2}-\d{2}$/.test(x.date))throw new Error('Неверный платёж рассрочки');}
-  for (const k of ['transactions','accounts','debts','goals','recurring','installments']) if (new Set(data[k].map(x=>x.id)).size !== data[k].length) throw new Error('Повторяющиеся ID: '+k);
+  for (const k of ['transactions','accounts','debts','goals','recurring','installments','transfers']) if (new Set(data[k].map(x=>x.id)).size !== data[k].length) throw new Error('Повторяющиеся ID: '+k);
   data.migrationWarnings = data.transactions.filter(t=>t.accountId && !Number.isFinite(t.accountAmount) && (t.currency||'RUB') !== (data.accounts.find(a=>a.id===t.accountId)?.currency||'RUB')).map(t=>t.id);
   // Preserve supplied balances. Historical bank exchange rates cannot be reconstructed.
   return data;

@@ -1,4 +1,4 @@
-import {moscowClock} from './notifications.js';
+import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {parseMoney} from '../src/ledger.js';
 export async function ensureHabits(env){await env.DB.prepare('CREATE TABLE IF NOT EXISTS user_day_checks(user_id TEXT NOT NULL,day TEXT NOT NULL,kind TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(user_id,day,kind))').run();}
 export async function dayChecks(env,userId,day){await ensureHabits(env);return(await env.DB.prepare('SELECT * FROM user_day_checks WHERE user_id=? AND day=?').bind(userId,day).all()).results;}
@@ -6,7 +6,7 @@ export async function setDayCheck(env,userId,day,kind,status,payload={}){await e
 const reasons={late:'Опоздал',vacation:'Отпуск',unpaid:'Неоплачиваемый отпуск',sick:'Больничный',other:'Другое'};
 export async function habitCallback(env,userId,callback,api){
  const value=callback.data||'';if(!value.startsWith('check:')&&!value.startsWith('lunch:'))return false;
- const [prefix,day,action,argument]=value.split(':'),kind=prefix==='check'?'expense':'lunch',clock=moscowClock(new Date());
+ const [prefix,day,action,argument]=value.split(':'),kind=prefix==='check'?'expense':'lunch',state=await api.readState(env,userId),clock=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE);
  if(day!==clock.date)throw Error('Этот вопрос за прошлый день. Открой приложение для записи задним числом.');
  const row=(await dayChecks(env,userId,day)).find(r=>r.kind===kind);
  if(!row)throw Error('Вопрос больше не активен.');
@@ -17,7 +17,7 @@ export async function habitCallback(env,userId,callback,api){
  }else if(kind==='expense'){
   if(!['done','none','pending','later'].includes(action))throw Error('Неизвестный ответ');
   if(['done','none'].includes(row.status)){await send('Этот день уже подтверждён. Повторов больше не будет.');}
-  else {await setDayCheck(env,userId,day,kind,action==='later'?'pending':action,action==='later'?{nextHour:clock.hour+1}:{});await send(action==='done'?'Принято ✅ Сегодня больше не спрашиваю.':action==='none'?'Без трат — тоже ответ ✅ Сегодня больше не спрашиваю.':action==='later'?(clock.hour<23?'Хорошо, спрошу через час.':'Уже поздно, сегодня больше не буду спрашивать.'):'Дозапиши расходы в мини-аппе или сообщением боту. Проверю в следующий выбранный час.');}
+  else {await setDayCheck(env,userId,day,kind,action==='later'?'pending':action,action==='later'?{nextMinute:clock.minutes+60}:{});await send(action==='done'?'Принято ✅ Сегодня больше не спрашиваю.':action==='none'?'Без трат — тоже ответ ✅ Сегодня больше не спрашиваю.':action==='later'?(clock.minutes+60<=1439?'Хорошо, спрошу через час.':'Уже поздно, сегодня больше не буду спрашивать.'):'Дозапиши расходы в мини-аппе или сообщением боту. Проверю в следующее выбранное время.');}
  }else if(['recorded','skipped'].includes(row.status)){await send('Ответ за этот день уже сохранён. Изменить учёт можно в мини-аппе.');}
  else if(action==='company'){
   const state=await api.readState(env,userId);
@@ -40,7 +40,7 @@ export async function habitCallback(env,userId,callback,api){
  await api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Принято'});return true;
 }
 export async function habitAmount(env,userId,text,api){
- const day=moscowClock(new Date()).date,row=(await dayChecks(env,userId,day)).find(r=>r.kind==='lunch'&&r.status==='amount');
+ const state=await api.readState(env,userId),day=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,row=(await dayChecks(env,userId,day)).find(r=>r.kind==='lunch'&&r.status==='amount');
  if(!row)return false;
  if(text==='/cancel'){await setDayCheck(env,userId,day,'lunch','open');await api.telegram(env,'sendMessage',{chat_id:userId,text:'Ввод обеда отменён. Ничего не записано.'});return true;}
  if(text.startsWith('/'))return false;

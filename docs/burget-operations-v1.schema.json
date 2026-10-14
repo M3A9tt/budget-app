@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Burget operations v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "operations"
+  ],
+  "properties": {
+    "format": {
+      "const": "burget-operations"
+    },
+    "version": {
+      "const": 1
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2000,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "type",
+              "amount",
+              "currency",
+              "note",
+              "account",
+              "category"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "type": {
+                "const": "expense"
+              },
+              "amount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000000.0,
+                "multipleOf": 0.01
+              },
+              "currency": {
+                "enum": [
+                  "RUB",
+                  "USD",
+                  "EUR",
+                  "GBP",
+                  "CNY",
+                  "TRY"
+                ]
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "externalId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "account": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "minLength": 1
+              },
+              "paymentMethod": {
+                "enum": [
+                  "card",
+                  "sbp",
+                  "cash",
+                  "bank",
+                  "unknown"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "type",
+              "amount",
+              "currency",
+              "note",
+              "account"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "type": {
+                "const": "income"
+              },
+              "amount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000000.0,
+                "multipleOf": 0.01
+              },
+              "currency": {
+                "enum": [
+                  "RUB",
+                  "USD",
+                  "EUR",
+                  "GBP",
+                  "CNY",
+                  "TRY"
+                ]
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "externalId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "account": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "const": "income"
+              },
+              "paymentMethod": {
+                "enum": [
+                  "card",
+                  "sbp",
+                  "cash",
+                  "bank",
+                  "unknown"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "type",
+              "amount",
+              "currency",
+              "note",
+              "from",
+              "to"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "type": {
+                "const": "transfer"
+              },
+              "amount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000000.0,
+                "multipleOf": 0.01
+              },
+              "currency": {
+                "enum": [
+                  "RUB",
+                  "USD",
+                  "EUR",
+                  "GBP",
+                  "CNY",
+                  "TRY"
+                ]
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "externalId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "from": {
+                "type": "string",
+                "minLength": 1
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1
+              },
+              "fee": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000000.0,
+                "multipleOf": 0.01
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -2,9 +2,9 @@ import {plannedOccurrences,planType} from './planned-model.js';
 import {paidInstallment} from './finance-tools.js';
 export const CATEGORIES=[{id:'food',name:'Еда',icon:'food',color:'#b8dec4'},{id:'transport',name:'Транспорт',icon:'transport',color:'#a6b7e8'},{id:'housing',name:'ЖКХ',icon:'home',color:'#d6b499'},{id:'health',name:'Здоровье',icon:'health',color:'#c2ace1'},{id:'fun',name:'Развлечения',icon:'play',color:'#d7bd79'},{id:'subs',name:'Подписки',icon:'repeat',color:'#a7cbd8'},{id:'clothes',name:'Одежда',icon:'other',color:'#c1bacd'},{id:'comm',name:'Связь',icon:'other',color:'#a6c2bc'},{id:'tech',name:'Техника',icon:'other',color:'#9eacc7'},{id:'other',name:'Другое',icon:'other',color:'#a2a8b7'}];
 export const EMPTY={schemaVersion:2,transactions:[],accounts:[],debts:[],goals:[],customCats:[],transfers:[],recurring:[],history:[],lunchDayOff:[],lunchDayMod:{},categoryBudgets:{},settings:{budget:0,lunchDaily:400,workDays:22,reserveRub:0,nextIncomeDate:''},rates:{RUB:1,USD:92,EUR:100,GBP:117,CNY:12.7,TRY:2.8}};
-export const todayMoscow=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(new Date());
+export const todayMoscow=(zone='Europe/Moscow')=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(new Date());
 export const money=(n,currency='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2,minimumFractionDigits:0}).format(n||0);
-export function dashboard(data,today=todayMoscow()) {
+export function dashboard(data,today=todayMoscow(data.settings?.timeZone)) {
   const rub=t=>Number.isFinite(t.amountRub)?t.amountRub:t.amount*(data.rates[t.currency||'RUB']||1);
   const month=today.slice(0,7),txs=data.transactions.filter(t=>t.date.startsWith(month)&&t.date<=today);
   const expenses=txs.filter(t=>t.type==='expense'&&t.cat!=='lunch'),income=txs.filter(t=>t.type==='income').reduce((n,t)=>n+rub(t),0);
@@ -12,8 +12,8 @@ export function dashboard(data,today=todayMoscow()) {
   const payday=data.settings.nextIncomeDate,hasPayday=/^\d{4}-\d{2}-\d{2}$/.test(payday||'')&&payday>today;
   const end=hasPayday?payday:today;
   let obligations=0,unknown=0;
-  for(const {rule:r} of plannedOccurrences(data,today,end).filter(i=>i.date<end)){if(planType(r)!=='expense')continue;if(r.variable)unknown++;else obligations+=r.amount*(data.rates[r.currency||'RUB']||1);}
-  for(const p of data.installments||[])for(const x of p.payments)if(x.date<end&&!paidInstallment(data,x))obligations+=x.amount*(data.rates[p.currency]||1);
+  for(const {rule:r} of plannedOccurrences(data,today,end).filter(i=>i.date<end)){if(planType(r)!=='expense'||data.accounts.find(a=>a.id===r.accountId)?.accType==='savings')continue;if(r.variable)unknown++;else obligations+=r.amount*(data.rates[r.currency||'RUB']||1);}
+  for(const p of data.installments||[])if(data.accounts.find(a=>a.id===p.accountId)?.accType!=='savings')for(const x of p.payments)if(x.date<end&&!paidInstallment(data,x))obligations+=x.amount*(data.rates[p.currency]||1);
   const reserve=data.settings.reserveRub||0,free=balance-reserve-obligations;
   const days=hasPayday?Math.round((new Date(payday+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/86400000):null;
   const categories=CATEGORIES.concat(data.customCats||[]).map(c=>({...c,value:expenses.filter(t=>t.cat===c.id).reduce((n,t)=>n+rub(t),0)})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
