@@ -1,3 +1,4 @@
+import {plannedOccurrences,planType} from './planned-model.js';
 import {CATEGORIES} from './mini-model.js';
 import {paidInstallment} from './finance-tools.js';
 export const COLORS=['#91dc75','#9f9bff','#ffbc76','#f78fa7','#6bcedb','#e7ca72','#d9a2f0','#75c9ac','#84b5ff','#a2acbe'];
@@ -15,6 +16,6 @@ export function analytics(data,today,days=7){
  return{from,total,previous,delta:total-previous,daily,cats:cats.filter(c=>c.value>0).sort((a,b)=>b.value-a.value),fixed,flex:total-fixed,months,activeDays:new Set(rows.map(t=>t.date)).size};
 }
 export function upcoming(data,today,horizon=30){const end=shiftDate(today,horizon),items=[];
- for(const r of data.recurring.filter(r=>r.active)){for(let i=0;i<3;i++){const d=new Date(today.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+i);const key=d.toISOString().slice(0,7),day=Math.min(r.dueDay||1,new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate()),date=key+'-'+String(day).padStart(2,'0');if(date<=end&&r.lastCreated!==key)items.push({id:r.id+key,name:r.name,date,amount:r.variable?null:r.amount*(data.rates[r.currency||'RUB']||1),kind:'Регулярный',overdue:date<today});}}
+ for(const {rule:r,date,period,overdue} of plannedOccurrences(data,today,end))items.push({id:r.id+period,name:r.name,date,amount:r.variable?null:r.amount*(data.rates[r.currency||'RUB']||1),type:planType(r),kind:planType(r)==='income'?'Ожидаемый доход':r.frequency==='once'?'Разовый':'Регулярный',overdue});
  for(const p of data.installments||[])for(const x of p.payments)if(x.date<=end&&!paidInstallment(data,x))items.push({id:x.id,name:p.name,date:x.date,amount:x.amount*(data.rates[p.currency||'RUB']||1),kind:'Рассрочка',overdue:x.date<today});
  return items.sort((a,b)=>a.date.localeCompare(b.date));}

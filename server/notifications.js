@@ -1,3 +1,4 @@
+import {plannedOccurrences,planType} from '../src/planned-model.js';
 import {reminderText} from '../src/reminder-settings.js';
 export function moscowClock(now){return{date:new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(now),hour:Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(now))};}
 export function checkSchedule(data,today){
@@ -19,6 +20,7 @@ export function notificationJobs(data,now,responses=[]){
  if(s.lunchAskEnabled===true&&hour===(s.lunchAskHour??11)&&(s.lunchAskDays||[1,2,3,4,5]).includes(local.getUTCDay())&&!(data.lunchDayOff||[]).includes(today)&&!hasLunch&&!lunch?.status){
   reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,text:'Обед сегодня заказал? 🍽\nЗапишем только после твоего подтверждения.',reply_markup:{inline_keyboard:[[{text:'Заказал · за счёт компании',callback_data:'lunch:'+today+':company'}],[{text:'Купил за свои',callback_data:'lunch:'+today+':own'},{text:'Не заказал',callback_data:'lunch:'+today+':skip'}],[{text:'Отключить вопросы',callback_data:'lunch:'+today+':off'}]]}});
  }
+ if(s.plannedReminders===true&&hour===(s.plannedReminderHour??18)){const due=plannedOccurrences(data,today,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,text:'Есть неподтверждённые планы. Изменилась ли сумма за этот период?\n'+due.slice(0,5).map(i=>(planType(i.rule)==='income'?'Доход: ':'Расход: ')+i.rule.name+' · '+i.date).join('\n')+(due.length>5?'\nЕщё '+(due.length-5)+' в приложении':'')+'\nПроверь сумму и подтверди только фактическую операцию. Настройки → Твой ритм — отключить вопросы о планах.'});}
  if(hour!==(s.reportHour??21))return reports;
  if(s.dailyReport!==false)reports.push({id:'day:'+today,from:today,to:today,title:'Итог дня'});
  if(s.weeklyReport!==false&&local.getUTCDay()===0){const from=new Date(local);from.setUTCDate(from.getUTCDate()-6);reports.push({id:'week:'+today,from:from.toISOString().slice(0,10),to:today,title:'Итог недели'});}

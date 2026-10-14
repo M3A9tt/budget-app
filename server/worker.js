@@ -1,3 +1,5 @@
+import {broadcastRelease} from './releases.js';
+import {latestRelease,releaseText} from '../src/release-notes.js';
 import {entryDefaults} from '../src/entry-assist.js';
 import {dayChecks,setDayCheck,habitCallback,habitAmount} from './habits.js';
 import {allAllowedUsers,hasAccess,ensureInvites} from './users.js';
@@ -66,7 +68,7 @@ async function writeTransaction(env,userId,input,key) {
 }
 async function telegram(env,method,body) {
   if(!env.TELEGRAM_BOT_TOKEN)throw new Error('Telegram не настроен');
-  const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
   const result=await r.json();if(method==='editMessageText'&&result.description?.includes('message is not modified'))return null;if(!r.ok||!result.ok)throw new Error('Не удалось доставить сообщение Telegram');return result.result;
 }
 async function mutateState(env,userId,change){
@@ -138,6 +140,7 @@ async function handleTelegram(update,env) {
     }
     const text=(update.message.text||'').trim();
     if(text==='/start'||text==='/help'){await readState(env,userId);await send('Пишите: кофе 180 Сбер или обед 379,50. Бот сначала покажет карточку — запись только после кнопки. /today — день, /week — 7 дней, /month — текущий месяц. /reminders — время и переключатели напоминаний и отчётов. /invite — пригласить друга (для владельца).');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
+    if(text==='/updates'){await send(releaseText());return;}
     if(text==='/reminders'){await showNotifications(env,userId);return;}
     if(text==='/invite'){
       if(userId!==String(env.TELEGRAM_OWNER_ID)){await send('Приглашения создаёт владелец приложения.');return;}
@@ -173,6 +176,7 @@ async function handleTelegram(update,env) {
 export default {
   async fetch(request,env) {
     const url=new URL(request.url);
+    if(url.pathname==='/api/v1/releases/announce'){if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);let input;try{input=await request.json();}catch{return json({error:'Invalid JSON'},400);}if(input.releaseId!==latestRelease.id)return json({error:'Release mismatch'},409);return json({releaseId:latestRelease.id,...await broadcastRelease(env,telegram)});}
     if(url.pathname==='/telegram/webhook') {
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Telegram-Bot-Api-Secret-Token'),env.TELEGRAM_WEBHOOK_SECRET))return json({error:'Unauthorized'},401);
       try {await handleTelegram(await request.json(),env);return json({ok:true});}catch{return json({error:'Delivery failed'},503);}
@@ -213,12 +217,13 @@ export default {
     ctx.waitUntil((async()=>{
       const now=new Date(event.scheduledTime);
       if(await hasAccess(env,env.TELEGRAM_OWNER_ID))await readState(env,String(env.TELEGRAM_OWNER_ID));
+      if(env.RELEASE_ANNOUNCEMENTS==='on')await broadcastRelease(env,telegram);
       const profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
       for(const profile of profiles.results){
         const userId=profile.user_id;if(!await hasAccess(env,userId)||profile.revision===0)continue;
         const data=JSON.parse(profile.data),day=moscowDate(now),responses=await dayChecks(env,userId,day),reports=notificationJobs(data,now,responses);
         for(const report of reports){const claim=await env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,report.id,Date.now()).run();if(!claim.meta.changes)continue;
-          try{if(report.kind&&!responses.some(r=>r.kind===report.kind))await setDayCheck(env,userId,report.day,report.kind,'open');await telegram(env,'sendMessage',{chat_id:userId,text:report.text||periodSummary(data,report.from,report.to,report.title),...(report.reply_markup?{reply_markup:report.reply_markup}:{})});}catch{await env.DB.prepare('DELETE FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,report.id).run();}
+          try{if(report.kind&&!responses.some(r=>r.kind===report.kind))await setDayCheck(env,userId,report.day,report.kind,'open');await telegram(env,'sendMessage',{chat_id:userId,text:report.text||periodSummary(data,report.from,report.to,report.title),...(report.reply_markup?{reply_markup:report.reply_markup}:report.openPayments?{reply_markup:{inline_keyboard:[[{text:'Проверить планы',web_app:{url:env.MINI_APP_URL+'?payments=1'}}]]}}:{})});}catch{await env.DB.prepare('DELETE FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,report.id).run();}
         }
       }
       await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();

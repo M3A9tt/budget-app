@@ -41,3 +41,5 @@
 @media(prefers-reduced-motion:reduce){.mini-nav button{transition:none}}
 
 .desktop-transactions .desktop-number.mini-income{color:#b8dec4}
+
+@media(max-width:359px){.mini-header-actions{gap:5px}.mini-header-actions .icon-button{width:38px;height:38px}}

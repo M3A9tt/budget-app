@@ -1,3 +1,4 @@
+import {plannedPaid,planPeriod,planType} from './planned-model.js';
 import {validateReminderSettings} from './reminder-settings.js';
 export const roundMoney = n => Math.round((n + Number.EPSILON) * 100) / 100;
 export function parseMoney(value) {
@@ -63,7 +64,7 @@ function reconcileRecurring(data,...ids) {
   if(!touched.size)return data;
   return {...data,recurring:(data.recurring||[]).map(rule=>{
     if(!touched.has(rule.id))return rule;
-    const months=data.transactions.filter(t=>t.recurringId===rule.id&&t.type==='expense').map(t=>t.date.slice(0,7)).sort();
+    const months=data.transactions.filter(t=>t.recurringId===rule.id&&t.type===planType(rule)).map(t=>t.recurringPeriod||planPeriod(rule,t.date)).sort();
     return {...rule,lastCreated:months.at(-1)||''};
   })};
 }
@@ -71,7 +72,16 @@ export function putTransaction(data, input) {
   const old = data.transactions.find(t => t.id === input.id);
   if (old && input.revision !== old.revision) throw new Error('Операция уже изменена. Откройте её заново');
   let next = old ? apply(data, old, -1) : data;
-  const tx = prepare(next, input);
+  const rule=input.recurringId&&data.recurring.find(r=>r.id===input.recurringId);
+  if(input.recurringId&&!rule&&!old)throw Error('План операции больше не существует');
+  if(rule&&input.date>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(new Date()))throw Error('Будущую операцию оставьте планом; подтвердите после фактической оплаты или поступления');
+  const period=rule?(input.recurringPeriod||planPeriod(rule,input.date)):undefined;
+  if(rule&&(input.type!==planType(rule)||!(rule.frequency==='once'?period==='once':/^\d{4}-(0[1-9]|1[0-2])$/.test(period))||(rule.skippedPeriods||[]).includes(period)))throw Error('Неверный или пропущенный период плана');
+  if(rule&&plannedPaid({...data,transactions:data.transactions.filter(t=>t.id!==old?.id)}, {...rule,lastCreated:old?'':rule.lastCreated},period))throw Error('Этот период уже подтверждён');
+  if(rule&&input.saveRecurringAmount&&(input.currency||'RUB')!==(rule.currency||'RUB'))throw Error('Чтобы обновить сумму плана, оставьте валюту плана или снимите флажок');
+  const {saveRecurringAmount,...fields}=input;
+  const tx = prepare(next,{...fields,...(rule?{recurringPeriod:period}:{})});
+  if(rule&&saveRecurringAmount)next={...next,recurring:next.recurring.map(r=>r.id===rule.id?{...r,amount:tx.amount}:r)};
   next = apply(next, tx, 1);
   next = {...next, transactions: old ? next.transactions.map(t => t.id === tx.id ? tx : t) : [...next.transactions,tx]};
   return log(reconcileRecurring(next,old?.recurringId,tx.recurringId), {type:old?'edit_tx':'add_tx',before:old,after:tx});
@@ -100,16 +110,17 @@ export function undoTransaction(data, entry) {
   }
   return reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId);
 }
-export function transferMoney(data, {from,to,amount,fee=0,note='',date}) {
+export function transferMoney(data, {from,to,amount,fee=0,note='',date,externalId,balanceEffect='normal'}) {
   const a = positive(amount), f = parseMoney(fee);
   if (!Number.isFinite(f) || f < 0) throw new Error('Неверная комиссия');
   const source = data.accounts.find(x => x.id === from), target = data.accounts.find(x => x.id === to);
   if (!source || !target || from === to) throw new Error('Выберите разные счета');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date||'') || Number.isNaN(Date.parse(date+'T12:00:00Z')) || new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw new Error('Неверная дата перевода');
   if ((source.currency||'RUB') !== (target.currency||'RUB')) throw new Error('Переводы между разными валютами временно отключены: нужен фактический курс обмена');
-  let next = {...data, accounts:data.accounts.map(x => x.id === from ? {...x,balance:roundMoney(x.balance-a)} : x.id === to ? {...x,balance:roundMoney(x.balance+a)} : x),
-    transfers:[...(data.transfers||[]),{id:newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date}]};
-  if (f) next = putTransaction(next,{type:'expense',cat:'other',amount:f,currency:source.currency||'RUB',note:'Комиссия за перевод'+(note?' · '+note:''),date,tags:['комиссия'],accountId:from});
+  if(!['normal','history-only'].includes(balanceEffect))throw Error('Неверный режим перевода');
+  let next = {...data, accounts:balanceEffect==='history-only'?data.accounts:data.accounts.map(x => x.id === from ? {...x,balance:roundMoney(x.balance-a)} : x.id === to ? {...x,balance:roundMoney(x.balance+a)} : x),
+    transfers:[...(data.transfers||[]),{id:newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,balanceEffect}]};
+  if (f) next = putTransaction(next,{type:'expense',cat:'other',amount:f,currency:source.currency||'RUB',note:'Комиссия за перевод'+(note?' · '+note:''),date,tags:['комиссия'],accountId:from,balanceEffect});
   return next;
 }
 export function migrateData(input, defaults) {
@@ -131,6 +142,7 @@ export function migrateData(input, defaults) {
   for (const tx of data.transactions) {
     if (!tx.id || !Number.isFinite(tx.amount) || tx.amount <= 0 || !currencies.has(tx.currency||'RUB') || !/^\d{4}-\d{2}-\d{2}$/.test(tx.date||'') || Number.isNaN(Date.parse(tx.date+'T00:00:00Z')) || new Date(tx.date+'T00:00:00Z').toISOString().slice(0,10)!==tx.date || (tx.tags!==undefined&&!Array.isArray(tx.tags))) throw new Error('Неверная операция в бэкапе');
   }
+  for(const r of data.recurring){if(r.type!==undefined&&!['income','expense'].includes(r.type))throw Error('Неверный тип плана');if(r.frequency!==undefined&&!['monthly','once'].includes(r.frequency))throw Error('Неверный период плана');if(r.startDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(r.startDate)||Number.isNaN(Date.parse(r.startDate))||new Date(r.startDate+'T12:00:00Z').toISOString().slice(0,10)!==r.startDate))throw Error('Неверная дата плана');if(r.skippedPeriods!==undefined&&(!Array.isArray(r.skippedPeriods)||r.skippedPeriods.some(p=>p!=='once'&&!/^\d{4}-\d{2}$/.test(p))))throw Error('Неверный пропуск периода');}
   for (const k of ['debts','goals','recurring']) for (const entity of data[k]) {
     if (!entity || !entity.id || (entity.payments!==undefined&&!Array.isArray(entity.payments))) throw new Error('Неверная запись: '+k);
     for (const field of ['amount','target','saved']) if (entity[field]!==undefined && (!Number.isFinite(entity[field])||entity[field]<0)) throw new Error('Неверная сумма: '+k);

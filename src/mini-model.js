@@ -1,3 +1,4 @@
+import {plannedOccurrences,planType} from './planned-model.js';
 import {paidInstallment} from './finance-tools.js';
 export const CATEGORIES=[{id:'food',name:'Еда',icon:'food',color:'#b8dec4'},{id:'transport',name:'Транспорт',icon:'transport',color:'#a6b7e8'},{id:'housing',name:'ЖКХ',icon:'home',color:'#d6b499'},{id:'health',name:'Здоровье',icon:'health',color:'#c2ace1'},{id:'fun',name:'Развлечения',icon:'play',color:'#d7bd79'},{id:'subs',name:'Подписки',icon:'repeat',color:'#a7cbd8'},{id:'clothes',name:'Одежда',icon:'other',color:'#c1bacd'},{id:'comm',name:'Связь',icon:'other',color:'#a6c2bc'},{id:'tech',name:'Техника',icon:'other',color:'#9eacc7'},{id:'other',name:'Другое',icon:'other',color:'#a2a8b7'}];
 export const EMPTY={schemaVersion:2,transactions:[],accounts:[],debts:[],goals:[],customCats:[],transfers:[],recurring:[],history:[],lunchDayOff:[],lunchDayMod:{},categoryBudgets:{},settings:{budget:0,lunchDaily:400,workDays:22,reserveRub:0,nextIncomeDate:''},rates:{RUB:1,USD:92,EUR:100,GBP:117,CNY:12.7,TRY:2.8}};
@@ -11,16 +12,7 @@ export function dashboard(data,today=todayMoscow()) {
   const payday=data.settings.nextIncomeDate,hasPayday=/^\d{4}-\d{2}-\d{2}$/.test(payday||'')&&payday>today;
   const end=hasPayday?payday:today;
   let obligations=0,unknown=0;
-  for(const r of data.recurring.filter(r=>r.active)){
-    const cursor=new Date(today.slice(0,7)+'-01T12:00:00Z'),limit=new Date(end+'T12:00:00Z');
-    // Ignore invalid or excessively distant dates. Planning covers at most 12 months.
-    for(let i=0;i<12&&cursor<=limit;i++,cursor.setUTCMonth(cursor.getUTCMonth()+1)){
-      const y=cursor.getUTCFullYear(),m=cursor.getUTCMonth(),day=Math.min(r.dueDay||1,new Date(Date.UTC(y,m+1,0)).getUTCDate());
-      const due=new Date(Date.UTC(y,m,day,12)).toISOString().slice(0,10),key=due.slice(0,7);
-      const overdue=key===today.slice(0,7)&&due<today;
-      if((due>=today||overdue)&&due<end&&r.lastCreated!==key){if(r.variable)unknown++;else obligations+=r.amount*(data.rates[r.currency||'RUB']||1);}
-    }
-  }
+  for(const {rule:r} of plannedOccurrences(data,today,end).filter(i=>i.date<end)){if(planType(r)!=='expense')continue;if(r.variable)unknown++;else obligations+=r.amount*(data.rates[r.currency||'RUB']||1);}
   for(const p of data.installments||[])for(const x of p.payments)if(x.date<end&&!paidInstallment(data,x))obligations+=x.amount*(data.rates[p.currency]||1);
   const reserve=data.settings.reserveRub||0,free=balance-reserve-obligations;
   const days=hasPayday?Math.round((new Date(payday+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/86400000):null;

@@ -1,3 +1,4 @@
+import {plannedOccurrences,planType} from './planned-model.js';
 import {parseMoney,roundMoney,putTransaction,transferMoney} from './ledger.js';
 const id=()=>crypto.randomUUID();
 export function validDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;}
@@ -35,9 +36,10 @@ export function forecast(data,today,days=30){
  const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&t.date>=from&&t.date<=today);
  const daily=rows.reduce((n,t)=>n+(t.amountRub??t.amount*(data.rates[t.currency||'RUB']||1)),0)/30;
  let balance=data.accounts.filter(a=>a.accType!=='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0)-(data.settings.reserveRub||0),unknown=0;
+ const limit=new Date(today+'T12:00:00Z');limit.setUTCDate(limit.getUTCDate()+days);const plansByDate=new Map();for(const item of plannedOccurrences(data,today,limit.toISOString().slice(0,10))){if(planType(item.rule)!=='expense')continue;if(!plansByDate.has(item.date))plansByDate.set(item.date,[]);plansByDate.get(item.date).push(item.rule);}
  const points=[];
  for(let i=1;i<=days;i++){const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+i);const date=d.toISOString().slice(0,10);let due=0;
- for(const r of data.recurring.filter(r=>r.active)){const day=Math.min(r.dueDay||1,new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate());if(d.getUTCDate()===day&&r.lastCreated!==date.slice(0,7)){if(r.variable)unknown++;else due+=r.amount*(data.rates[r.currency||'RUB']||1);}}
+ for(const r of plansByDate.get(date)||[]){if(r.variable)unknown++;else due+=r.amount*(data.rates[r.currency||'RUB']||1);}
  for(const p of data.installments||[])for(const pay of p.payments)if(pay.date===date&&!paidInstallment(data,pay))due+=pay.amount*(data.rates[p.currency]||1);
  balance=roundMoney(balance-daily-due);points.push({date,balance});}
  return {daily:roundMoney(daily),points,unknown,activeDays:new Set(rows.map(t=>t.date)).size,firstNegative:points.find(p=>p.balance<0)?.date};
@@ -50,20 +52,35 @@ export function csvRows(text){
  for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===sep&&!quoted){row.push(cell);cell='';}else if(c==='\n'&&!quoted){row.push(cell.replace(/\r$/,''));if(row.some(x=>x.trim()))rows.push(row);row=[];cell='';}else cell+=c;}
  if(quoted)throw Error('Незакрытая кавычка CSV');row.push(cell.replace(/\r$/,''));if(row.some(x=>x.trim()))rows.push(row);return rows;
 }
+const transferKey=t=>JSON.stringify([t.date,roundMoney(t.amount),t.from,t.to]);
+const resolveAccount=(data,value)=>{const hits=data.accounts.filter(a=>a.id===value||a.name.toLocaleLowerCase('ru')===String(value).trim().toLocaleLowerCase('ru'));if(hits.length!==1)throw Error('Укажите точный ID или уникальное название второго счёта');return hits[0];};
 const fingerprint=t=>JSON.stringify([t.date,roundMoney(t.amount),t.type,t.currency||'RUB',t.accountId||'',(t.note||'').trim().toLowerCase()]);
 export function previewImport(data,text,accountId){
  const account=data.accounts.find(a=>a.id===accountId);if(!account)throw Error('Выберите счёт выписки');const rows=csvRows(text),header=rows.shift()?.map(s=>s.trim().toLowerCase());
  if(!header||!['date','amount','note'].every(k=>header.includes(k)))throw Error('Заголовки CSV: date;amount;note;type;paymentMethod;externalId. Расход — отрицательное amount или type=expense.');
- const seen=new Set(data.transactions.map(fingerprint)),external=new Set(data.transactions.filter(t=>t.externalId&&t.accountId===accountId).map(t=>t.externalId));
+ const transferFees=new Map();const seen=new Set(data.transactions.map(fingerprint)),external=new Set(data.transactions.filter(t=>t.externalId&&t.accountId===accountId).map(t=>t.externalId));
  return rows.map((row,i)=>{try{const r=Object.fromEntries(header.map((k,j)=>[k,row[j]||'']));const amount=parseMoney(r.amount);if(!validDate(r.date)||!Number.isFinite(amount)||amount===0)throw Error('Неверная дата или сумма');
- if(r.type&&!['expense','income'].includes(r.type))throw Error('Тип должен быть expense или income');if(!r.type&&amount>0)throw Error('Для положительной суммы укажите type=income или expense');
+ if(r.type==='transfer'){
+  const other=resolveAccount(data,amount<0?(r.toaccountid||r.toaccount):(r.fromaccountid||r.fromaccount));
+  if(other.id===accountId||(other.currency||'RUB')!==(account.currency||'RUB'))throw Error('Для перевода нужны разные счета в одной валюте');
+  const fee=r.fee?parseMoney(r.fee):0;if(!Number.isFinite(fee)||fee<0)throw Error('Неверная комиссия перевода');
+  const transfer={from:amount<0?accountId:other.id,to:amount<0?other.id:accountId,amount:Math.abs(amount),fee,date:r.date,note:r.note.trim(),externalId:r.externalid||undefined};
+  const key=transferKey(transfer),existing=(data.transfers||[]).find(t=>transferKey(t)===key);
+  if((existing&&(existing.fee||0)!==fee)||(transferFees.has(key)&&transferFees.get(key)!==fee))throw Error('Похожий перевод уже есть с другой комиссией. Сверьте его вручную');
+  const duplicate=!!existing||seen.has('transfer:'+key);seen.add('transfer:'+key);transferFees.set(key,fee);
+  return{line:i+2,transfer,duplicate,referenceDuplicate:false};
+ }
+ if(r.type&&!['expense','income'].includes(r.type))throw Error('Тип должен быть expense, income или transfer');if(!r.type&&amount>0)throw Error('Для положительной суммы укажите type=income или expense');
  const t={date:r.date,type:r.type||'expense',amount:Math.abs(amount),note:r.note.trim(),cat:r.type==='income'?'income':'other',currency:account.currency||'RUB',accountId,paymentMethod:r.paymentmethod||'unknown',externalId:r.externalid||undefined,tags:['импорт']};if(!['card','sbp','cash','bank','unknown'].includes(t.paymentMethod))throw Error('Неизвестный способ оплаты');
- const key=fingerprint(t),duplicate=seen.has(key)||(t.externalId&&external.has(t.externalId));seen.add(key);if(t.externalId)external.add(t.externalId);return{line:i+2,transaction:t,duplicate:!!duplicate};
+ const key=fingerprint(t),referenceDuplicate=!!(t.externalId&&external.has(t.externalId)),duplicate=seen.has(key)||referenceDuplicate;seen.add(key);if(t.externalId)external.add(t.externalId);return{line:i+2,transaction:t,duplicate:!!duplicate,referenceDuplicate};
  }catch(e){return{line:i+2,error:e.message};}});
 }
 export function commitImport(data,rows,{affectBalances=false}={}){
- if(rows.some(r=>r.error))throw Error('Исправьте ошибки выписки до импорта');let next=data;
- for(const row of rows.filter(r=>!r.duplicate)){if(next.transactions.some(t=>fingerprint(t)===fingerprint(row.transaction)||(t.externalId&&t.externalId===row.transaction.externalId&&t.accountId===row.transaction.accountId)))continue;
+ if(rows.some(r=>r.error))throw Error('Исправьте ошибки выписки до импорта');
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(new Date());
+ if(affectBalances&&rows.some(r=>(!r.duplicate||r.force)&&(r.transfer||r.transaction)?.date>today))throw Error('Будущие операции оставьте планами; они не должны менять текущие остатки');
+ let next=data;
+ for(const row of rows.filter(r=>!r.duplicate||r.force&&!r.referenceDuplicate)){if(row.transfer){if(!row.force&&(next.transfers||[]).some(t=>transferKey(t)===transferKey(row.transfer)))continue;next=transferMoney(next,{...row.transfer,balanceEffect:affectBalances?'normal':'history-only'});continue;}if(next.transactions.some(t=>!row.force&&fingerprint(t)===fingerprint(row.transaction)||(t.externalId&&t.externalId===row.transaction.externalId&&t.accountId===row.transaction.accountId)))continue;
  next=putTransaction(next,{...row.transaction,balanceEffect:affectBalances?'normal':'history-only'});}
  return next;
 }

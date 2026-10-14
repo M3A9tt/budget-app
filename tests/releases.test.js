@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {releases,validateReleases,releaseText} from '../src/release-notes.js';
+test('Release notes are unique, dated, descriptive and fit a Telegram message',()=>{validateReleases(releases);assert.ok(releaseText().length<3500);assert.throws(()=>validateReleases([...releases,releases[0]]));assert.throws(()=>validateReleases([{...releases[0],changes:[]} ]));assert.throws(()=>validateReleases([{...releases[0],date:'2026-02-30'}]));});
