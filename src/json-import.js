@@ -10,7 +10,20 @@ const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
 const sameMoney=(a,b)=>roundMoney(a)===roundMoney(b);
 const ownAccount=(data,value)=>{if(typeof value!=='string')throw Error('Выберите свой счёт');const hits=data.accounts.filter(a=>a.id===value||a.name.trim().toLocaleLowerCase('ru')===value.trim().toLocaleLowerCase('ru'));if(hits.length!==1)throw Error('Выберите счёт: название не найдено или неоднозначно');return hits[0];};
 function money(value){if(typeof value!=='number'||!Number.isFinite(value)||value<=0||value>1e12||Math.abs(value*100-Math.round(value*100))>0.001)throw Error('Сумма — положительное число с максимум двумя знаками');return roundMoney(value);}
-export function parseImportJson(text){if(typeof text!=='string'||text.length>2_000_000)throw Error('JSON — до 2 МБ');let doc;try{doc=JSON.parse(text.replace(/^\uFEFF/,''));}catch{throw Error('Некорректный JSON: проверьте запятые и кавычки');}validateDocument(doc);return doc;}
+export function parseImportJson(text){if(typeof text!=='string'||text.length>2_000_000)throw Error('JSON — до 2 МБ');let doc;const clean=text.replace(/^\uFEFF/,'').trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i,'$1');try{doc=JSON.parse(clean);}catch{throw Error('Не удалось прочитать JSON. Загрузите сам .json файл или вставьте только JSON без пояснений.');}doc=normalizeLunchDocument(doc);validateDocument(doc);return doc;}
+export function normalizeLunchDocument(doc){
+ if(!object(doc)||doc.format!=='burget-lunches-v1')return doc;
+ if(Object.keys(doc).some(k=>!['format','employee','currency','daily_allowance','lunches'].includes(k))||doc.currency!=='RUB'||!Array.isArray(doc.lunches)||!doc.lunches.length||doc.lunches.length>2000)throw Error('Файл burget-lunches-v1 должен содержать currency: RUB и список lunches');
+ if(doc.daily_allowance!==undefined&&(typeof doc.daily_allowance!=='number'||!Number.isFinite(parseMoney(doc.daily_allowance))||doc.daily_allowance<0))throw Error('Некорректный daily_allowance');
+ if(doc.employee!==undefined&&(!object(doc.employee)||Object.keys(doc.employee).some(k=>!['name','id'].includes(k))))throw Error('Некорректный employee');
+ const operations=doc.lunches.map((row,index)=>{
+  if(!object(row)||Object.keys(row).some(k=>!['date','amount','items','note','externalId'].includes(k)))throw Error(`Обед ${index+1}: неизвестные поля`);
+  if(row.items!==undefined&&(!Array.isArray(row.items)||row.items.length>100||row.items.some(i=>!object(i)||Object.keys(i).some(k=>!['name','quantity'].includes(k))||typeof i.name!=='string'||!i.name.trim()||i.name.length>200||!Number.isInteger(i.quantity)||i.quantity<1||i.quantity>100)))throw Error(`Обед ${index+1}: проверьте названия и количества блюд`);
+  const note=row.note??((row.items||[]).map(i=>`${i.name.trim()} × ${i.quantity}`).join(', ')||'Обед компании');
+  return {date:row.date,type:'lunch',amount:row.amount,currency:'RUB',note,...(row.externalId!==undefined?{externalId:row.externalId}:{})};
+ });
+ return {format:IMPORT_FORMAT,version:1,operations};
+}
 function validateDocument(doc){if(!object(doc)||doc.format!==IMPORT_FORMAT||doc.version!==1||!Array.isArray(doc.operations)||doc.operations.length<1||doc.operations.length>2000||Object.keys(doc).some(k=>!['format','version','operations'].includes(k)))throw Error('Нужен burget-operations версии 1, от 1 до 2000 операций. Бэкап восстанавливается в отдельном разделе.');}
 export function previewJsonImport(data,doc,options={}){
  validateDocument(doc);const categories=new Set(CATEGORIES.concat(data.customCats||[]).map(c=>c.id)),transactions=[...data.transactions],transfers=[...(data.transfers||[])];

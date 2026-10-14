@@ -17,6 +17,8 @@ test('Settings initially show only the category menu, with no long import or rem
 });
 test('Lunch deep link renders the separate monthly budget and direct panel tab',()=>{
  const {MiniApp}=components('?lunch=1&demo=1'),html=renderToStaticMarkup(React.createElement(MiniApp));
- assert.ok(html.includes('data-page="lunch"'));assert.ok(html.includes('Профицит'));assert.ok(html.includes('Дефицит'));assert.ok(html.includes('Загрузить JSON'));assert.ok(html.includes('Калькулятор заказа'));assert.ok(html.includes('aria-current="page"'));assert.ok(html.includes('<span>Обеды</span>'));
+ assert.ok(html.includes('data-page="lunch"'));assert.ok(html.includes('Профицит'));assert.ok(html.includes('JSON'));assert.ok(html.includes('Посчитать'));assert.ok(html.includes('<table'));for(const label of ['Доступно','Потрачено','± день','Баланс'])assert.ok(html.includes(label));assert.ok(!html.includes('<textarea'));assert.ok(!html.includes('<form'));assert.ok(html.includes('aria-current="page"'));assert.ok(html.includes('<span>Обеды</span>'));
  assert.ok(!html.includes('<details open'));assert.ok(!html.includes('lunch-json-example'));
 });
+
+test("Table summary labels a negative balance as deficit",()=>{const {LunchPage}=components(),d=structuredClone(EMPTY);d.transactions=[{id:"test",date:"2026-10-01",type:"lunch",cat:"lunch",currency:"RUB",amount:100000}];const html=renderToStaticMarkup(React.createElement(LunchPage,{data:d,mutate:async()=>true,busy:false,onAdd:()=>{},onEdit:()=>{}}));assert.ok(html.includes("Дефицит"));assert.ok(html.includes("lunch-table"));});
