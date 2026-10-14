@@ -142,6 +142,8 @@ export function migrateData(input, defaults) {
   for (const [currency,value] of Object.entries(data.rates)) if (!currencies.has(currency)||!Number.isFinite(value)||value<=0) throw new Error('Неверный курс в бэкапе');
   for (const key of ['budget','lunchDaily','workDays']) if (data.settings[key]!==undefined && (!Number.isFinite(data.settings[key])||data.settings[key]<0)) throw new Error('Неверная настройка: '+key);
   if(data.settings.telemetryEnabled!==undefined&&typeof data.settings.telemetryEnabled!=='boolean')throw Error('Неверная настройка телеметрии');
+  if(data.settings.lunchEmployeeId!==undefined&&!/^\d{1,5}$/.test(data.settings.lunchEmployeeId))throw Error('Номер сотрудника: от 1 до 5 цифр');
+  if(data.settings.lunchLearningEnabled!==undefined&&typeof data.settings.lunchLearningEnabled!=='boolean')throw Error('Неверная настройка обучения обедов');
   validateReminderSettings(data.settings);validateModules(data.settings);
   if(data.settings.rememberEntryChoices!==undefined&&typeof data.settings.rememberEntryChoices!=='boolean')throw Error('Неверная настройка быстрого ввода');
   for (const a of data.accounts) if (!a.id || !Number.isFinite(a.balance) || !currencies.has(a.currency||'RUB')) throw new Error('Неверный счёт в бэкапе');
