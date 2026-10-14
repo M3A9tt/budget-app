@@ -17,3 +17,5 @@
 .ins-forecast+ .ins-hint{line-height:1.6}
 
 .lunch-item{padding:4px 0 16px;border-bottom:1px solid var(--mini-line);margin-bottom:16px}.mini-page[data-page=lunch] summary{cursor:pointer;font-size:15px;font-weight:600}.mini-page[data-page=lunch] h2{font-size:18px}.mini-page[data-page=lunch] .mini-payment-row{gap:16px}.mini-page[data-page=lunch] .mini-payment-row strong{white-space:nowrap}
+
+.lunch-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 18px}.lunch-actions button{gap:8px;display:flex;align-items:center;justify-content:center}.mini-page h2>svg,.mini-page summary>svg{vertical-align:middle;margin-right:7px}.lunch-explain{margin-top:12px}.lunch-explain summary{font-weight:400!important;color:var(--mini-muted);font-size:12px!important}.lunch-json-example{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:1.7;color:var(--mini-muted)}

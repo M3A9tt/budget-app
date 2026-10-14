@@ -207,6 +207,44 @@
                 "multipleOf": 0.01
               }
             }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "type",
+              "amount",
+              "currency",
+              "note"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "amount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000000.0,
+                "multipleOf": 0.01
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "externalId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type": {
+                "const": "lunch"
+              },
+              "currency": {
+                "const": "RUB"
+              }
+            }
           }
         ]
       }
