@@ -15,3 +15,5 @@
 .mini-import-preview{max-height:620px;overflow:auto;overscroll-behavior:contain}
 .mini-form input[type=time]{color-scheme:dark;min-height:44px}
 .ins-forecast+ .ins-hint{line-height:1.6}
+
+.lunch-item{padding:4px 0 16px;border-bottom:1px solid var(--mini-line);margin-bottom:16px}.mini-page[data-page=lunch] summary{cursor:pointer;font-size:15px;font-weight:600}.mini-page[data-page=lunch] h2{font-size:18px}.mini-page[data-page=lunch] .mini-payment-row{gap:16px}.mini-page[data-page=lunch] .mini-payment-row strong{white-space:nowrap}
