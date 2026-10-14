@@ -1,3 +1,4 @@
+import {lunchDayRatio} from '../src/lunch-budget.js';
 import {clockAt,settingTime,timeMinutes,DEFAULT_ZONE} from '../src/time-settings.js';
 import {moduleEnabled} from '../src/modules.js';
 import {plannedOccurrences,planType} from '../src/planned-model.js';
@@ -19,7 +20,7 @@ export function notificationJobs(data,now,responses=[]){
   reports.push({id:'check:'+today+':'+minutes,kind:'expense',day:today,text:reminderText(s,today,slots.indexOf(minutes)),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},{text:'Сегодня без трат',callback_data:'check:'+today+':none'}],[{text:'Ещё не всё',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}});
  }
  const hasLunch=data.transactions.some(t=>t.date===today&&(t.type==='lunch'||t.cat==='lunch'));
- if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&minutes===timeMinutes(settingTime(s,'lunchAsk',11))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&!(data.lunchDayOff||[]).includes(today)&&!hasLunch&&!lunch?.status){
+ if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&minutes===timeMinutes(settingTime(s,'lunchAsk',11))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&lunchDayRatio(data,today)>0&&!hasLunch&&!lunch?.status){
   reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,text:'Обед сегодня заказал? 🍽\nЗапишем только после твоего подтверждения.',reply_markup:{inline_keyboard:[[{text:'Заказал · за счёт компании',callback_data:'lunch:'+today+':company'}],[{text:'Купил за свои',callback_data:'lunch:'+today+':own'},{text:'Не заказал',callback_data:'lunch:'+today+':skip'}],[{text:'Отключить вопросы',callback_data:'lunch:'+today+':off'}]]}});
  }
  if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&minutes===timeMinutes(settingTime(s,'plannedReminder',18))){const due=plannedOccurrences(data,today,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,text:'Есть неподтверждённые планы. Изменилась ли сумма за этот период?\n'+due.slice(0,5).map(i=>(planType(i.rule)==='income'?'Доход: ':'Расход: ')+i.rule.name+' · '+i.date).join('\n')+(due.length>5?'\nЕщё '+(due.length-5)+' в приложении':'')+'\nПроверь сумму и подтверди только фактическую операцию. Настройки → Твой ритм — отключить вопросы о планах.'});}

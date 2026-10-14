@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {createRequire} from 'node:module';
+import {buildSync} from 'esbuild';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {EMPTY,CATEGORIES} from '../src/mini-model.js';
+const require=createRequire(import.meta.url);
+const bundle=buildSync({stdin:{contents:"export {default as LunchPage} from './src/LunchPage.jsx';export {default as SettingsPage} from './src/SettingsPage.jsx';export {default as MiniApp} from './src/MiniApp.jsx';",resolveDir:new URL('..',import.meta.url).pathname,loader:'jsx'},bundle:true,write:false,loader:{'.css':'empty'},format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
+function components(search=''){const context={module:{exports:{}},exports:{},require,Intl,Date,console,location:{search},URLSearchParams,structuredClone};context.exports=context.module.exports;vm.runInNewContext(bundle,context);return context.module.exports;}
+test('Settings initially show only the category menu, with no long import or reminder forms',()=>{
+ const {SettingsPage}=components(),html=renderToStaticMarkup(React.createElement(SettingsPage,{data:structuredClone(EMPTY),cats:CATEGORIES,busy:false,demo:true,mutate:async()=>true,onUpdates:()=>{}}));
+ for(const label of ['Твой Бургет','Твой ритм','Бюджет и лимиты','Импорт операций','Резервные копии','Свои категории','Обратная связь'])assert.ok(html.includes(label));
+ assert.ok(!html.includes('<form'));assert.ok(!html.includes('<input'));assert.ok(!html.includes('<textarea'));
+});
+test('Lunch deep link renders the separate monthly budget and direct panel tab',()=>{
+ const {MiniApp}=components('?lunch=1&demo=1'),html=renderToStaticMarkup(React.createElement(MiniApp));
+ assert.ok(html.includes('data-page="lunch"'));assert.ok(html.includes('Профицит'));assert.ok(html.includes('Дефицит'));assert.ok(html.includes('Посчитать заказ по прайсу'));assert.ok(html.includes('aria-current="page"'));assert.ok(html.includes('<span>Обеды</span>'));
+});

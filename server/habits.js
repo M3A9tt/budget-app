@@ -46,7 +46,7 @@ export async function habitAmount(env,userId,text,api){
  if(text.startsWith('/'))return false;
  if(!/^\d+(?:[.,]\d{1,2})?$/.test(text.trim())){await api.telegram(env,'sendMessage',{chat_id:userId,text:'Жду только сумму обеда, например 379,50. /cancel — отменить и вернуться к обычным записям.'});return true;}
  const amount=parseMoney(text),payload=JSON.parse(row.payload);if(amount<=0)throw Error('Сумма должна быть больше нуля');
- const id=crypto.randomUUID(),tx={type:payload.type==='company'?'lunch':'expense',cat:payload.type==='company'?'lunch':'food',amount,currency:'RUB',date:day,accountId:payload.accountId,note:payload.type==='company'?'Обед за счёт компании':'Обед за свой счёт',paymentMethod:'unknown',tags:[],_lunchCheckDay:day};
+ const id=crypto.randomUUID(),tx={type:payload.type==='company'?'lunch':'expense',cat:payload.type==='company'?'lunch':'food',amount,currency:'RUB',date:day,accountId:payload.accountId,note:payload.type==='company'?'Обед за счёт компании':'Обед за свой счёт',paymentMethod:'unknown',tags:payload.type==='company'?[]:['обед-за-свои'],_lunchCheckDay:day};
  await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,expires_at=excluded.expires_at WHERE telegram_drafts.consumed=0').bind(id,userId,JSON.stringify(tx),Date.now()+600000).run();
  await api.telegram(env,'sendMessage',{chat_id:userId,text:'Проверь: '+tx.note+' · '+amount+' ₽\n'+(payload.type==='company'?'Личные счета не изменятся.':'Спишется с выбранного счёта.')+'\nНажми «Записать», чтобы подтвердить.',reply_markup:{inline_keyboard:[[{text:'Записать',callback_data:'save:'+id}]]}});return true;
 }

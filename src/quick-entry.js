@@ -15,5 +15,5 @@ export function parseEntry(text, accounts, categories, date, defaults={}) {
   if(!lunch&&accounts.length&&!account)throw new Error('Допишите название счёта, например: кофе 180 Сбер');
   const keywords=[['health',/аптек|таблет|врач|стомат|лекар/],['transport',/проезд|метро|такси|автобус/],['food',/кофе|продукт|еда|магазин|хлеб/],['housing',/жкх|квартплат|электрич/],['fun',/игра|кино/]];
   const cat=categories.find(c=>memo.includes(c.name.toLocaleLowerCase('ru')))?.id||keywords.find(([,re])=>re.test(memo))?.[0]||'other';
-  return {type:lunch?'lunch':income?'income':'expense',cat:lunch?'lunch':income?'income':ownLunch?'food':cat,amount,currency:'RUB',date,note:note||'Покупка',paymentMethod:/сбп/.test(memo)?'sbp':/налич/.test(memo)?'cash':/карт/.test(memo)?'card':/перевод/.test(memo)?'bank':(account?.id===defaults.accountId?defaults.paymentMethod:'unknown')||'unknown',tags:[],accountId:lunch?undefined:account?.id};
+  return {type:lunch?'lunch':income?'income':'expense',cat:lunch?'lunch':income?'income':ownLunch?'food':cat,amount,currency:'RUB',date,note:note||'Покупка',paymentMethod:/сбп/.test(memo)?'sbp':/налич/.test(memo)?'cash':/карт/.test(memo)?'card':/перевод/.test(memo)?'bank':(account?.id===defaults.accountId?defaults.paymentMethod:'unknown')||'unknown',tags:ownLunch?['обед-за-свои']:[],accountId:lunch?undefined:account?.id};
 }
