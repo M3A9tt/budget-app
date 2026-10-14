@@ -1,3 +1,4 @@
+import {sendTestMessage} from './test-messages.js';
 import {telegramPresentation} from '../src/telegram-presentation.js';
 import {collectTelemetry,telemetryReport,pruneTelemetry} from './telemetry.js';
 import {deliverNotifications} from './notification-outbox.js';
@@ -118,6 +119,7 @@ async function handleTelegram(update,env) {
   try {
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
+      if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
       if(await habitCallback(env,userId,callback,habitApi))return;
       if(data.startsWith('notify:')){
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки перенесены в мини-аппу'});
@@ -200,6 +202,7 @@ export default {
     try {
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
       if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId);if(Number(request.headers.get('Content-Length')||0)>16000)return json({error:'Пакет слишком большой'},413);const text=await request.text();if(text.length>16000)return json({error:'Пакет слишком большой'},413);return json(await collectTelemetry(env,userId,JSON.parse(text),current.data.settings.telemetryEnabled));}
+      if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await request.json(),telegram,periodSummary));}
       if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await request.json(),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {

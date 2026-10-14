@@ -1,3 +1,4 @@
+import TestMessages from './TestMessages.jsx';
 import TelemetryPanel from './TelemetryPanel.jsx';
 import Icon from './mini-icons.jsx';
 import React,{useState} from 'react';
@@ -19,7 +20,7 @@ export default function SettingsPage({data,cats,mutate,busy,demo,onUpdates,isOwn
  const open=id=>{setSection(id);window.scrollTo?.({top:0,behavior:'instant'});};
  return <>{section?<><div className="mini-screen-back"><button aria-label="Все настройки" onClick={()=>open('')}><Icon name="back"/></button><h2><Icon name={groupIcons[section]}/>{menu.find(([id])=>id===section)?.[1]}</h2></div>
  {section==='modules'&&<><ModuleSettings data={data} mutate={mutate} busy={busy}/><div className="mini-card mini-form"><strong>Быстрый ввод</strong><label className="mini-check"><input type="checkbox" checked={data.settings.rememberEntryChoices!==false} disabled={busy} onChange={e=>{const enabled=e.target.checked;mutate(d=>({...d,settings:{...d.settings,rememberEntryChoices:enabled}}),'Подстановки '+(enabled?'включены':'отключены'));}}/>Помнить последние счёт, категорию и способ оплаты</label><p className="mini-small mini-muted">Расходы и доходы запоминаются отдельно. Новая сумма всегда пустая; запись — после подтверждения.</p></div></>}
- {section==='reminders'&&<NotificationPanel data={data} mutate={mutate} busy={busy}/>}
+ {section==='reminders'&&<><TestMessages demo={demo} busy={busy}/><NotificationPanel data={data} mutate={mutate} busy={busy}/></>}
  {section==='budget'&&<><Planner settings={data.settings} mutate={mutate} busy={busy}/>{moduleEnabled(data,'limits')&&<BudgetPanel data={data} cats={cats} mutate={mutate} busy={busy}/>}</>}
  {section==='import'&&<><div className="mini-tabs">{[['json','JSON из чата'],['csv','Выписка CSV']].map(([id,label])=><button className={importType===id?'selected':''} key={id} onClick={()=>setImportType(id)}>{label}</button>)}</div>{importType==='json'?<JsonImportPanel data={data} mutate={mutate} busy={busy}/>:<ImportPanel data={data} mutate={mutate} busy={busy}/>}</>}
  {section==='backup'&&<BackupPanel data={data} mutate={mutate} busy={busy} demo={demo}/>}
