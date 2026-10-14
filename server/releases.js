@@ -1,11 +1,11 @@
+import {botKeyboard} from './bot-navigation.js';
 import {hasAccess} from './users.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
 async function ensureOutbox(env){await env.DB.prepare('CREATE TABLE IF NOT EXISTS user_release_outbox(user_id TEXT NOT NULL,release_id TEXT NOT NULL,payload TEXT NOT NULL,queued_at INTEGER NOT NULL,lease_until INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,release_id))').run();}
 export async function broadcastRelease(env,send){
  await ensureOutbox(env);
  const profiles=await env.DB.prepare('SELECT user_id FROM user_finance_state').all(),stats={sent:0,failed:0,alreadySent:0,excluded:0,pending:0};
- const url=new URL(env.MINI_APP_URL);url.searchParams.set('updates','1');
- const payload=JSON.stringify({text:releaseText(),reply_markup:{inline_keyboard:[[{text:'Что нового',web_app:{url:url.href}}]]}});
+ const payload=JSON.stringify({text:releaseText(),reply_markup:botKeyboard(env.MINI_APP_URL)});
  for(const {user_id:userId} of profiles.results){
   if(!await hasAccess(env,userId)){stats.excluded++;continue;}
   const key='release:'+latestRelease.id;
