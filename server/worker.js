@@ -1,3 +1,4 @@
+import {botKeyboard,navigationCommand,summariesMenu,extraMenu,botHelp} from './bot-navigation.js';
 import {sendTestMessage} from './test-messages.js';
 import {telegramPresentation} from '../src/telegram-presentation.js';
 import {collectTelemetry,telemetryReport,pruneTelemetry} from './telemetry.js';
@@ -116,9 +117,12 @@ async function handleTelegram(update,env) {
   if(!await hasAccess(env,source.id))return;
   const userId=String(source.id);
   const send=text=>telegram(env,'sendMessage',{chat_id:chat.id,text});
+  const showHome=text=>telegram(env,'sendMessage',{chat_id:userId,text,reply_markup:botKeyboard(env.MINI_APP_URL)});
+  const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);await send(periodSummary(state.data,from,today,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period]));};
   try {
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
+      if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await telegram(env,'sendMessage',{chat_id:userId,text:'Ещё в Бюрджете',reply_markup:extraMenu(env.MINI_APP_URL)});else if(action==='updates')await send(releaseText());else if(action==='help')await showHome(botHelp);else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
       if(await habitCallback(env,userId,callback,habitApi))return;
       if(data.startsWith('notify:')){
@@ -145,8 +149,10 @@ async function handleTelegram(update,env) {
       }
       return;
     }
-    const text=(update.message.text||'').trim();
-    if(text==='/start'||text==='/help'){await readState(env,userId);await send('Твой Бургет\n\nЗапиши покупку: кофе 180 Сбер\nИли обед: обед 379,50\nСохраним после подтверждения.\n\n📊 /today · /week · /month — сводки\n🍽 /lunch — обеды и копилка\n🔔 /reminders — напоминания\n✨ /updates — что нового');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
+    const text=navigationCommand((update.message.text||'').trim());
+    if(text==='/start'||text==='/help'||text==='/menu'){await readState(env,userId);await showHome(text==='/menu'?'Клавиатура Бюрджета\nВыбери действие внизу 👇':botHelp);return;}
+    if(text==='/summary'){await telegram(env,'sendMessage',{chat_id:userId,text:'Сводки\nЗа какой период показать?',reply_markup:summariesMenu()});return;}
+    if(text==='/app'){if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:userId,text:'Открыть Бюрджет',reply_markup:{inline_keyboard:[[{text:'💼 Открыть Бюрджет',web_app:{url:env.MINI_APP_URL}}]]}});else await send('Адрес мини-аппы ещё не настроен');return;}
     if(text==='/updates'){await send(releaseText());return;}
     if(text==='/lunch'){if(!env.MINI_APP_URL){await send('Адрес мини-аппы ещё не настроен');return;}const url=new URL(env.MINI_APP_URL);url.searchParams.set('lunch','1');await telegram(env,'sendMessage',{chat_id:userId,text:'Обеды: месячный лимит, копилка и доплаты.',reply_markup:{inline_keyboard:[[{text:'Открыть обеды',web_app:{url:url.href}}]]}});return;}
     if(text==='/reminders'){await showNotifications(env,userId);return;}
@@ -166,12 +172,7 @@ async function handleTelegram(update,env) {
     }
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
     const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;
-    if(['/today','/week','/month'].includes(text)) {
-      const start=new Date(today+'T12:00:00Z');
-      if(text==='/week')start.setUTCDate(start.getUTCDate()-6);
-      const from=text==='/month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);
-      await send(periodSummary(state.data,from,today,'Сводка расходов'));return;
-    }
+    if(['/today','/week','/month'].includes(text)){await showSummary({'/today':'day','/week':'week','/month':'month'}[text]);return;}
     if(await habitAmount(env,userId,text,habitApi))return;
     const defaults=state.data.settings.rememberEntryChoices===false?{}:entryDefaults(state.data,/зарплат|аванс|доход/i.test(text)?'income':'expense',today,CATEGORIES.concat(state.data.customCats||[]));
     const draft=parseEntry(text,state.data.accounts,state.data.customCats||[],today,defaults);
