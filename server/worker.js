@@ -144,7 +144,7 @@ async function handleTelegram(update,env) {
       return;
     }
     const text=(update.message.text||'').trim();
-    if(text==='/start'||text==='/help'){await readState(env,userId);await send('Пишите: кофе 180 Сбер или обед 379,50. Бот сначала покажет карточку — запись только после кнопки. /today — день, /week — 7 дней, /month — текущий месяц. /lunch — обеды, лимит и копилка. /reminders — время и переключатели напоминаний и отчётов. /invite — пригласить друга (для владельца).');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
+    if(text==='/start'||text==='/help'){await readState(env,userId);await send('Твой Бургет\n\nЗапиши покупку: кофе 180 Сбер\nИли обед: обед 379,50\nСохраним после подтверждения.\n\n📊 /today · /week · /month — сводки\n🍽 /lunch — обеды и копилка\n🔔 /reminders — напоминания\n✨ /updates — что нового');if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ваши финансы — в одном месте',reply_markup:{inline_keyboard:[[{text:'Открыть Финансы',web_app:{url:env.MINI_APP_URL}}]]}});return;}
     if(text==='/updates'){await send(releaseText());return;}
     if(text==='/lunch'){if(!env.MINI_APP_URL){await send('Адрес мини-аппы ещё не настроен');return;}const url=new URL(env.MINI_APP_URL);url.searchParams.set('lunch','1');await telegram(env,'sendMessage',{chat_id:userId,text:'Обеды: месячный лимит, копилка и доплаты.',reply_markup:{inline_keyboard:[[{text:'Открыть обеды',web_app:{url:url.href}}]]}});return;}
     if(text==='/reminders'){await showNotifications(env,userId);return;}
