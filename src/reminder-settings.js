@@ -24,3 +24,12 @@ export function reminderText(s,date,attempt){
  const seed=Number(date.replaceAll('-',''))+attempt;
  return pool[seed%pool.length];
 }
+
+export function reminderSettingsFromDraft(draft){
+ const next={...draft};
+ if(typeof next.checkEscalationDays==='string'){
+  if(!/^[1-7]$/.test(next.checkEscalationDays.trim()))throw Error('Укажите число дней от 1 до 7');
+  next.checkEscalationDays=Number(next.checkEscalationDays);
+ }
+ return validateReminderSettings(next);
+}

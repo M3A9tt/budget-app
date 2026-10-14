@@ -225,8 +225,10 @@ export default {
       const allowed=await allAllowedUsers(env),profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
       for(const profile of profiles.results){
         const userId=profile.user_id;if(!allowed.includes(String(userId))||profile.revision===0)continue;
-        const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=data.settings?.expenseCheckEnabled||notificationJobs(data,now).some(r=>r.kind)?await dayChecks(env,userId,day):[],reports=notificationJobs(data,now,responses);
+        try{
+        const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=await dayChecks(env,userId,day),reports=notificationJobs(data,now,responses);
         await deliverNotifications(env,userId,day,data,reports,responses,telegram,periodSummary,setDayCheck);
+        }catch{console.error('Notification processing failed for profile',userId);}
       }
       if(now.getUTCMinutes()===0){
       await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();

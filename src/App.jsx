@@ -2389,7 +2389,7 @@ function EditBudgetsList({data,cats}){
     <div key={c.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
       <span style={{fontSize:18,width:24,textAlign:'center'}}>{c.icon}</span>
       <span style={{flex:1,fontSize:13}}>{c.name}</span>
-      <input type="number" value={edits[c.id]||''} onChange={e=>{const next={...edits,[c.id]:Math.max(0,parseMoney(e.target.value)||0)};setEdits(next);window.dispatchEvent(new CustomEvent('finance-budget-update',{detail:next}));}} placeholder="0" style={{width:100,textAlign:'right',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:13,outline:'none'}}/>
+      <input type="number" value={edits[c.id]??''} onChange={e=>setEdits({...edits,[c.id]:e.target.value})} onBlur={e=>{const amount=e.target.value.trim()===''?0:parseMoney(e.target.value);if(!Number.isFinite(amount)||amount<0){e.target.setCustomValidity('Введите неотрицательную сумму');e.target.reportValidity();return;}e.target.setCustomValidity('');const next={...data.categoryBudgets,[c.id]:amount};window.dispatchEvent(new CustomEvent('finance-budget-update',{detail:next}));}} placeholder="0" style={{width:100,textAlign:'right',background:'var(--s2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:13,outline:'none'}}/>
       <span style={{fontSize:12,color:'var(--muted)'}}>₽</span>
     </div>
   )}</div>;
