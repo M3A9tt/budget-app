@@ -45,3 +45,8 @@ test('Lunch prompts skip production holidays and resume on shortened working day
  const jobs=date=>notificationJobs(d,new Date(date+'T08:00:00Z')).filter(j=>j.kind==='lunch');
  assert.equal(jobs('2026-11-04').length,0);assert.equal(jobs('2026-11-03').length,1);assert.equal(jobs('2026-12-31').length,0);
 });
+test('Table available allowance and cumulative balance follow original monthly carry without future accrual',()=>{
+ let d=state();d=putTransaction(d,{type:'lunch',cat:'lunch',date:'2026-10-01',amount:350});d=putTransaction(d,{type:'lunch',cat:'lunch',date:'2026-10-02',amount:500});
+ const b=lunchBudget(d,'2026-10','2026-10-02'),first=b.days[0],second=b.days[1],next=b.days[4];
+ assert.equal(first.available,400);assert.equal(first.cumulative,50);assert.equal(second.available,450);assert.equal(second.cumulative,-50);assert.equal(next.available,350);assert.equal(next.cumulative,-50);assert.equal(b.days.at(-1).cumulative,-50);
+});

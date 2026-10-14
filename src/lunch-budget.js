@@ -27,6 +27,8 @@ export function lunchBudget(data,month,today){
   const confirmed=past&&(txs.some(companyLunch)||data.lunchAnswers?.[date]?.status==='skipped');
   days.push({date,ratio,limit,company,own,past,confirmed,difference:roundMoney(limit-company)});
  }
+ let cumulative=0;
+ for(const day of days){day.available=roundMoney(day.limit+cumulative);if(day.past)cumulative=roundMoney(cumulative+day.difference);day.cumulative=cumulative;}
  const sum=fn=>roundMoney(days.reduce((n,d)=>n+fn(d),0));
  const budget=sum(d=>d.limit),accrued=sum(d=>d.past?d.limit:0),spent=sum(d=>d.company),own=sum(d=>d.own),difference=roundMoney(accrued-spent);
  return {month,daily,days,workDays:sum(d=>d.ratio),budget,accrued,spent,own,difference,surplus:Math.max(0,difference),deficit:Math.max(0,-difference),remaining:roundMoney(budget-spent),future:roundMoney(budget-accrued),confirmedDifference:sum(d=>d.confirmed?d.difference:0),unrecorded:days.filter(d=>d.past&&d.ratio>0&&!d.confirmed).length,calendar:lunchCalendar(data.settings),verified:lunchCalendar(data.settings)!=='ru-production'||year===2026};

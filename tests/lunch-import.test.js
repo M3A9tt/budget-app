@@ -23,3 +23,17 @@ test('Lunch import rejects ambiguous fields, unsupported currencies, future meal
 test('Bank expense with matching external ID does not shadow company lunch ID',()=>{
  const d=data();d.transactions=[{id:'old',type:'expense',cat:'food',accountId:'bank',date:'2026-10-13',amount:379,currency:'RUB',externalId:'meal-1'}];assert.equal(previewJsonImport(d,doc([lunch({externalId:'meal-1'})]))[0].duplicate,false);
 });
+test('Existing burget-lunches-v1 format converts items without importing employee identity or changing allowance',()=>{
+ const original={format:'burget-lunches-v1',employee:{name:'Тестовый сотрудник',id:'demo'},currency:'RUB',daily_allowance:500,lunches:[{date:'2026-10-01',amount:100,items:[{name:'Суп',quantity:2}]},{date:'2026-10-02',amount:200,items:[{name:'Горячее',quantity:1}]}]};
+ const parsed=parseImportJson(JSON.stringify(original));assert.equal(parsed.format,'burget-operations');assert.equal(parsed.operations[0].note,'Суп × 2');assert.equal(parsed.operations[0].amount,100);
+ assert.equal(parsed.employee,undefined);assert.equal(parsed.daily_allowance,undefined);
+ const next=commitJsonImport(data(),parsed);assert.equal(next.settings.lunchDaily,400);assert.equal(next.accounts[0].balance,5000);assert.equal(lunchBudget(next,'2026-10','2026-10-02').spent,300);
+ assert.throws(()=>commitJsonImport(next,parsed),/Нет новых/);
+ assert.equal(original.lunches[0].amount,100);
+});
+test('Single Markdown JSON fence is accepted while unrelated formats and prose remain errors',()=>{
+ assert.equal(parseImportJson('```json\n'+JSON.stringify(doc([lunch()]))+'\n```').operations[0].type,'lunch');
+ assert.throws(()=>parseImportJson('Вот JSON: '+JSON.stringify(doc([lunch()]))),/только JSON/);
+ assert.throws(()=>parseImportJson(JSON.stringify({format:'other',lunches:[]})));
+ assert.throws(()=>parseImportJson(JSON.stringify({format:'burget-lunches-v1',currency:'RUB',lunches:[{date:'2026-10-01',amount:100,items:[{name:'Суп',quantity:0}]}]})),/количества/);
+});
