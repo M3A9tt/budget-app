@@ -92,3 +92,17 @@ test('Telemetry rejects notes, sums, arbitrary events, oversized batches and inv
  d.settings.telemetryEnabled='yes';assert.equal((await call('222','state','PUT',{expectedRevision:1,data:d})).status,400);
  assert.equal((await(await call('222')).json()).data.accounts[0].balance,1000);assert.equal((await(await call('111','admin/telemetry')).json()).rows.length,0);
 });
+
+test('All seven message tests send only to authenticated caller, use real formatting and never change state or reports',async()=>{
+ const {call,data,env,db}=fixture();const d=data(3456);d.settings={...d.settings,reminderStyle:'custom',reminderText:'Мой <текст>'};await call('222','state','PUT',{expectedRevision:0,data:d});const before=await(await call('222')).json();await call('111');
+ await botTest(async messages=>{for(const type of ['expense','lunch','planned','day','week','month','release']){const input={id:crypto.randomUUID(),type};assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal((await(await call('222','notifications/test','POST',input)).json()).duplicate,true);}
+ const sent=messages.filter(m=>m.url.endsWith('/sendMessage'));assert.equal(sent.length,7);assert.ok(sent.every(m=>m.body.chat_id==='222'&&m.body.parse_mode==='HTML'&&m.body.text.includes('Тест')));assert.ok(sent[0].body.text.includes('Мой &lt;текст&gt;'));assert.ok(sent.some(m=>m.body.text.includes('3456 ₽')||m.body.text.includes('3 456 ₽')));
+ for(const m of sent)for(const b of m.body.reply_markup?.inline_keyboard.flat()||[])if(b.callback_data)assert.ok(b.callback_data.startsWith('test:'));
+ for(const type of ['expense','lunch'])await webhook(env,222,'','test:'+type);
+ assert.ok(messages.filter(m=>m.url.endsWith('/answerCallbackQuery')).every(m=>m.body.show_alert===true));
+ });assert.deepEqual(await(await call('222')).json(),before);assert.equal(db.prepare('SELECT COUNT(*) n FROM user_reports_sent').get().n,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM user_day_checks').get().n,0);
+ assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day',chat_id:'111'})).status,400);assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'unknown'})).status,400);
+});
+test('Failed test delivery can retry the same key; successful delivery deduplicates and per-user rate is bounded',async()=>{
+ const {call}=fixture();const input={id:crypto.randomUUID(),type:'expense'},original=globalThis.fetch;let fail=true,sent=0;globalThis.fetch=async()=>{if(fail)return Response.json({ok:false},{status:503});sent++;return Response.json({ok:true,result:{}});};try{assert.equal((await call('222','notifications/test','POST',input)).status,400);fail=false;assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal(sent,1);assert.equal((await call('222','notifications/test','POST',{...input,type:'day'})).status,400);for(let i=0;i<11;i++)assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,200);assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,400);assert.equal((await call('111','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,200);}finally{globalThis.fetch=original;}
+});

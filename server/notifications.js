@@ -17,16 +17,20 @@ export function notificationJobs(data,now,responses=[]){
  const answered=kind=>responses.find(r=>r.day===today&&r.kind===kind),expense=answered('expense'),lunch=answered('lunch');
  const slots=checkSchedule(data,today).map(h=>Math.round(h*60)),payload=expense?.payload?JSON.parse(expense.payload):{},nextMinute=payload.nextMinute??(payload.nextHour!==undefined?payload.nextHour*60:null);
  if(s.expenseCheckEnabled===true&&!['done','none','off'].includes(expense?.status)&&(nextMinute===null||minutes>=nextMinute)&&(slots.includes(minutes)||nextMinute===minutes)){
-  reports.push({id:'check:'+today+':'+minutes,kind:'expense',day:today,text:'Проверим расходы\n'+reminderText(s,today,slots.indexOf(minutes)),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},{text:'Сегодня без трат',callback_data:'check:'+today+':none'}],[{text:'Ещё не всё',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}});
+  reports.push({id:'check:'+today+':'+minutes,kind:'expense',day:today,...expenseReminder(data,today,slots.indexOf(minutes))});
  }
  const hasLunch=data.transactions.some(t=>t.date===today&&(t.type==='lunch'||t.cat==='lunch'));
  if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&minutes===timeMinutes(settingTime(s,'lunchAsk',11))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&lunchDayRatio(data,today)>0&&!hasLunch&&!lunch?.status){
-  reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,text:'Обед сегодня?\nЗа компанию или за свои — выбери ниже.',reply_markup:{inline_keyboard:[[{text:'Заказал · за счёт компании',callback_data:'lunch:'+today+':company'}],[{text:'Купил за свои',callback_data:'lunch:'+today+':own'},{text:'Не заказал',callback_data:'lunch:'+today+':skip'}],[{text:'Отключить вопросы',callback_data:'lunch:'+today+':off'}]]}});
+  reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,...lunchReminder(today)});
  }
- if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&minutes===timeMinutes(settingTime(s,'plannedReminder',18))){const due=plannedOccurrences(data,today,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,text:'Планы на сегодня\n'+due.slice(0,5).map(i=>(planType(i.rule)==='income'?'Доход: ':'Расход: ')+i.rule.name+' · '+i.date).join('\n')+(due.length>5?'\nЕщё '+(due.length-5)+' в приложении':'')+'\nПроверь сумму и подтверди, когда операция состоялась.'});}
+ if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&minutes===timeMinutes(settingTime(s,'plannedReminder',18))){const due=plannedOccurrences(data,today,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,...plannedReminder(due)});}
  if(minutes!==timeMinutes(settingTime(s,'report',21)))return reports;
  if(s.dailyReport!==false)reports.push({id:'day:'+today,from:today,to:today,title:'Итог дня'});
  if(s.weeklyReport!==false&&local.getUTCDay()===0){const from=new Date(local);from.setUTCDate(from.getUTCDate()-6);reports.push({id:'week:'+today,from:from.toISOString().slice(0,10),to:today,title:'Итог недели'});}
  if(s.monthlyReport!==false&&local.getUTCDate()===1){const end=new Date(local);end.setUTCDate(0);reports.push({id:'month:'+end.toISOString().slice(0,7),from:end.toISOString().slice(0,8)+'01',to:end.toISOString().slice(0,10),title:'Итог месяца'});}
  return reports;
 }
+
+export function expenseReminder(data,today,attempt=0){const s=data.settings||{};return {text:'Проверим расходы\n'+reminderText(s,today,attempt),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},{text:'Сегодня без трат',callback_data:'check:'+today+':none'}],[{text:'Ещё не всё',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}};}
+export function lunchReminder(today){return {text:'Обед сегодня?\nЗа компанию или за свои — выбери ниже.',reply_markup:{inline_keyboard:[[{text:'Заказал · за счёт компании',callback_data:'lunch:'+today+':company'}],[{text:'Купил за свои',callback_data:'lunch:'+today+':own'},{text:'Не заказал',callback_data:'lunch:'+today+':skip'}],[{text:'Отключить вопросы',callback_data:'lunch:'+today+':off'}]]}};}
+export function plannedReminder(due){return {text:'Планы на сегодня\n'+due.slice(0,5).map(i=>(planType(i.rule)==='income'?'Доход: ':'Расход: ')+i.rule.name+' · '+i.date).join('\n')+(due.length>5?'\nЕщё '+(due.length-5)+' в приложении':'')+'\nПроверь сумму и подтверди, когда операция состоялась.'};}
