@@ -1,0 +1,13 @@
+import React,{useState} from 'react';
+import Icon from './mini-icons.jsx';
+import {money,todayMoscow} from './mini-model.js';
+import {AccountTools} from './FinancePanels.jsx';
+import AccountForm from './AccountForm.jsx';
+export default function AccountsPage({data,mutate,busy}){
+ const [action,setAction]=useState(''),[picked,setPicked]=useState('');
+ return <><div className="account-action-bar">{[['add','plus','Новый счёт'],['transfer','repeat','Перевести'],['reconcile','check','Сверить']].map(([id,icon,label])=><button key={id} data-track={'account_'+id} aria-pressed={action===id} disabled={busy||(id!=='add'&&!data.accounts.length)} onClick={()=>{setPicked('');setAction(action===id?'':id);}}><Icon name={icon}/>{label}</button>)}</div>
+ {action&&<section className="account-action-panel"><div className="mini-between"><h2>{action==='add'?'Новый счёт':action==='transfer'?'Перевод между счетами':'Остаток по банку'}</h2><button className="mini-text-button" onClick={()=>setAction('')} aria-label="Закрыть действие">×</button></div>{action==='add'?<AccountForm busy={busy} onSave={async values=>{const ok=await mutate(d=>({...d,accounts:[...d.accounts,{id:crypto.randomUUID(),...values}]}),'Счёт добавлен');if(ok)setAction('');return ok;}}/>:<AccountTools data={data} accountId={picked} mutate={async(fn,msg)=>{const ok=await mutate(fn,msg);if(ok)setAction('');return ok;}} busy={busy} action={action}/>}</section>}
+ <div className="account-grid">{data.accounts.map((a,i)=><button key={a.id} className={'account-tile account-tone-'+i%4} data-track="account_reconcile" onClick={()=>{setPicked(a.id);setAction('reconcile');window.scrollTo?.({top:0,behavior:'smooth'});}}><div className="mini-between"><Icon name="wallet"/><span>{a.savingsKind==='deposit'?'Вклад':a.accType==='savings'?'Копилка':a.currency}</span></div><h3>{a.name}</h3><strong>{money(a.balance,a.currency)}</strong>{a.savingsKind==='deposit'&&<small>{a.annualRate!==undefined?a.annualRate+'% · ':''}{a.maturityDate?(a.maturityDate<todayMoscow(data.settings.timeZone)?'Срок истёк':`До ${a.maturityDate}`):'Без срока'}</small>}</button>)}</div>
+ {!data.accounts.length&&<div className="experience-empty"><Icon name="wallet" size={36}/><h2>С какого счёта начнём?</h2><p>Добавь карту или наличные и текущий остаток.</p><button className="mini-primary" onClick={()=>setAction('add')}>Добавить счёт</button></div>}
+ {!!((data.transfers||[]).length+(data.reconciliations||[]).length)&&<details className="mini-card movement-log"><summary><Icon name="history"/> Движения и сверки <span>{(data.transfers||[]).length+(data.reconciliations||[]).length}</span></summary><AccountTools data={data} mutate={mutate} busy={busy} action="history"/></details>}</>;
+}

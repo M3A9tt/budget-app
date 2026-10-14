@@ -1,3 +1,5 @@
+import {telegramPresentation} from '../src/telegram-presentation.js';
+import {collectTelemetry,telemetryReport,pruneTelemetry} from './telemetry.js';
 import {deliverNotifications} from './notification-outbox.js';
 import {sendFeedback} from './feedback.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
@@ -35,8 +37,7 @@ export function periodSummary(data,from,to,title) {
   const days=Math.round((end-start)/86400000)+1;start.setUTCDate(start.getUTCDate()-days);end.setUTCDate(end.getUTCDate()-days);
   const previous=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&t.date>=start.toISOString().slice(0,10)&&t.date<=end.toISOString().slice(0,10)).reduce((n,t)=>n+rub(t),0);
   const planning=dashboard({...EMPTY,...data,settings:{...EMPTY.settings,...data.settings}},clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date),savings=data.accounts.filter(a=>a.accType==='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0);
-  const extra=`\nК предыдущему периоду той же длины: ${fmt(expense-previous)} (по записанным операциям)\nВ накоплениях сейчас: ${fmt(savings)}\nСвободно после резерва и платежей: ${fmt(planning.free)}${planning.days?' · до дохода '+planning.days+' дн.':''}`;
-  return `${title}\n${from} — ${to}\nРасходы: ${fmt(expense)}\nДоходы: ${fmt(income)}\nОбеды за счёт компании: ${fmt(lunch)}\nНа обычных счетах: ${fmt(actual)}${top.length?'\n'+top.join('\n'):''}\nУчтено операций: ${txs.length}.${extra} Незаписанные покупки в итог не входят.`;
+  return [title,from===to?from:`${from} — ${to}`,'',`Расходы: ${fmt(expense)}`,income?`Доходы: ${fmt(income)}`:null,lunch?`Обеды за счёт компании: ${fmt(lunch)}`:null,'',`На обычных счетах: ${fmt(actual)}`,`Свободно после резерва и платежей: ${fmt(planning.free)}`,savings?`В копилках: ${fmt(savings)}`:null,...(top.length?['','Больше всего',...top.map(line=>'• '+line)]:[]),previous?`\nК прошлому периоду: ${expense-previous>0?'+':''}${fmt(expense-previous)}`:null,`\nУчтено операций: ${txs.length}.`].filter(line=>line!==null).join('\n');
 }
 async function readState(env,userId) {
   if(!await hasAccess(env,userId))throw new Error('Нет доступа');
@@ -50,7 +51,7 @@ async function readState(env,userId) {
   ]);
   await env.DB.prepare('INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) VALUES(?,0,?,?)').bind(String(userId),JSON.stringify(EMPTY),new Date().toISOString()).run();
   const row=await env.DB.prepare('SELECT revision,data FROM user_finance_state WHERE user_id=?').bind(String(userId)).first();
-  return {revision:row.revision,data:JSON.parse(row.data),userId:String(userId),uninitialized:row.revision===0};
+  return {revision:row.revision,data:JSON.parse(row.data),userId:String(userId),isOwner:String(userId)===String(env.TELEGRAM_OWNER_ID),uninitialized:row.revision===0};
 }
 async function writeTransaction(env,userId,input,key) {
   if(!key||key.length>160)throw new Error('Нужен уникальный Idempotency-Key');
@@ -71,6 +72,7 @@ async function writeTransaction(env,userId,input,key) {
 }
 async function telegram(env,method,body) {
   if(!env.TELEGRAM_BOT_TOKEN)throw new Error('Telegram не настроен');
+  if(['sendMessage','editMessageText'].includes(method)&&typeof body.text==='string'&&!body.parse_mode&&!body.entities)body={...body,...telegramPresentation(body.text)};
   const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
   const result=await r.json();if(method==='editMessageText'&&result.description?.includes('message is not modified'))return null;if(!r.ok||!result.ok)throw new Error('Не удалось доставить сообщение Telegram');return result.result;
 }
@@ -196,6 +198,8 @@ export default {
     const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
     if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
     try {
+      if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
+      if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId);if(Number(request.headers.get('Content-Length')||0)>16000)return json({error:'Пакет слишком большой'},413);const text=await request.text();if(text.length>16000)return json({error:'Пакет слишком большой'},413);return json(await collectTelemetry(env,userId,JSON.parse(text),current.data.settings.telemetryEnabled));}
       if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await request.json(),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
@@ -232,6 +236,7 @@ export default {
         }catch{console.error('Notification processing failed for profile',userId);}
       }
       if(now.getUTCMinutes()===0){
+      await pruneTelemetry(env,now);
       await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();
       await env.DB.prepare('DELETE FROM user_web_sessions WHERE expires_at<?').bind(Date.now()).run();
       await env.DB.prepare('DELETE FROM telegram_drafts WHERE expires_at<?').bind(Date.now()).run();
