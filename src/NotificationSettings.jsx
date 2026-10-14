@@ -1,14 +1,13 @@
 import TimeInput from './TimeInput.jsx';
 import {settingTime,DEFAULT_ZONE} from './time-settings.js';
 import {moduleEnabled} from './modules.js';
-import React,{useState,useEffect} from 'react';
+import React,{useState} from 'react';
+import {useSettingsDraft} from './settings-draft.js';
 import {REMINDER_TEXTS,reminderSettingsFromDraft} from './reminder-settings.js';
 import {todayMoscow} from './mini-model.js';
 import {SmoothDetails} from './Motion.jsx';
 export default function NotificationSettings({data,mutate,busy}){
- const [v,setV]=useState(()=>({...data.settings})),[error,setError]=useState('');
- useEffect(()=>setV({...data.settings}),[data.settings]);
- const set=(key,value)=>setV(x=>({...x,[key]:value}));
+ const {value:v,patch,set,saved}=useSettingsDraft(data.settings),[error,setError]=useState('');
  const toggle=(key,label,checked)=> <label className="mini-check"><input type="checkbox" checked={checked} onChange={e=>set(key,e.target.checked)}/>{label}</label>;
  const hour=(key,label,defaultHour)=>{const prefix=key.replace(/Hour$/,'');return <TimeInput label={label.replace(/час по Москве|Час по Москве|Час отправки · по Москве/g,'Время').replace('Когда спросить · ','Когда спросить · ')} value={settingTime(v,prefix,defaultHour)} onChange={value=>set(prefix+'Time',value)}/>;};
  const days=v.lunchAskDays||v.lunchWorkDays||[1,2,3,4,5];
@@ -25,6 +24,7 @@ export default function NotificationSettings({data,mutate,busy}){
  </div></SmoothDetails>}
  {moduleEnabled(data,'plans')&&<SmoothDetails className="mini-disclosure"><summary>Запланированные операции</summary><div className="mini-form">{toggle('plannedReminders','Напоминать о неподтверждённых планах',v.plannedReminders===true)}{v.plannedReminders&&hour('plannedReminderHour','Час по Москве',18)}<p className="mini-small mini-muted">Один вопрос в день о наступивших и просроченных планах. Сумма и факт операции подтверждаются в мини-аппе. Можно отключить здесь.</p></div></SmoothDetails>}
  <SmoothDetails className="mini-disclosure"><summary>Регулярные сводки</summary><div className="mini-form">{hour('reportHour','Час отправки · по Москве',21)}<p className="mini-small mini-muted">Сводки приходят отдельно от вопросов: подтверждение дня останавливает проверки, но сохраняет выбранные отчёты.</p>{['dailyReport','weeklyReport','monthlyReport'].map((key,i)=><React.Fragment key={key}>{toggle(key,['Итоги дня','Итоги недели · воскресенье','Итоги месяца · 1-го числа'][i],v[key]!==false)}</React.Fragment>)}</div></SmoothDetails>
- {error&&<p role="alert">{error}</p>}<button className="mini-primary" disabled={busy} onClick={async()=>{try{setError('');const settings=reminderSettingsFromDraft(v);await mutate(d=>({...d,settings:{...d.settings,...settings,checkStartedDate:v.expenseCheckEnabled&&!data.settings.expenseCheckEnabled?todayMoscow(settings.timeZone):data.settings.checkStartedDate,reminders:false}}),'Настройки Telegram сохранены');}catch(e){setError(e.message);}}}>Сохранить настройки</button>
+ {Object.keys(patch).length>0&&<p className="mini-small mini-muted" role="status">Есть несохранённые изменения. Нажми «Сохранить настройки».</p>}
+ {error&&<p role="alert">{error}</p>}<button className="mini-primary" disabled={busy} onClick={async()=>{try{setError('');const pending={...patch};const ok=await mutate(d=>{const settings=reminderSettingsFromDraft({...d.settings,...pending});return {...d,settings:{...settings,checkStartedDate:settings.expenseCheckEnabled&&!d.settings.expenseCheckEnabled?todayMoscow(settings.timeZone):d.settings.checkStartedDate,reminders:false}};},'Настройки Telegram сохранены');if(ok)saved(pending);}catch(e){setError(e.message);}}}>Сохранить настройки</button>
  </div>;
 }
