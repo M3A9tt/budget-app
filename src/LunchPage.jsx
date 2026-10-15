@@ -3,8 +3,8 @@ import Icon from './mini-icons.jsx';
 import LunchImport from './LunchImport.jsx';
 import {money,todayMoscow} from './mini-model.js';
 import {lunchBudget,lunchCalculator,companyLunch,personalLunch} from './lunch-budget.js';
-export default function LunchPage({data,mutate,busy,onAdd,onEdit}){
- const today=todayMoscow(data.settings.timeZone),[month,setMonth]=useState(today.slice(0,7)),[mode,setMode]=useState('table'),[date,setDate]=useState(today),[items,setItems]=useState([{name:'',price:'',count:'1'}]),[error,setError]=useState('');
+export default function LunchPage({data,mutate,busy,onAdd,onEdit,initialMonth}){
+ const today=todayMoscow(data.settings.timeZone),[month,setMonth]=useState(initialMonth||today.slice(0,7)),[mode,setMode]=useState('table'),[date,setDate]=useState(today),[items,setItems]=useState([{name:'',price:'',count:'1'}]),[error,setError]=useState('');
  const b=lunchBudget(data,month,today),title=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(month+'-01T12:00:00Z'));
  const rows=b.days.filter(d=>d.ratio||d.company||d.own||(data.lunchDayOff||[]).includes(d.date));
  const selectDay=day=>{setDate(day);setMode('day');setError('');};
