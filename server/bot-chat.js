@@ -1,3 +1,5 @@
+import {isSavings} from '../src/savings.js';
+import {getPicture,originalPicture,uploadPicture,PICTURE_ERROR} from './bot-pictures.js';
 import {collectTelemetry} from './telemetry.js';
 import {lunchReminder} from './notifications.js';
 import {setDayCheck} from './habits.js';
@@ -18,7 +20,8 @@ async function load(env,userId,id){const row=await env.DB.prepare('SELECT * FROM
 async function create(env,userId,p,prefix='bv_'){const id=prefix+uid();await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,userId,JSON.stringify(p),Date.now()+1800000).run();return id;}
 async function replace(env,userId,row,p){const result=await env.DB.prepare('UPDATE telegram_drafts SET payload=? WHERE id=? AND owner=? AND payload=? AND consumed=0').bind(JSON.stringify(p),row.id,userId,row.payload).run();if(!result.meta.changes)throw Error('Шаг уже изменился. Используй последнее сообщение.');return {...row,payload:JSON.stringify(p)};}
 export async function cancelBotFlow(env,userId){await env.DB.prepare("UPDATE telegram_drafts SET consumed=1 WHERE owner=? AND id GLOB 'bf_*' AND consumed=0").bind(userId).run();}
-async function render(env,userId,api,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:`b:r:${id}:${i}`}]);return send(api,env,userId,[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),{inline_keyboard:buttons});}
+async function menu(env,userId,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:`b:r:${id}:${i}`}]);return {inline_keyboard:buttons};}
+async function render(env,userId,api,screen){return send(api,env,userId,[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),await menu(env,userId,screen));}
 export async function showBotView(env,userId,api,name='home',args={}){
  const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'accounts',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
  if(name==='backups'){const page=Math.max(0,Number(args.page)||0),rows=(await env.DB.prepare('SELECT revision,created_at FROM user_state_backups WHERE user_id=? ORDER BY revision DESC LIMIT 50').bind(userId).all()).results;return render(env,userId,api,{title:'Серверные резервные копии',lines:['Восстановление только после проверки.'],actions:[...rows.slice(page*8,page*8+8).map(r=>({label:`${r.created_at} · версия ${r.revision}`,special:'backup',args:{revision:r.revision}})),...(page>0?[view('← Копии','backups',{page:page-1})]:[]),...((page+1)*8<rows.length?[view('Копии →','backups',{page:page+1})]:[]),view('Меню копий','backup')]});}
@@ -74,6 +77,18 @@ async function route(env,userId,api,r){
  if(r.op)return start(env,userId,api,r.op,r.args);
  if(r.command)return api.command(r.command);
  const s=await api.readState(env,userId);
+ if(r.special==='picture'||r.special==='pictureOriginal'){
+  try{
+   await send(api,env,userId,'🖼 Готовлю снимок…');
+   const picture=r.special==='pictureOriginal'?await originalPicture(env,userId,r.args.key):await getPicture(env,userId,s,r.args,api.capturePicture),p=picture.params;
+   const actions=[{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...p,key:picture.cache_key}},view('🖼 Другие картинки','pictures')];
+   if(['analytics','categories'].includes(p.kind))actions.unshift(...[7,30].map(days=>({label:`${days} дней`,special:'picture',args:{...p,days}})));
+   if(p.kind==='lunch')actions.unshift(view('Выбрать месяц','lunchMonths'));
+   if(p.kind==='savings'){if(p.page>0)actions.unshift({label:'← Накопления',special:'picture',args:{...p,page:p.page-1}});if((p.page+1)*6<Math.max(s.data.accounts.filter(isSavings).length,s.data.goals.length))actions.unshift({label:'Накопления →',special:'picture',args:{...p,page:p.page+1}});}
+   actions.push(view('Открыть раздел',p.kind==='budget'?'home':['categories','forecast'].includes(p.kind)?'analytics':p.kind,p.kind==='lunch'?{month:p.month}:{}));
+   return await uploadPicture(env,userId,picture,await menu(env,userId,{actions}),r.special==='pictureOriginal');
+  }catch{return render(env,userId,api,{title:'🖼 Снимок миниаппы',lines:[PICTURE_ERROR],actions:[{label:'Повторить',special:'picture',args:r.args},view('Картинки','pictures'),view('Главная','home')]});}
+ }
  if(r.special==='lunchQuestion'){const day=todayMoscow(s.data.settings.timeZone);await setDayCheck(env,userId,day,'lunch','open');const body=lunchReminder(day);return send(api,env,userId,body.text,body.reply_markup);}
  if(r.special==='example')return api.sendFile(env,userId,IMPORT_EXAMPLE,'byurdzhet-operations-example.json');
  if(r.special==='export')return api.sendFile(env,userId,s.data,'byurdzhet-backup-'+todayMoscow(s.data.settings.timeZone)+'.json');

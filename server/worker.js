@@ -1,3 +1,4 @@
+import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
 import {botChat,showBotView} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
 import {sendBotFile,readBotDocument} from './bot-files.js';
@@ -15,7 +16,7 @@ import {latestRelease,releaseText} from '../src/release-notes.js';
 import {entryDefaults} from '../src/entry-assist.js';
 import {dayChecks,setDayCheck,habitCallback,habitAmount} from './habits.js';
 import {allAllowedUsers,hasAccess,ensureInvites} from './users.js';
-import {dashboard,EMPTY,CATEGORIES} from '../src/mini-model.js';
+import {dashboard,EMPTY,CATEGORIES,demoData} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
@@ -192,6 +193,13 @@ async function handleTelegram(update,env) {
 export default {
   async fetch(request,env) {
     const url=new URL(request.url);
+    if(url.pathname==='/api/v1/releases/check-picture'){
+      if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);
+      try{const picture=await getPicture(env,'__fictional_render_check__',{revision:1,data:demoData()},{kind:'budget'});return json({releaseId:latestRelease.id,...pngInfo(picture.bytes)});}catch{return json({error:'Screenshot smoke check failed'},503);}
+    }
+    if(url.pathname==='/card-demo'){
+      const data=demoData();try{const params=pictureParams(Object.fromEntries(url.searchParams),data),{renderReportHtml}=await import('./report-html.jsx');return new Response(renderReportHtml(data,params),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch{return json({error:'Unknown demo card'},400);}
+    }
     if(url.pathname==='/api/v1/releases/announce'){if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);let input;try{input=await request.json();}catch{return json({error:'Invalid JSON'},400);}if(input.releaseId!==latestRelease.id)return json({error:'Release mismatch'},409);return json({releaseId:latestRelease.id,...await broadcastRelease(env,telegram)});}
     if(url.pathname==='/telegram/webhook') {
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Telegram-Bot-Api-Secret-Token'),env.TELEGRAM_WEBHOOK_SECRET))return json({error:'Unauthorized'},401);
