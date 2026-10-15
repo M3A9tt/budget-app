@@ -1,5 +1,7 @@
 export const BOT_BUTTONS={app:'💼 Открыть Бюрджет',summary:'📊 Сводки',lunch:'🍽 Обеды',reminders:'🔔 Напоминания'};
-export function botKeyboard(appUrl){return {keyboard:[[{text:BOT_BUTTONS.app,...(appUrl?{web_app:{url:appUrl}}:{})},{text:BOT_BUTTONS.summary}],[{text:BOT_BUTTONS.lunch},{text:BOT_BUTTONS.reminders}]],resize_keyboard:true,is_persistent:false,one_time_keyboard:false,input_field_placeholder:'Кофе 180 или выбери действие'};}
+// Reply-keyboard web_app launches have no signed initData. Send /app via text,
+// then open the inline web_app button, which supports authenticated profiles.
+export function botKeyboard(appUrl){return {keyboard:[[{text:BOT_BUTTONS.app},{text:BOT_BUTTONS.summary}],[{text:BOT_BUTTONS.lunch},{text:BOT_BUTTONS.reminders}]],resize_keyboard:true,is_persistent:false,one_time_keyboard:false,input_field_placeholder:'Кофе 180 или выбери действие'};}
 export function navigationCommand(text){return ({[BOT_BUTTONS.app]:'/app',[BOT_BUTTONS.summary]:'/summary',[BOT_BUTTONS.lunch]:'/lunch',[BOT_BUTTONS.reminders]:'/reminders'})[text]||text;}
 export function summariesMenu(){return {inline_keyboard:[[{text:'☀️ Сегодня',callback_data:'nav:day'},{text:'📅 Неделя',callback_data:'nav:week'},{text:'🗓 Месяц',callback_data:'nav:month'}],[{text:'Ещё · тесты, обновления, помощь',callback_data:'nav:more'}]]};}
 export function extraMenu(appUrl){const rows=[];if(appUrl){const url=new URL(appUrl);url.searchParams.set('settings','1');rows.push([{text:'🧪 Проверить сообщения',web_app:{url:url.href}}]);}rows.push([{text:'✨ Что нового',callback_data:'nav:updates'},{text:'❓ Помощь',callback_data:'nav:help'}],[{text:'⌨️ Показать клавиатуру',callback_data:'nav:home'}]);return {inline_keyboard:rows};}
