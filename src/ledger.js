@@ -1,3 +1,4 @@
+import {validateWishes} from './wishes.js';
 import {clockAt,DEFAULT_ZONE} from './time-settings.js';
 import {validateModules} from './modules.js';
 import {plannedPaid,planPeriod,planType} from './planned-model.js';
@@ -129,10 +130,10 @@ export function migrateData(input, defaults) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Нужен JSON-бэкап приложения');
   if (input.schemaVersion > 2) throw new Error('Бэкап создан более новой версией приложения');
   for (const k of ['settings','rates','lunchDayMod','categoryBudgets']) if (input[k] !== undefined && (!input[k] || typeof input[k] !== 'object' || Array.isArray(input[k]))) throw new Error('Повреждённое поле: '+k);
-  for (const k of ['transactions','accounts','debts','goals','customCats','transfers','recurring','history','lunchDayOff','installments','reconciliations']) {
+  for (const k of ['transactions','accounts','debts','goals','wishes','customCats','transfers','recurring','history','lunchDayOff','installments','reconciliations']) {
     if (input[k] !== undefined && !Array.isArray(input[k])) throw new Error('Повреждённое поле: '+k);
   }
-  const data = {installments:[],reconciliations:[],...structuredClone(defaults), ...input, schemaVersion:2,
+  const data = {installments:[],reconciliations:[],wishes:[],...structuredClone(defaults), ...input, schemaVersion:2,
     settings:{...defaults.settings,...input.settings},rates:{...defaults.rates,...input.rates}};
   const dateValid=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
   for(const key of ['accounts','transactions','transfers','recurring','goals','debts','installments','reconciliations','customCats'])if(data[key].some(x=>!x||typeof x!=='object'||Array.isArray(x)))throw Error('Повреждённая запись: '+key);
@@ -144,6 +145,8 @@ export function migrateData(input, defaults) {
   if(data.settings.telemetryEnabled!==undefined&&typeof data.settings.telemetryEnabled!=='boolean')throw Error('Неверная настройка телеметрии');
   if(data.settings.lunchEmployeeId!==undefined&&!/^\d{1,5}$/.test(data.settings.lunchEmployeeId))throw Error('Номер сотрудника: от 1 до 5 цифр');
   if(data.settings.lunchLearningEnabled!==undefined&&typeof data.settings.lunchLearningEnabled!=='boolean')throw Error('Неверная настройка обучения обедов');
+  if(data.settings.reserveNote!==undefined&&(typeof data.settings.reserveNote!=='string'||data.settings.reserveNote.length>160))throw Error('Назначение резерва — до 160 символов');
+  validateWishes(data);
   validateReminderSettings(data.settings);validateModules(data.settings);
   if(data.settings.rememberEntryChoices!==undefined&&typeof data.settings.rememberEntryChoices!=='boolean')throw Error('Неверная настройка быстрого ввода');
   for (const a of data.accounts) if (!a.id || !Number.isFinite(a.balance) || !currencies.has(a.currency||'RUB')) throw new Error('Неверный счёт в бэкапе');

@@ -10,7 +10,7 @@ export function reconcileAccount(data,{accountId,balance,date,note=''}){
 export function createGoal(data,{name,target,accountId,targetDate}){
  if(targetDate&&!validDate(targetDate))throw Error('Неверная дата цели');
  if(!name.trim())throw Error('Введите название цели');const a=data.accounts.find(a=>a.id===accountId);if(!a||a.accType!=='savings')throw Error('Выберите накопительный счёт');
- if(data.goals.some(g=>g.accountId===accountId))throw Error('Этот счёт уже связан с целью');
+ if(data.goals.some(g=>g.accountId===accountId)||(data.wishes||[]).some(w=>!w.done&&w.accountId===accountId))throw Error('Этот счёт уже связан с целью');
  return {...data,goals:[...data.goals,{id:id(),name:name.trim(),target:positive(target),saved:0,currency:a.currency||'RUB',accountId,targetDate:targetDate||''}]};
 }
 export function fundGoal(data,{goalId,from,amount,date}){
