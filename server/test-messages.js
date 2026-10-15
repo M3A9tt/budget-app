@@ -8,9 +8,9 @@ export function testMessage(data,type,summary,now=new Date(),appUrl){
  const today=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,shift=n=>new Date(Date.parse(today+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);let body;
  if(type==='expense')body=expenseReminder(data,today);
  if(type==='lunch')body=lunchReminder(today);
- if(type==='planned'){const due=plannedOccurrences(data,today,today);body=plannedReminder(due.length?due:[{date:today,rule:{name:'Пример платежа · тестовые данные',type:'expense'}}]);if(appUrl)body.reply_markup={inline_keyboard:[[{text:'Открыть планы',web_app:{url:appUrl+'?payments=1'}}]]};}
+ if(type==='planned'){const due=plannedOccurrences(data,today,today);body=plannedReminder(due.length?due:[{date:today,rule:{name:'Пример платежа · тестовые данные',type:'expense'}}]);if(appUrl)body.reply_markup={inline_keyboard:[[{text:'Открыть планы в чате',callback_data:'b:v:due'}]]};}
  if(['day','week','month'].includes(type)){let from=type==='week'?shift(-6):today,to=today;if(type==='month'){const end=new Date(today+'T12:00:00Z');end.setUTCDate(0);to=end.toISOString().slice(0,10);from=to.slice(0,8)+'01';}body={text:summary(data,from,to,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[type])};}
- if(type==='release'){body={text:releaseText()};if(appUrl)body.reply_markup={inline_keyboard:[[{text:'Что нового',web_app:{url:appUrl+'?updates=1'}}]]};}
+ if(type==='release'){body={text:releaseText()};if(appUrl)body.reply_markup={inline_keyboard:[[{text:'Что нового',callback_data:'b:v:updates'}]]};}
  // Keep real templates, but sandbox callback buttons before they reach production handlers.
  if(body.reply_markup)body={...body,reply_markup:{inline_keyboard:body.reply_markup.inline_keyboard.map(row=>row.map(button=>button.callback_data?{...button,callback_data:'test:'+type}:button))}};
  const lines=body.text.split('\n');lines[0]+=' · Тест';body.text=lines.join('\n')+'\n\n🧪 Тестовое сообщение. Кнопки ответа не меняют бюджет и напоминания.';return body;

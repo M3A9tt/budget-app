@@ -4,6 +4,6 @@ export const eventLabels={page_view:'Открытие раздела',entry_open
 export const screenLabels={overview:'Главная',add:'Запись',history:'История',stats:'Анализ',lunch:'Обеды',accounts:'Счета',goals:'Цели',payments:'Платежи',settings:'Настройки',updates:'Обновления',feedback:'Обратная связь'};
 export function validateTelemetry(input){
  if(!input||Object.keys(input).some(k=>!['id','events'].includes(k))||!/^[a-f0-9-]{36}$/.test(input.id||'')||!Array.isArray(input.events)||!input.events.length||input.events.length>40)throw Error('Неверный пакет телеметрии');
- for(const e of input.events)if(!e||Object.keys(e).some(k=>!['event','screen','device'].includes(k))||!TELEMETRY_EVENTS.includes(e.event)||!TELEMETRY_SCREENS.includes(e.screen)||!['mobile','desktop'].includes(e.device))throw Error('Неверное событие телеметрии');
+ for(const e of input.events)if(!e||Object.keys(e).some(k=>!['event','screen','device'].includes(k))||!TELEMETRY_EVENTS.includes(e.event)||!TELEMETRY_SCREENS.includes(e.screen)||!['mobile','desktop','bot'].includes(e.device))throw Error('Неверное событие телеметрии');
  return input;
 }
