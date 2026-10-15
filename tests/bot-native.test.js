@@ -1,3 +1,4 @@
+import {showBotView} from '../server/bot-chat.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,17 +12,18 @@ const today=todayMoscow();
 const seed=()=>({...structuredClone(EMPTY),accounts:[{id:'bank',name:'Банк',currency:'RUB',balance:10000},{id:'reserve',name:'Наличный резерв',currency:'RUB',balance:2000,accType:'savings',storageKind:'cash'}],installments:[],reconciliations:[]});
 function fixture(data=seed()){
  const sqlite=new DatabaseSync(':memory:');sqlite.exec(fs.readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
- const DB={prepare(sql){let args=[];const s={bind(...a){args=a;return s;},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return{results:sqlite.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)}};}};return s;},async batch(statements){sqlite.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
+ const DB={prepare(sql){let args=[];const s={bind(...a){args=a.map(x=>x instanceof ArrayBuffer?new Uint8Array(x):x);return s;},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return{results:sqlite.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)}};}};return s;},async batch(statements){sqlite.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
  const env={DB,TELEGRAM_OWNER_ID:'111',TELEGRAM_ALLOWED_IDS:'222',TELEGRAM_BOT_TOKEN:'test-only',TELEGRAM_WEBHOOK_SECRET:'test-hook',API_TOKEN:'test-api',MINI_APP_URL:'https://budget.test'};
  for(const id of ['111','222'])sqlite.prepare('INSERT INTO user_finance_state VALUES(?,1,?,?)').run(id,JSON.stringify(data),'test');sqlite.prepare("INSERT INTO legacy_owner_migrations VALUES('111',0)").run();
  const sent=[],files=new Map(),original=globalThis.fetch;let sequence=100;
  globalThis.fetch=async(url,options={})=>{
   if(String(url).includes('/file/bot'))return new Response(files.get(String(url).split('/').at(-1))||'');
+  if(options.body instanceof FormData&&String(url).endsWith('/sendPhoto')){sent.push({method:'sendPhoto',body:{chat_id:options.body.get('chat_id'),text:options.body.get('caption'),reply_markup:JSON.parse(options.body.get('reply_markup')),photo:options.body.get('photo')}});return Response.json({ok:true,result:{message_id:++sequence,photo:[{file_id:'cached-photo'}]}});}
   if(options.body instanceof FormData){sent.push({method:'sendDocument',body:{chat_id:options.body.get('chat_id'),document:await options.body.get('document').text()}});return Response.json({ok:true,result:{message_id:++sequence}});}
   const body=JSON.parse(options.body);sent.push({method:String(url).split('/').at(-1),body});if(String(url).endsWith('/getFile'))return Response.json({ok:true,result:{file_path:'documents/'+body.file_id}});return Response.json({ok:true,result:{message_id:++sequence}});
  };
  async function update(text='',callback,who=111,extra={}){const content=callback?{callback_query:{id:'c'+sequence,from:{id:who},message:{message_id:sequence,chat:{id:who,type:'private'}},data:callback}}:{message:{message_id:sequence,from:{id:who},chat:{id:who,type:'private'},text,...extra}};const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-hook','Content-Type':'application/json'},body:JSON.stringify({update_id:++sequence,...content})}),env);assert.equal(response.status,200);}
- const last=()=>sent.filter(x=>x.method==='sendMessage').at(-1)?.body;
+ const last=()=>sent.filter(x=>['sendMessage','sendPhoto'].includes(x.method)).at(-1)?.body;
  function button(label){const b=last()?.reply_markup?.inline_keyboard?.flat().find(b=>typeof label==='string'?b.text===label:label.test(b.text));assert.ok(b,`Missing button ${label} in ${JSON.stringify(last())}`);return b.callback_data;}
  const press=async(label,who=111)=>update('',button(label),who);
  const snapshot=(id='111')=>JSON.parse(sqlite.prepare('SELECT data FROM user_finance_state WHERE user_id=?').get(id).data);
@@ -82,5 +84,18 @@ test('New reserve can be funded atomically from an existing account in the nativ
  await f.update('/savings');await f.press('＋ Добавить');await f.update('На отпуск');await f.press('Накопления');await f.press('RUB');await f.press('Отложить с моего счёта');await f.press(/Банк/);await f.update('300');await f.press(/^Оставить:/);await f.press('Наличными');assert.equal(f.snapshot().accounts.length,2);await f.press('✅ Подтвердить');const d=f.snapshot();assert.equal(d.accounts.length,3);assert.equal(d.accounts[0].balance,9700);assert.equal(d.accounts.at(-1).balance,300);assert.equal(d.accounts.at(-1).storageKind,'cash');assert.equal(d.transfers.length,1);assert.equal(d.transactions.length,0);
 }));
 test('Picture generation failure keeps native menus usable and does not mutate finances',()=>run(async f=>{
- const before=f.snapshot();await f.update('/start');await f.press('🖼 Показать картинкой');assert.match(f.last().text,/Картинку пока не удалось/);assert.equal(f.last().reply_markup.inline_keyboard[0][0].web_app.url,f.env.MINI_APP_URL);assert.deepEqual(f.snapshot(),before);await f.press('Картинки');assert.match(f.last().text,/Миниаппа в картинках/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='💚 Бюджет'));await f.press('⌂ Главное меню');assert.match(f.last().text,/Бюджет|бюджет/);
+ const before=f.snapshot();f.env.BROWSER={};await f.update('/budget');assert.match(f.last().text,/Твой бюджет/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='✍️ Записать'));assert.equal(f.last().reply_markup.inline_keyboard[0][0].web_app.url,f.env.MINI_APP_URL);assert.deepEqual(f.snapshot(),before);await f.update('/more');await f.press('🖼 Картинки миниаппы');assert.match(f.last().text,/Миниаппа в картинках/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='💚 Бюджет'));await f.press('⌂ Главное меню');assert.match(f.last().text,/Бюджет|бюджет/);
 }));
+test('Opening a section sends the image with its real actions immediately; text mode and editing remain connected',()=>run(async f=>{
+ let captures=0;const api={readState:async()=>({revision:1,data:f.snapshot(),isOwner:true}),telegram:async(_env,method,body)=>{f.sent.push({method,body});return {};},capturePicture:async()=>{captures++;const b=new Uint8Array(24);b.set([137,80,78,71,13,10,26,10]);const v=new DataView(b.buffer);v.setUint32(16,1280);v.setUint32(20,922);return b;}};
+ for(const name of ['home','analytics','lunch','savings','goals']){
+  const before=f.sent.length;await showBotView(f.env,'111',api,name);const messages=f.sent.slice(before).filter(x=>['sendMessage','sendPhoto'].includes(x.method));assert.equal(messages.length,1);assert.equal(messages[0].method,'sendPhoto');assert.ok(f.last().reply_markup.inline_keyboard[0][0].web_app);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='📄 Скачать PNG'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='🖼 Показать картинкой'));
+ }
+ assert.equal(captures,4); // savings and goals reuse the same current snapshot.
+ await showBotView(f.env,'111',api,'analytics',{chart:'categories',days:7});assert.match(f.last().text,/Последние 7 дней/);const beforeText=captures;await showBotView(f.env,'111',api,'analytics',{textOnly:true});assert.equal(f.sent.at(-1).method,'sendMessage');assert.equal(captures,beforeText);
+ await showBotView(f.env,'111',api,'home');await f.press('✍️ Записать');assert.match(f.last().text,/Что записать/);assert.equal(f.snapshot().transactions.length,0);
+}));
+test('Savings and goals page buttons match six items in the image',()=>{
+ const d=seed();d.accounts=Array.from({length:13},(_,i)=>({id:'s'+i,name:'Reserve '+i,accType:'savings',balance:100,currency:'RUB'}));d.goals=d.accounts.map((a,i)=>({id:'g'+i,name:'Goal '+i,accountId:a.id,target:1000,currency:'RUB'}));
+ for(const name of ['savings','goals']){const s=botView(d,name,{page:1});assert.match(s.lines[0],/7–12 из 13/);assert.equal(s.picture.page,1);assert.equal(s.actions.filter(x=>['account','goal'].includes(x.view)).length,6);}
+});
