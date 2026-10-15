@@ -1,4 +1,5 @@
-import {accountTotals} from './account-balances.js';
+import {debtDues} from './debt-state.js';
+import {accountTotals,isSavingAccount} from './account-balances.js';
 import {plannedOccurrences,planType} from './planned-model.js';
 import {paidInstallment} from './finance-tools.js';
 export const CATEGORIES=[{id:'food',name:'Еда',icon:'food',color:'#b8dec4'},{id:'transport',name:'Транспорт',icon:'transport',color:'#a6b7e8'},{id:'housing',name:'ЖКХ',icon:'home',color:'#d6b499'},{id:'health',name:'Здоровье',icon:'health',color:'#c2ace1'},{id:'fun',name:'Развлечения',icon:'play',color:'#d7bd79'},{id:'subs',name:'Подписки',icon:'repeat',color:'#a7cbd8'},{id:'clothes',name:'Одежда',icon:'other',color:'#c1bacd'},{id:'comm',name:'Связь',icon:'other',color:'#a6c2bc'},{id:'tech',name:'Техника',icon:'other',color:'#9eacc7'},{id:'other',name:'Другое',icon:'other',color:'#a2a8b7'}];
@@ -13,8 +14,9 @@ export function dashboard(data,today=todayMoscow(data.settings?.timeZone)) {
   const payday=data.settings.nextIncomeDate,hasPayday=/^\d{4}-\d{2}-\d{2}$/.test(payday||'')&&payday>today;
   const end=hasPayday?payday:today;
   let obligations=0,unknown=0;const obligationItems=[];
-  for(const {rule:r,date} of plannedOccurrences(data,today,end).filter(i=>i.date<end)){if(planType(r)!=='expense'||data.accounts.find(a=>a.id===r.accountId)?.accType==='savings')continue;const amount=r.variable?null:r.amount*(data.rates[r.currency||'RUB']||1);obligationItems.push({id:r.id+':'+date,source:'plan',sourceId:r.id,name:r.name,date,amount,kind:'План'});if(r.variable)unknown++;else obligations+=amount;}
-  for(const p of data.installments||[])if(data.accounts.find(a=>a.id===p.accountId)?.accType!=='savings')for(const x of p.payments)if(x.date<end&&!paidInstallment(data,x)){const amount=x.amount*(data.rates[p.currency]||1);obligations+=amount;obligationItems.push({id:x.id,source:'installment',sourceId:p.id,name:p.name,date:x.date,amount,kind:({split:'Сплит',loan:'Кредит',mortgage:'Ипотека'})[p.obligationKind]||'Рассрочка'});}
+  for(const {rule:r,date} of plannedOccurrences(data,today,end).filter(i=>!hasPayday||i.date<end)){if(planType(r)!=='expense'||isSavingAccount(data.accounts.find(a=>a.id===r.accountId)))continue;const amount=r.variable?null:r.amount*(data.rates[r.currency||'RUB']||1);obligationItems.push({id:r.id+':'+date,source:'plan',sourceId:r.id,name:r.name,date,amount,kind:'План'});if(r.variable)unknown++;else obligations+=amount;}
+  for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const x of p.payments)if((hasPayday?x.date<end:x.date<=today)&&!paidInstallment(data,x)){const amount=x.amount*(data.rates[p.currency]||1);obligations+=amount;obligationItems.push({id:x.id,source:'installment',sourceId:p.id,name:p.name,date:x.date,amount,kind:({split:'Сплит',loan:'Кредит',mortgage:'Ипотека'})[p.obligationKind]||'Рассрочка'});}
+  for(const debt of debtDues(data).filter(d=>d.date<=today||d.date<end)){const amount=debt.amount*(data.rates[debt.currency]||1);obligations+=amount;obligationItems.push({id:'debt:'+debt.id,source:'debt',sourceId:debt.id,name:debt.name,date:debt.date,amount,kind:'Долг'});}
   const reserve=accountTotals(data).savings,free=balance-obligations;
   const days=hasPayday?Math.round((new Date(payday+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/86400000):null;
   const categories=CATEGORIES.concat(data.customCats||[]).map(c=>({...c,value:expenses.filter(t=>t.cat===c.id).reduce((n,t)=>n+rub(t),0)})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
