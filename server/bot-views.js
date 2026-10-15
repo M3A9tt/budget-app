@@ -60,5 +60,5 @@ export function botView(d,name='home',a={},owner=false){
  if(name==='help')r={title:'❓ Бюрджет в чате',lines:['Кнопки внизу открывают разделы. Назад и Отмена доступны на шагах.','Расход: кофе 180 Сбер. Обед можно переслать целиком — бот предложит расшифровку.','JSON и CSV: Ещё → Импорт. Полный бэкап: Резервные копии.','Запись — после проверки и подтверждения. Один бюджет с миниаппой.'],actions:[view('Главная','home'),view('Напоминания','settingGroup',{group:'reminders'}),act('Обратная связь','feedback'),{label:'Открыть миниаппу',command:'/app'}]};
  if(name==='updates')r={title:'✨ Что нового · '+latestRelease.version,lines:[latestRelease.title,...latestRelease.changes.map(x=>'• '+x)],actions:[]};
  if(name==='admin'){if(!owner)throw Error('Только владелец');r={title:'🛠 Владелец',lines:[],actions:[{label:'Пригласить друга',command:'/invite'},{label:'Участники',command:'/friends'},{label:'Экспорт телеметрии',special:'telemetry'},{label:'Модерация распознавания',special:'moderation'}]};}
- r.lines=r.lines.filter(Boolean);r.actions.push(view('⌂ Главное меню','home'));return r;
+ r.lines=r.lines.filter(Boolean);r.actions=[{label:'📱 Открыть миниаппу',command:'/app'},...r.actions.filter(x=>x.command!=='/app')];r.actions.push(view('⌂ Главное меню','home'));return r;
 }
