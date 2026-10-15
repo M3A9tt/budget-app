@@ -1,3 +1,4 @@
+import {debtDues} from './debt-state.js';
 import {plannedOccurrences,planType} from './planned-model.js';
 import {CATEGORIES} from './mini-model.js';
 import {paidInstallment} from './finance-tools.js';
@@ -18,4 +19,5 @@ export function analytics(data,today,days=7){
 export function upcoming(data,today,horizon=30){const end=shiftDate(today,horizon),items=[];
  for(const {rule:r,date,period,overdue} of plannedOccurrences(data,today,end))items.push({id:r.id+period,name:r.name,date,amount:r.variable?null:r.amount*(data.rates[r.currency||'RUB']||1),type:planType(r),kind:planType(r)==='income'?'Ожидаемый доход':r.frequency==='once'?'Разовый':'Регулярный',overdue});
  for(const p of data.installments||[])for(const x of p.payments)if(x.date<=end&&!paidInstallment(data,x))items.push({id:x.id,name:p.name,date:x.date,amount:x.amount*(data.rates[p.currency||'RUB']||1),kind:'Рассрочка',overdue:x.date<today});
+ for(const d of debtDues(data))if(d.date<=end)items.push({id:'debt:'+d.id,name:d.name,date:d.date,amount:d.amount*(data.rates[d.currency]||1),type:'expense',kind:'Долг',overdue:d.date<today});
  return items.sort((a,b)=>a.date.localeCompare(b.date));}

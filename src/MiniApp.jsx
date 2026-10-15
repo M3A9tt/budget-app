@@ -99,7 +99,7 @@ export default function MiniApp(){
       {tab==='accounts'&&<AccountsPage data={data} mutate={mutate} busy={busy}/>}
       {tab==='savings'&&<SavingsPage data={data} mutate={mutate} busy={busy}/>}
       {tab==='goals'&&<><WishesPage data={data} mutate={mutate} busy={busy} initialWish={wishOpen}/><details className="mini-card"><summary>Цели с точной суммой и сроком</summary><GoalTools data={data} mutate={mutate} busy={busy}/></details></>}
-      {tab==='payments'&&<PaymentsPage data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={next=>{setDraft(next);setPage('add');}}/>}
+      {tab==='payments'&&<PaymentsPage onEdit={edit} data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={next=>{setDraft(next);setPage('add');}}/>}
       {tab==='settings'&&<><SettingsPage onSavings={()=>{setTab('savings');go('more');}} data={data} cats={cats} mutate={mutate} busy={busy} demo={demo} isOwner={state.isOwner===true} onUpdates={()=>go('updates')}/>{!demo&&!tg?.initData&&<button className="mini-secondary" onClick={async()=>{await apiRequest('auth/logout',{method:'POST'});window.location.reload();}}>Выйти на этом устройстве</button>}</>}
     </>}
     </main>}

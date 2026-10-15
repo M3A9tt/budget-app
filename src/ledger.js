@@ -1,3 +1,4 @@
+import {validateDebtLinks} from './debt-state.js';
 import {validateWishes} from './wishes.js';
 import {clockAt,DEFAULT_ZONE} from './time-settings.js';
 import {validateModules} from './modules.js';
@@ -73,6 +74,7 @@ function reconcileRecurring(data,...ids) {
 }
 export function putTransaction(data, input) {
   const old = data.transactions.find(t => t.id === input.id);
+  if(old?.debtId&&input.debtId!==old.debtId)throw Error('Связь операции с долгом нельзя удалить при редактировании');
   if (old && input.revision !== old.revision) throw new Error('Операция уже изменена. Откройте её заново');
   let next = old ? apply(data, old, -1) : data;
   const rule=input.recurringId&&data.recurring.find(r=>r.id===input.recurringId);
@@ -87,7 +89,7 @@ export function putTransaction(data, input) {
   if(rule&&saveRecurringAmount)next={...next,recurring:next.recurring.map(r=>r.id===rule.id?{...r,amount:tx.amount}:r)};
   next = apply(next, tx, 1);
   next = {...next, transactions: old ? next.transactions.map(t => t.id === tx.id ? tx : t) : [...next.transactions,tx]};
-  return log(reconcileRecurring(next,old?.recurringId,tx.recurringId), {type:old?'edit_tx':'add_tx',before:old,after:tx});
+  return log(validateDebtLinks(reconcileRecurring(next,old?.recurringId,tx.recurringId)), {type:old?'edit_tx':'add_tx',before:old,after:tx});
 }
 export function deleteTransaction(data, id) {
   const tx = data.transactions.find(t => t.id === id);
@@ -111,7 +113,7 @@ export function undoTransaction(data, entry) {
       next = {...next, transactions:[...next.transactions,entry.before]};
     }
   }
-  return reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId);
+  return validateDebtLinks(reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId));
 }
 export function transferMoney(data, {from,to,amount,fee=0,note='',date,externalId,balanceEffect='normal'}) {
   const a = positive(amount), f = parseMoney(fee);
@@ -163,6 +165,8 @@ export function migrateData(input, defaults) {
   for(const p of data.installments){if(p.obligationKind!==undefined&&!['installment','split','loan','mortgage'].includes(p.obligationKind))throw Error('Неверный вид обязательства');if(p.cadence!==undefined&&!['monthly','weekly','biweekly'].includes(p.cadence))throw Error('Неверный график обязательства');if(!p.id||!Array.isArray(p.payments)||!Number.isFinite(p.total)||p.total<=0||!currencies.has(p.currency))throw new Error('Неверная рассрочка');for(const x of p.payments)if(!x.id||!Number.isFinite(x.amount)||x.amount<=0||!/^\d{4}-\d{2}-\d{2}$/.test(x.date))throw new Error('Неверный платёж рассрочки');}
   for (const k of ['transactions','accounts','debts','goals','recurring','installments','transfers']) if (new Set(data[k].map(x=>x.id)).size !== data[k].length) throw new Error('Повторяющиеся ID: '+k);
   data.migrationWarnings = data.transactions.filter(t=>t.accountId && !Number.isFinite(t.accountAmount) && (t.currency||'RUB') !== (data.accounts.find(a=>a.id===t.accountId)?.currency||'RUB')).map(t=>t.id);
+  for(const d of data.debts){if(d.dueDate&&!dateValid(d.dueDate))throw Error('Неверный срок возврата долга');}
+  validateDebtLinks(data);
   // Preserve supplied balances. Historical bank exchange rates cannot be reconstructed.
   return data;
 }
