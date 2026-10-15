@@ -25,7 +25,15 @@ async function render(env,userId,api,screen){return send(api,env,userId,[screen.
 export async function showBotView(env,userId,api,name='home',args={}){
  const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'accounts',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
  if(name==='backups'){const page=Math.max(0,Number(args.page)||0),rows=(await env.DB.prepare('SELECT revision,created_at FROM user_state_backups WHERE user_id=? ORDER BY revision DESC LIMIT 50').bind(userId).all()).results;return render(env,userId,api,{title:'Серверные резервные копии',lines:['Восстановление только после проверки.'],actions:[...rows.slice(page*8,page*8+8).map(r=>({label:`${r.created_at} · версия ${r.revision}`,special:'backup',args:{revision:r.revision}})),...(page>0?[view('← Копии','backups',{page:page-1})]:[]),...((page+1)*8<rows.length?[view('Копии →','backups',{page:page+1})]:[]),view('Меню копий','backup')]});}
- return render(env,userId,api,botView(s.data,name,args,s.isOwner));
+ const screen=botView(s.data,name,args,s.isOwner);
+ if(screen.picture&&(env.BROWSER||api.capturePicture)){
+  try{
+   const picture=await getPicture(env,userId,s,screen.picture,api.capturePicture);
+   const actions=[...screen.actions,{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...picture.params,key:picture.cache_key}},view('📝 Текстом',name,{...args,textOnly:true})];
+   return await uploadPicture(env,userId,picture,await menu(env,userId,{actions}),false,[screen.title,'',...screen.lines].join('\n'));
+  }catch{/* The same section and all its actions remain available if rendering fails. */}
+ }
+ return render(env,userId,api,screen);
 }
 async function start(env,userId,api,op,args={}){
  await cancelBotFlow(env,userId);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...initialValues(s.data,op,args),...args.prefill},step:0,status:'form',revision:s.revision};
