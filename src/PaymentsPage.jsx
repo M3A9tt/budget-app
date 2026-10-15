@@ -1,0 +1,20 @@
+import React,{useState} from 'react';
+import Icon from './mini-icons.jsx';
+import {money,todayMoscow,dashboard} from './mini-model.js';
+import {paymentOverview} from './payment-overview.js';
+import {PaymentTools,DebtTools} from './FinancePanels.jsx';
+export default function PaymentsPage({data,mutate,busy,cats,onPrepare}){
+ const [section,setSection]=useState('all');const today=todayMoscow(data.settings.timeZone),overview=paymentOverview(data,today),s=dashboard(data,today),payoffTotal=overview.installmentTotal+overview.debtTotal+overview.oneOffTotal;
+ const finite=['payoff','installments','debts','once'].includes(section),planData={...data,recurring:data.recurring.filter(r=>section==='once'?r.frequency==='once':r.frequency!=='once')};
+ const tabs=[['all','Все'],['regular','Постоянные'],['payoff','До погашения']];
+ const groups=[{id:'regular',icon:'bell',name:'Постоянные',amount:overview.regularTotal,detail:`ЖКХ, подписки и другие повторяющиеся · ${overview.recurring.length} платежей до ${overview.until.slice(8,10)}.${overview.until.slice(5,7)}`},{id:'payoff',icon:'repeat',name:'До погашения',amount:payoffTotal,detail:'Остатки по кредитам, ипотеке, рассрочкам, сплиту и долгам'}];
+ const types=[{id:'installments',icon:'repeat',name:'Кредиты, сплит, рассрочки',amount:overview.installmentTotal,detail:`Открыто обязательств: ${overview.installments.length}`},{id:'debts',icon:'wallet',name:'Долги людям',amount:overview.debtTotal,detail:overview.receivableTotal?`Мне должны ${money(overview.receivableTotal)}`:`Открыто записей: ${overview.debts.length}`},{id:'once',icon:'file',name:'Разовые платежи',amount:overview.oneOffTotal,detail:`Запланировано: ${overview.oneOff.length}`}];
+ return <section className="connected-payments"><h2>Мои обязательства</h2><div className="mini-tabs">{tabs.map(([id,name])=><button key={id} className={section===id||id==='payoff'&&finite?'selected':''} onClick={()=>setSection(id)}>{name}</button>)}</div><div className="payments-linked-summary"><small>{s.days?'По графику до следующего дохода':'По графику к сегодня'}</small><strong>{money(s.obligations)}</strong><small>Долги без графика и будущий остаток кредитов — ниже, в обязательствах до погашения.</small></div>
+ {section==='all'&&<div className="payment-source-grid">{groups.map(g=><button key={g.id} onClick={()=>setSection(g.id)}><Icon name={g.icon}/><b>{g.name}</b><strong>{money(g.amount)}</strong><small>{g.detail}</small><span>Открыть ↗</span></button>)}</div>}
+ {finite&&<div className="payment-source-grid">{types.map(g=><button key={g.id} className={section===g.id?'selected':''} onClick={()=>setSection(g.id)}><Icon name={g.icon}/><b>{g.name}</b><strong>{money(g.amount)}</strong><small>{g.detail}</small><span>Открыть ↗</span></button>)}</div>}
+ {section==='all'&&s.obligationItems.length>0&&<div className="mini-card"><h3>Ближайшие платежи</h3>{s.obligationItems.map(item=><button key={item.id} className="payment-linked-row" onClick={()=>setSection(item.source==='installment'?'installments':data.recurring.find(r=>r.id===item.sourceId)?.frequency==='once'?'once':'regular')}><span><b>{item.name}</b><small>{item.date} · {item.kind}</small></span><strong>{item.amount===null?'Уточнить':money(item.amount)}</strong><Icon name="arrow" size={16}/></button>)}</div>}
+ {['regular','once'].includes(section)&&<PaymentTools key={section} section="plans" planFrequency={section==='once'?'once':'monthly'} data={planData} mutate={mutate} busy={busy} cats={cats} onPrepare={onPrepare}/>}
+ {section==='installments'&&<PaymentTools section="installments" data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={onPrepare}/>}
+ {section==='debts'&&<><div className="mini-card"><h3>Открытые долги</h3>{overview.debts.map(d=><div className="mini-payment-row" key={d.id}><span><b>{d.person}</b><small>{d.type==='my'?'Я должен':d.type==='tome'?'Мне должны':'Передать дальше'}{d.note?' · '+d.note:''}</small></span><strong>{money(d.remaining,d.currency)}</strong></div>)}{!overview.debts.length&&<p className="mini-muted">Открытых долгов нет.</p>}</div><DebtTools data={data} mutate={mutate} busy={busy}/></>}
+ </section>;
+}

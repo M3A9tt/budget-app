@@ -4,6 +4,7 @@ import AccountsPage from './AccountsPage.jsx';
 import SavingsPage from './SavingsPage.jsx';
 import AuthGate from './AuthGate.jsx';
 import WishesPage from './Wishes.jsx';
+import PaymentsPage from './PaymentsPage.jsx';
 import './experience.css';
 import SettingsPage from './SettingsPage.jsx';
 import LunchPage from './LunchPage.jsx';
@@ -98,8 +99,8 @@ export default function MiniApp(){
       {tab==='accounts'&&<AccountsPage data={data} mutate={mutate} busy={busy}/>}
       {tab==='savings'&&<SavingsPage data={data} mutate={mutate} busy={busy}/>}
       {tab==='goals'&&<><WishesPage data={data} mutate={mutate} busy={busy} initialWish={wishOpen}/><details className="mini-card"><summary>Цели с точной суммой и сроком</summary><GoalTools data={data} mutate={mutate} busy={busy}/></details></>}
-      {tab==='payments'&&<><PaymentTools data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={next=>{setDraft(next);setPage('add');}}/>{moduleEnabled(data,'debts')&&<><DebtTools data={data} mutate={mutate} busy={busy}/><Section title="Долги">{data.debts.filter(d=>!d.closed).map(d=><div className="mini-card" key={d.id}><div className="mini-between"><strong>{d.person}</strong><span>{money(d.amount-(d.payments||[]).reduce((n,p)=>n+p.amount,0),d.currency)}</span></div><p className="mini-small mini-muted">{d.type==='my'?'Я должен':d.type==='tome'?'Мне должны':'Транзит'} · {d.note}</p></div>)}{!data.debts.some(d=>!d.closed)&&<p className="mini-small mini-muted">Нет открытых долгов.</p>}</Section></>}</>}
-      {tab==='settings'&&<><SettingsPage data={data} cats={cats} mutate={mutate} busy={busy} demo={demo} isOwner={state.isOwner===true} onUpdates={()=>go('updates')}/>{!demo&&!tg?.initData&&<button className="mini-secondary" onClick={async()=>{await apiRequest('auth/logout',{method:'POST'});window.location.reload();}}>Выйти на этом устройстве</button>}</>}
+      {tab==='payments'&&<PaymentsPage data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={next=>{setDraft(next);setPage('add');}}/>}
+      {tab==='settings'&&<><SettingsPage onSavings={()=>{setTab('savings');go('more');}} data={data} cats={cats} mutate={mutate} busy={busy} demo={demo} isOwner={state.isOwner===true} onUpdates={()=>go('updates')}/>{!demo&&!tg?.initData&&<button className="mini-secondary" onClick={async()=>{await apiRequest('auth/logout',{method:'POST'});window.location.reload();}}>Выйти на этом устройстве</button>}</>}
     </>}
     </main>}
     <nav className="mini-nav" aria-label="Основная навигация"><div className="desktop-nav-brand"><span className="mini-mark"><Icon name="wallet"/></span><div><strong>Бюрджет</strong><small>Деньги. Ясно.</small></div></div>{[['overview','home','Главная'],['history','history','История'],['add','plus','Записать'],['stats','chart','Анализ'],['lunch','lunch','Обеды'],['more','other','Ещё']].filter(([id])=>id!=='lunch'||moduleEnabled(data,'lunch')).map(([id,icon,label])=><button key={id} className={id==='add'?'mini-nav-add':''} aria-current={page===id?'page':undefined} onClick={()=>go(id)} disabled={!loaded||busy}><Icon name={icon} size={21}/><span>{label}</span></button>)}<div className="desktop-nav-help"><kbd>N</kbd> новая запись<br/><kbd>/</kbd> поиск операций<br/><span>Подсказки и автоматизация<br/>отключаются в настройках.</span></div></nav>

@@ -1,3 +1,4 @@
+import {accountTotals} from './account-balances.js';
 import {plannedOccurrences,planType} from './planned-model.js';
 import {parseMoney,roundMoney,putTransaction,transferMoney} from './ledger.js';
 const id=()=>crypto.randomUUID();
@@ -18,12 +19,13 @@ export function fundGoal(data,{goalId,from,amount,date}){
  return transferMoney(data,{from,to:g.accountId,amount,date,note:'Накопление: '+g.name});
 }
 export const goalSaved=(data,g)=>g.accountId?data.accounts.find(a=>a.id===g.accountId)?.balance||0:g.saved||0;
-export function createInstallment(data,{name,total,count,firstDate,accountId,cat='other'}){
+export function createInstallment(data,{name,total,count,firstDate,accountId,cat='other',obligationKind='installment',cadence='monthly'}){
+ if(!['installment','split','loan','mortgage'].includes(obligationKind)||!['monthly','weekly','biweekly'].includes(cadence))throw Error('Выберите вид и период платежей');
  const amount=positive(total),n=Number(count),account=data.accounts.find(a=>a.id===accountId);
- if(!name.trim()||!Number.isInteger(n)||n<1||n>120||!validDate(firstDate)||!account)throw Error('Проверьте название, дату, счёт и число платежей (1–120)');
+ if(!name.trim()||!Number.isInteger(n)||n<1||n>600||!validDate(firstDate)||!account)throw Error('Проверьте название, дату, счёт и число платежей (1–600)');
  const cents=Math.round(amount*100);if(cents<n)throw Error('Сумма слишком мала для такого числа платежей');
- const anchor=new Date(firstDate+'T12:00:00Z'),payments=Array.from({length:n},(_,i)=>{const start=new Date(Date.UTC(anchor.getUTCFullYear(),anchor.getUTCMonth()+i,1,12)),day=Math.min(anchor.getUTCDate(),new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth()+1,0)).getUTCDate());start.setUTCDate(day);return{id:id(),date:start.toISOString().slice(0,10),amount:(Math.floor(cents/n)+(i<cents%n?1:0))/100};});
- return {...data,installments:[...(data.installments||[]),{id:id(),name:name.trim(),total:amount,currency:account.currency||'RUB',accountId,cat,payments}]};
+ const anchor=new Date(firstDate+'T12:00:00Z'),payments=Array.from({length:n},(_,i)=>{const start=new Date(Date.UTC(anchor.getUTCFullYear(),anchor.getUTCMonth()+i,1,12)),day=Math.min(anchor.getUTCDate(),new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth()+1,0)).getUTCDate());start.setUTCDate(day);if(cadence!=='monthly')start.setTime(Date.parse(firstDate+'T12:00:00Z')+i*(cadence==='weekly'?7:14)*86400000);return{id:id(),date:start.toISOString().slice(0,10),amount:(Math.floor(cents/n)+(i<cents%n?1:0))/100};});
+ return {...data,installments:[...(data.installments||[]),{id:id(),name:name.trim(),obligationKind,cadence,total:amount,currency:account.currency||'RUB',accountId,cat,payments}]};
 }
 export const paidInstallment=(data,p)=>data.transactions.some(t=>t.installmentPaymentId===p.id&&t.type==='expense');
 export function payInstallment(data,{planId,paymentId,date}){
@@ -36,7 +38,7 @@ export function forecast(data,today,days=30){
  const past=new Date(today+'T12:00:00Z');past.setUTCDate(past.getUTCDate()-29);const from=past.toISOString().slice(0,10);
  const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&t.date>=from&&t.date<=today);
  const daily=rows.reduce((n,t)=>n+(t.amountRub??t.amount*(data.rates[t.currency||'RUB']||1)),0)/30;
- let balance=data.accounts.filter(a=>a.accType!=='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0)-(data.settings.reserveRub||0),unknown=0;
+ let balance=accountTotals(data).spendable,unknown=0;
  const limit=new Date(today+'T12:00:00Z');limit.setUTCDate(limit.getUTCDate()+days);const plansByDate=new Map();for(const item of plannedOccurrences(data,today,limit.toISOString().slice(0,10))){if(data.accounts.find(a=>a.id===item.rule.accountId)?.accType==='savings')continue;if(!plansByDate.has(item.date))plansByDate.set(item.date,[]);plansByDate.get(item.date).push(item.rule);}
  const points=[];let expectedBalance=balance,plannedIncome=0,plannedExpense=0,overdue=0;
  for(const item of plannedOccurrences(data,today,today))if(planType(item.rule)==='expense'&&!item.rule.variable&&data.accounts.find(a=>a.id===item.rule.accountId)?.accType!=='savings')overdue+=item.rule.amount*(data.rates[item.rule.currency||'RUB']||1);
@@ -46,7 +48,7 @@ export function forecast(data,today,days=30){
  for(const r of plansByDate.get(date)||[]){if(r.variable)unknown++;else if(planType(r)==='income')income+=r.amount*(data.rates[r.currency||'RUB']||1);else due+=r.amount*(data.rates[r.currency||'RUB']||1);}
  for(const p of data.installments||[])if(data.accounts.find(a=>a.id===p.accountId)?.accType!=='savings')for(const pay of p.payments)if(pay.date===date&&!paidInstallment(data,pay))due+=pay.amount*(data.rates[p.currency]||1);
  balance=roundMoney(balance-daily-due);expectedBalance=roundMoney(expectedBalance-daily-due+income);plannedIncome=roundMoney(plannedIncome+income);plannedExpense=roundMoney(plannedExpense+due);points.push({date,balance,expectedBalance,income,due});}
- return {actualBalance:roundMoney(data.accounts.filter(a=>a.accType!=='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0)),plannedIncome,plannedExpense,overdue:roundMoney(overdue),daily:roundMoney(daily),points,unknown,activeDays:new Set(rows.map(t=>t.date)).size,firstNegative:points.find(p=>p.balance<0)?.date};
+ return {actualBalance:roundMoney(accountTotals(data).spendable),plannedIncome,plannedExpense,overdue:roundMoney(overdue),daily:roundMoney(daily),points,unknown,activeDays:new Set(rows.map(t=>t.date)).size,firstNegative:points.find(p=>p.balance<0)?.date};
 }
 // RFC-style quoted CSV, semicolon/tab/comma delimiters; no evaluation of formulas.
 export function csvRows(text){
