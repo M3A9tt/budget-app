@@ -22,7 +22,7 @@ export function prepareImportAccounts(data,doc,bindings={},options={}){
   if(!choice.create)continue;
   const v=choice.create;if(source.currencies.length!==1||!data.rates[source.currencies[0]])throw Error('Уточните валюту счёта '+source.name);
   if(!v.id||accounts.some(a=>a.id===v.id))throw Error('Повторяющийся счёт в импорте');
-  const account={id:v.id,...accountInput({name:v.name||source.name,currency:source.currencies[0],kind:v.kind,balance:v.balance??'0',annualRate:v.annualRate??'',maturityDate:v.maturityDate??''})};
+  const account={id:v.id,...accountInput({name:v.name||source.name,currency:source.currencies[0],kind:v.kind,balance:v.balance??'0',annualRate:v.annualRate??'',maturityDate:v.maturityDate??'',storageKind:v.kind==='deposit'?'bank':v.storageKind||''})};
   if(accounts.some(a=>key(a.name)===key(account.name)))throw Error('Счёт с таким названием уже есть: '+account.name);
   if(account.accType==='savings'&&account.balance<0)throw Error('Накопления не могут быть отрицательными');
   accounts.push(account);mapping.set(source.key,account.id);
