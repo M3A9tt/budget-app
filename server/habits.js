@@ -7,26 +7,26 @@ const reasons={late:'Опоздал',vacation:'Отпуск',unpaid:'Неопл�
 export async function habitCallback(env,userId,callback,api){
  const value=callback.data||'';if(!value.startsWith('check:')&&!value.startsWith('lunch:'))return false;
  const [prefix,day,action,argument]=value.split(':'),kind=prefix==='check'?'expense':'lunch',state=await api.readState(env,userId),clock=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE);
- if(day!==clock.date)throw Error('Этот вопрос за прошлый день. Открой приложение для записи задним числом.');
+ if(day!==clock.date)throw Error('Этот вопрос за прошлый день. Выбери «Записать» в меню бота и укажи нужную дату в деталях.');
  const row=(await dayChecks(env,userId,day)).find(r=>r.kind===kind);
  if(!row)throw Error('Вопрос больше не активен.');
  const payload=JSON.parse(row.payload),send=text=>api.telegram(env,'sendMessage',{chat_id:userId,text});
  if(action==='off'){
   await api.mutateState(env,userId,d=>({...d,settings:{...d.settings,[kind==='expense'?'expenseCheckEnabled':'lunchAskEnabled']:false,...(kind==='expense'?{reminders:false}:{})}}));
-  await setDayCheck(env,userId,day,kind,'off');await send('Отключено. Включить снова можно в мини-аппе: Настройки → Твой ритм.');
+  await setDayCheck(env,userId,day,kind,'off');await send('Отключено. Включить снова: Ещё → Настройки → Напоминания и сводки.');
  }else if(kind==='expense'){
   if(!['done','none','pending','later'].includes(action))throw Error('Неизвестный ответ');
   if(['done','none'].includes(row.status)){await send('Этот день уже подтверждён. Повторов больше не будет.');}
-  else {await setDayCheck(env,userId,day,kind,action==='later'?'pending':action,action==='later'?{nextMinute:clock.minutes+60}:{});await send(action==='done'?'Принято ✅ Сегодня больше не спрашиваю.':action==='none'?'Без трат — тоже ответ ✅ Сегодня больше не спрашиваю.':action==='later'?(clock.minutes+60<=1439?'Хорошо, спрошу через час.':'Уже поздно, сегодня больше не буду спрашивать.'):'Дозапиши расходы в мини-аппе или сообщением боту. Проверю в следующее выбранное время.');}
- }else if(['recorded','skipped'].includes(row.status)){await send('Ответ за этот день уже сохранён. Изменить учёт можно в мини-аппе.');}
+  else {await setDayCheck(env,userId,day,kind,action==='later'?'pending':action,action==='later'?{nextMinute:clock.minutes+60}:{});await send(action==='done'?'Принято ✅ Сегодня больше не спрашиваю.':action==='none'?'Без трат — тоже ответ ✅ Сегодня больше не спрашиваю.':action==='later'?(clock.minutes+60<=1439?'Хорошо, спрошу через час.':'Уже поздно, сегодня больше не буду спрашивать.'):'Дозапиши расходы через «Записать» или сообщением боту. Проверю в следующее выбранное время.');}
+ }else if(['recorded','skipped'].includes(row.status)){await send('Ответ за этот день уже сохранён. Изменить учёт можно через «Обеды» и «История» в меню бота.');}
  else if(action==='company'){
   const state=await api.readState(env,userId);
   if(state.data.transactions.some(t=>t.date===day&&(t.type==='lunch'||t.cat==='lunch'))){await setDayCheck(env,userId,day,kind,'recorded');await send('Обед за этот день уже есть в учёте.');}
   else {await setDayCheck(env,userId,day,kind,'amount',{type:'company'});await api.telegram(env,'sendMessage',{chat_id:userId,text:'Сколько стоил обед за счёт компании? Только сумма в ₽, например 379,50. /cancel — отменить ввод.',reply_markup:{force_reply:true}});}
  }else if(action==='own'){
   const {data}=await api.readState(env,userId),accounts=data.accounts.filter(a=>(a.currency||'RUB')==='RUB');
-  if(!accounts.length){await send('Сначала добавь рублёвый счёт в мини-аппе. Затем нажми «Купил за свои» ещё раз.');}
-  else {await setDayCheck(env,userId,day,kind,'account',{choices:accounts.map(a=>a.id)});await api.telegram(env,'sendMessage',{chat_id:userId,text:'С какого счёта оплатил обед? Это будет обычный расход. Если платил не в рублях — внеси через мини-аппу.',reply_markup:{inline_keyboard:accounts.slice(0,30).map((a,i)=>[{text:a.name.slice(0,50),callback_data:'lunch:'+day+':account:'+i}])}});}
+  if(!accounts.length){await send('Сначала добавь рублёвый счёт: Ещё → Счета. Затем нажми «Купил за свои» ещё раз.');}
+  else {await setDayCheck(env,userId,day,kind,'account',{choices:accounts.map(a=>a.id)});await api.telegram(env,'sendMessage',{chat_id:userId,text:'С какого счёта оплатил обед? Это будет обычный расход. Для другой валюты выбери «Записать» в меню бота.',reply_markup:{inline_keyboard:accounts.slice(0,30).map((a,i)=>[{text:a.name.slice(0,50),callback_data:'lunch:'+day+':account:'+i}])}});}
  }else if(action==='account'){
   if(row.status!=='account'||!/^\d+$/.test(argument||'')||!payload.choices?.[Number(argument)])throw Error('Выбери счёт заново');
   await setDayCheck(env,userId,day,kind,'amount',{type:'own',accountId:payload.choices[Number(argument)]});await api.telegram(env,'sendMessage',{chat_id:userId,text:'Сколько потратил на обед? Только сумма в ₽. /cancel — отменить ввод.',reply_markup:{force_reply:true}});

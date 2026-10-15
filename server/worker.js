@@ -1,3 +1,6 @@
+import {botChat,showBotView} from './bot-chat.js';
+import {commitBotAction} from './bot-commit.js';
+import {sendBotFile,readBotDocument} from './bot-files.js';
 import {lunchChatMessage,lunchChatCallback,pruneLunchChat} from './lunch-chat.js';
 import {learningQueue,moderateLearning,pruneLearning} from './lunch-learning.js';
 import {botKeyboard,navigationCommand,summariesMenu,extraMenu,botHelp} from './bot-navigation.js';
@@ -91,10 +94,6 @@ async function mutateState(env,userId,change){
 }
 const habitApi={readState,mutateState,telegram};
 const lunchChatApi={readState,writeTransaction,telegram,setDayCheck};
-async function showNotifications(env,userId){
- const url=new URL(env.MINI_APP_URL||'https://budget-staging.apersunov5.workers.dev');url.searchParams.set('settings','1');
- await telegram(env,'sendMessage',{chat_id:userId,text:'Настройка напоминаний теперь внутри мини-аппы: Настройки → Твой ритм. Там можно выбрать текст, время, повторы и вопросы об обедах. Всё можно отключить.',reply_markup:{inline_keyboard:[[{text:'Настроить в мини-аппе',web_app:{url:url.href}}]]}});
-}
 async function handleTelegram(update,env) {
   const source=update.callback_query?.from||update.message?.from;
   const chat=update.callback_query?.message?.chat||update.message?.chat;
@@ -122,16 +121,18 @@ async function handleTelegram(update,env) {
   const send=text=>telegram(env,'sendMessage',{chat_id:chat.id,text});
   const showHome=text=>telegram(env,'sendMessage',{chat_id:userId,text,reply_markup:botKeyboard(env.MINI_APP_URL)});
   const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);await send(periodSummary(state.data,from,today,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period]));};
+  const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
   try {
+    if(await botChat(update,env,userId,botApi))return;
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
-      if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await telegram(env,'sendMessage',{chat_id:userId,text:'Ещё в Бюрджете',reply_markup:extraMenu(env.MINI_APP_URL)});else if(action==='updates')await send(releaseText());else if(action==='help')await showHome(botHelp);else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
+      if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await showBotView(env,userId,botApi,'more');else if(action==='updates')await send(releaseText());else if(action==='help')await showBotView(env,userId,botApi,'help');else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
       if(await lunchChatCallback(env,userId,callback,lunchChatApi))return;
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
       if(await habitCallback(env,userId,callback,habitApi))return;
       if(data.startsWith('notify:')){
-        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки перенесены в мини-аппу'});
-        await showNotifications(env,userId);return;
+        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки в чате'});
+        await showBotView(env,userId,botApi,'settingGroup',{group:'reminders'});return;
       }
       if(data.startsWith('revoke:')&&userId===String(env.TELEGRAM_OWNER_ID)){
         const id=data.slice(7);
@@ -159,7 +160,7 @@ async function handleTelegram(update,env) {
     if(text==='/app'){if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:userId,text:'Открыть Бюрджет',reply_markup:{inline_keyboard:[[{text:'💼 Открыть Бюрджет',web_app:{url:env.MINI_APP_URL}}]]}});else await send('Адрес мини-аппы ещё не настроен');return;}
     if(text==='/updates'){await send(releaseText());return;}
     if(text==='/lunch'){if(!env.MINI_APP_URL){await send('Адрес мини-аппы ещё не настроен');return;}const url=new URL(env.MINI_APP_URL);url.searchParams.set('lunch','1');await telegram(env,'sendMessage',{chat_id:userId,text:'Обеды: месячный лимит, копилка и доплаты.',reply_markup:{inline_keyboard:[[{text:'Открыть обеды',web_app:{url:url.href}}]]}});return;}
-    if(text==='/reminders'){await showNotifications(env,userId);return;}
+    if(text==='/reminders'){await showBotView(env,userId,botApi,'settingGroup',{group:'reminders'});return;}
     if(text==='/invite'){
       if(userId!==String(env.TELEGRAM_OWNER_ID)){await send('Приглашения создаёт владелец приложения.');return;}
       await ensureInvites(env);
@@ -177,6 +178,7 @@ async function handleTelegram(update,env) {
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
     const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;
     if(['/today','/week','/month'].includes(text)){await showSummary({'/today':'day','/week':'week','/month':'month'}[text]);return;}
+    if(update.message.document){await showBotView(env,userId,botApi,'backup');await send('Для выписки выбери «Ещё → Импорт», для полного бэкапа — «Восстановить из файла», затем отправь файл.');return;}
     if(await lunchChatMessage(env,userId,update.message,lunchChatApi))return;
     if(await habitAmount(env,userId,text,habitApi))return;
     const defaults=state.data.settings.rememberEntryChoices===false?{}:entryDefaults(state.data,/зарплат|аванс|доход/i.test(text)?'income':'expense',today,CATEGORIES.concat(state.data.customCats||[]));

@@ -4,9 +4,9 @@ import {latestRelease,releaseText} from '../src/release-notes.js';
 async function ensureOutbox(env){await env.DB.prepare('CREATE TABLE IF NOT EXISTS user_release_outbox(user_id TEXT NOT NULL,release_id TEXT NOT NULL,payload TEXT NOT NULL,queued_at INTEGER NOT NULL,lease_until INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,release_id))').run();}
 export async function broadcastRelease(env,send){
  await ensureOutbox(env);
- const profiles=await env.DB.prepare('SELECT user_id FROM user_finance_state').all(),stats={sent:0,failed:0,alreadySent:0,excluded:0,pending:0};
- const payload=JSON.stringify({text:releaseText(),reply_markup:botKeyboard(env.MINI_APP_URL)});
- for(const {user_id:userId} of profiles.results){
+ const profiles=await env.DB.prepare('SELECT user_id,data FROM user_finance_state').all(),stats={sent:0,failed:0,alreadySent:0,excluded:0,pending:0};
+ for(const {user_id:userId,data} of profiles.results){
+  const payload=JSON.stringify({text:releaseText(),reply_markup:botKeyboard(env.MINI_APP_URL,data?JSON.parse(data):undefined)});
   if(!await hasAccess(env,userId)){stats.excluded++;continue;}
   const key='release:'+latestRelease.id;
   const sent=await env.DB.prepare('SELECT id FROM user_reports_sent WHERE user_id=? AND id=?').bind(userId,key).first();
