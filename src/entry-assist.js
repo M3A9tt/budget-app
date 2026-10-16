@@ -19,3 +19,16 @@ export function repeatSuggestions(data,today,limit=6){
  }
  return out;
 }
+
+// Frequent everyday categories first. Never learn from future facts, imports or debt payments.
+export function categoryShortlist(data,today,categories,selected,limit=6){
+ const scores=new Map();
+ if(data.settings?.rememberEntryChoices!==false)for(const t of data.transactions){
+  if(t.type!=='expense'||t.cat==='lunch'||t.date>today||t.balanceEffect==='history-only'||t.recurringId||t.installmentPaymentId||t.debtId)continue;
+  const age=(Date.parse(today)-Date.parse(t.date))/86400000;
+  if(age<=90)scores.set(t.cat,(scores.get(t.cat)||0)+(age<=30?3:1));
+ }
+ const ranked=categories.map((c,i)=>({c,i,score:scores.get(c.id)||0})).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,limit).map(x=>x.c);
+ const current=categories.find(c=>c.id===selected);if(current&&!ranked.some(c=>c.id===selected))ranked.splice(Math.max(0,ranked.length-1),1,current);
+ return ranked;
+}

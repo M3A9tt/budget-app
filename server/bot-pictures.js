@@ -75,12 +75,15 @@ export async function originalPicture(env,userId,key){
  await ensurePictures(env);const cached=await env.DB.prepare('SELECT * FROM bot_pictures WHERE user_id=? AND cache_key=? AND expires_at>?').bind(String(userId),String(key),Date.now()).first();
  if(!cached)throw Error('Снимок устарел');return {...cached,bytes:new Uint8Array(cached.png),params:JSON.parse(cached.cache_key)[3]};
 }
-export async function uploadPicture(env,userId,picture,markup,original=false,caption){
- const form=new FormData(),method=original?'sendDocument':'sendPhoto';form.set('chat_id',String(userId));
+export async function uploadPicture(env,userId,picture,markup,original=false,caption,messageId){
+ const form=new FormData(),method=original?'sendDocument':messageId?'editMessageMedia':'sendPhoto';form.set('chat_id',String(userId));
  const date=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(picture.created_at));
  form.set('caption',(caption||`Бюрджет · ${date}\nСнимок из миниаппы · ${picture.params.kind==='lunch'?picture.params.month:'данные на момент создания'}`).slice(0,1000));
  if(markup)form.set('reply_markup',JSON.stringify(markup));
- if(!original&&picture.file_id)form.set('photo',picture.file_id);else form.set(original?'document':'photo',new Blob([picture.bytes],{type:'image/png'}),`byurdzhet-${picture.params.kind}.png`);
- const response=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',body:form,signal:AbortSignal.timeout(20000)}),result=await response.json();if(!response.ok||!result.ok)throw Error('Telegram не принял картинку');
+ if(messageId&&!original){
+  form.set('message_id',String(messageId));form.set('media',JSON.stringify({type:'photo',media:picture.file_id||'attach://photo',caption:form.get('caption')}));form.delete('caption');
+  if(!picture.file_id)form.set('photo',new Blob([picture.bytes],{type:'image/png'}),`byurdzhet-${picture.params.kind}.png`);
+ }else if(!original&&picture.file_id)form.set('photo',picture.file_id);else form.set(original?'document':'photo',new Blob([picture.bytes],{type:'image/png'}),`byurdzhet-${picture.params.kind}.png`);
+ const response=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',body:form,signal:AbortSignal.timeout(20000)}),result=await response.json();if(!response.ok||!result.ok){if(messageId&&response.status===400)return uploadPicture(env,userId,picture,markup,original,caption);throw Error('Telegram не принял картинку');}
  const id=result.result?.photo?.at(-1)?.file_id;if(id)await env.DB.prepare('UPDATE bot_pictures SET file_id=? WHERE user_id=? AND cache_key=?').bind(id,String(userId),picture.cache_key).run();return result.result;
 }

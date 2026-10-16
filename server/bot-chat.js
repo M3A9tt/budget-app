@@ -1,3 +1,5 @@
+import {repeatEntry} from '../src/entry-assist.js';
+import {CATEGORIES} from '../src/mini-model.js';
 import {isSavings} from '../src/savings.js';
 import {getPicture,originalPicture,uploadPicture,PICTURE_ERROR,pictureErrorCode} from './bot-pictures.js';
 import {collectTelemetry} from './telemetry.js';
@@ -21,16 +23,21 @@ async function create(env,userId,p,prefix='bv_'){const id=prefix+uid();await env
 async function replace(env,userId,row,p){const result=await env.DB.prepare('UPDATE telegram_drafts SET payload=? WHERE id=? AND owner=? AND payload=? AND consumed=0').bind(JSON.stringify(p),row.id,userId,row.payload).run();if(!result.meta.changes)throw Error('Шаг уже изменился. Используй последнее сообщение.');return {...row,payload:JSON.stringify(p)};}
 export async function cancelBotFlow(env,userId){await env.DB.prepare("UPDATE telegram_drafts SET consumed=1 WHERE owner=? AND id GLOB 'bf_*' AND consumed=0").bind(userId).run();}
 async function menu(env,userId,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:`b:r:${id}:${i}`}]);return {inline_keyboard:buttons};}
-async function render(env,userId,api,screen){return send(api,env,userId,[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),await menu(env,userId,screen));}
+async function render(env,userId,api,screen){
+ const text=[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),reply_markup=await menu(env,userId,screen);
+ if(api.viewMessage?.message_id&&!api.viewMessage.photo)try{return await api.telegram(env,'editMessageText',{chat_id:userId,message_id:api.viewMessage.message_id,text,reply_markup});}catch{/* Old or deleted cards remain navigable through a new message. */}
+ return send(api,env,userId,text,reply_markup);
+}
 export async function showBotView(env,userId,api,name='home',args={}){
  const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'savings',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
  if(name==='backups'){const page=Math.max(0,Number(args.page)||0),rows=(await env.DB.prepare('SELECT revision,created_at FROM user_state_backups WHERE user_id=? ORDER BY revision DESC LIMIT 50').bind(userId).all()).results;return render(env,userId,api,{title:'Серверные резервные копии',lines:['Восстановление только после проверки.'],actions:[...rows.slice(page*8,page*8+8).map(r=>({label:`${r.created_at} · версия ${r.revision}`,special:'backup',args:{revision:r.revision}})),...(page>0?[view('← Копии','backups',{page:page-1})]:[]),...((page+1)*8<rows.length?[view('Копии →','backups',{page:page+1})]:[]),view('Меню копий','backup')]});}
  const screen=botView(s.data,name,args,s.isOwner);
  if(screen.picture&&(env.BROWSER||api.capturePicture)){
   try{
+   try{await api.telegram(env,'sendChatAction',{chat_id:userId,action:'upload_photo'});}catch{}
    const picture=await getPicture(env,userId,s,screen.picture,api.capturePicture);
    const actions=[...screen.actions,{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...picture.params,key:picture.cache_key}},view('📝 Текстом',name,{...args,textOnly:true})];
-   return await uploadPicture(env,userId,picture,await menu(env,userId,{actions}),false,[screen.title,'',...screen.lines].join('\n'));
+   return await uploadPicture(env,userId,picture,await menu(env,userId,{actions}),false,[screen.title,'',...screen.lines].join('\n'),api.viewMessage?.photo?api.viewMessage.message_id:undefined);
   }catch(error){console.warn('Picture fallback',pictureErrorCode(error));}
  }
  return render(env,userId,api,screen);
@@ -38,7 +45,7 @@ export async function showBotView(env,userId,api,name='home',args={}){
 async function start(env,userId,api,op,args={}){
  await cancelBotFlow(env,userId);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...initialValues(s.data,op,args),...args.prefill},step:0,status:'form',revision:s.revision};
  if(args.ownLunch){p.values.note='Обед за свои';p.values.cat='food';p.values.tags=['обед-за-свои'];}
- const id=await create(env,userId,p,'bf_');if(op==='restore')await api.sendFile(env,userId,s.data,'byurdzhet-before-restore.json');return prompt(env,userId,api,id,p);
+ const id=await create(env,userId,p,'bf_');if(args.review)return preview(env,userId,api,id,p);if(op==='restore')await api.sendFile(env,userId,s.data,'byurdzhet-before-restore.json');return prompt(env,userId,api,id,p);
 }
 async function prompt(env,userId,api,id,p,page=0){
  const s=await api.readState(env,userId);let fields=fieldsFor(s.data,p.op,p.args,p.values),changed=false;
@@ -82,6 +89,11 @@ async function importPreview(env,userId,api,id,p,page=0){
 }
 async function route(env,userId,api,r){
  if(r.view){await cancelBotFlow(env,userId);return showBotView(env,userId,api,r.view,r.args);}
+ if(r.op==='repeat'){
+  const state=await api.readState(env,userId),tx=state.data.transactions.find(t=>t.id===r.args.id);if(!tx)throw Error('Запись больше не существует');
+  const prefill=repeatEntry(state.data,tx,todayMoscow(state.data.settings.timeZone),CATEGORIES.concat(state.data.customCats||[]));
+  return start(env,userId,api,'tx',{type:tx.type,prefill,review:true});
+ }
  if(r.op)return start(env,userId,api,r.op,r.args);
  if(r.command)return api.command(r.command);
  const s=await api.readState(env,userId);
@@ -113,9 +125,9 @@ export async function botChat(update,env,userId,api){
  if(callback?.data?.startsWith('b:')){
   await api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});const [,action,id,arg,extra]=callback.data.split(':');
   if(action==='v'&&id==='app'){await api.command('/app');return true;}
-  if(action==='v'){await cancelBotFlow(env,userId);await showBotView(env,userId,api,id);return true;}
+  if(action==='v'){await cancelBotFlow(env,userId);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   const loaded=await load(env,userId,id),{p}=loaded;
-  if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');await route(env,userId,api,p.routes[Number(arg)]);return true;}
+  if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');const r=p.routes[Number(arg)];await route(env,userId,r.view?{...api,viewMessage:callback.message}:api,r);return true;}
   if(p.kind!=='bot-form')throw Error('Карточка устарела');
   if(action==='x'){await cancelBotFlow(env,userId);await showBotView(env,userId,api,'home');return true;}
   if(action==='c'){

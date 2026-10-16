@@ -15,8 +15,8 @@ test('Settings initially show only the category menu, with no long import or rem
  assert.ok(!html.includes('<form'));assert.ok(!html.includes('<input'));assert.ok(!html.includes('<textarea'));
  assert.ok((html.match(/<svg/g)||[]).length>=14);
 });
-test('Lunch deep link renders the separate monthly budget and direct panel tab',()=>{
- const {MiniApp}=components('?lunch=1&demo=1'),html=renderToStaticMarkup(React.createElement(MiniApp));
+test('Lunch deep link renders the separate monthly budget and direct panel tab',async()=>{
+ const {MiniApp}=components('?lunch=1&demo=1');const {renderToPipeableStream}=await import('react-dom/server');const {Writable}=await import('node:stream');let html='';await new Promise((resolve,reject)=>{const sink=new Writable({write(chunk,encoding,done){html+=chunk.toString();done();}});sink.on('finish',resolve);const stream=renderToPipeableStream(React.createElement(MiniApp),{onAllReady(){stream.pipe(sink);},onError:reject});});
  assert.ok(html.includes('data-page="lunch"'));assert.ok(html.includes('Профицит'));assert.ok(html.includes('JSON'));assert.ok(html.includes('Посчитать'));assert.ok(html.includes('<table'));for(const label of ['Доступно','Потрачено','± день','Баланс'])assert.ok(html.includes(label));assert.ok(!html.includes('<textarea'));assert.ok(!html.includes('<form'));assert.ok(html.includes('aria-current="page"'));assert.ok(html.includes('<span>Обеды</span>'));
  assert.ok(!html.includes('<details open'));assert.ok(!html.includes('lunch-json-example'));
 });

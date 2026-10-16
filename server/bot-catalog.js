@@ -1,3 +1,4 @@
+import {repeatEntry} from '../src/entry-assist.js';
 import {EMPTY,CATEGORIES,todayMoscow} from '../src/mini-model.js';
 import {parseMoney,putTransaction,deleteTransaction,undoTransaction,transferMoney,migrateData} from '../src/ledger.js';
 import {accountInput} from '../src/account-input.js';
@@ -74,7 +75,7 @@ export function applyBotAction(d,op,args={},v={}){
  const today=todayMoscow(d.settings.timeZone);
  if(op==='tx'){if(v.date>today)throw Error('Будущую операцию запиши как план');const old=args.id?source(d,args,'id',d.transactions):null,type=old?.type||args.type||'expense',a=d.accounts.find(a=>a.id===v.accountId);return putTransaction(d,{...old,...v,type,cat:type==='lunch'?'lunch':type==='income'?'income':v.cat||'other',currency:type==='lunch'?'RUB':v.currency||old?.currency||a?.currency||'RUB',tags:old?.tags||v.tags||(args.ownLunch?['обед-за-свои']:[]),accountId:type==='lunch'?undefined:v.accountId});}
  if(op==='deleteTx')return deleteTransaction(d,args.id);
- if(op==='repeat'){const t=source(d,args,'id',d.transactions);return putTransaction(d,{...t,id:undefined,revision:undefined,date:today,recurringId:undefined,recurringPeriod:undefined,installmentPaymentId:undefined,balanceEffect:'normal'});}
+ if(op==='repeat'){const t=source(d,args,'id',d.transactions);return putTransaction(d,repeatEntry(d,t,today,CATEGORIES.concat(d.customCats||[])));}
  if(op==='undo')return undoTransaction(d,source(d,args,'id',d.history));
  if(op==='account')return v.kind==='regular'?{...d,accounts:[...d.accounts,{id:args.newId,...accountInput(v)}]}:createSavings(d,{...v,id:args.newId,from:v.funding==='transfer'?v.from:''});
  if(op==='rename'){if(!v.name?.trim())throw Error('Введите название');source(d,args,'id',d.accounts);return {...d,accounts:d.accounts.map(a=>a.id===args.id?{...a,name:v.name.trim()}:a)};}
