@@ -40,7 +40,7 @@ export default function MiniApp(){
   const wide=useDesktop(),historySearch=useRef(null);
   const tg=telegramClient(),demo=typeof window==='undefined'||window.__BUDGET_DEMO__===true||new URLSearchParams(window.location.search).get('demo')==='1';
   const [state,setState]=useState(()=>({revision:0,data:demo?demoData():structuredClone(EMPTY)}));
-  const ref=useRef(state);ref.current=state;
+  const ref=useRef(state),entryAttempt=useRef(null);ref.current=state;
   const [loginCode,setLoginCode]=useState('');
   const [loaded,setLoaded]=useState(demo);
   const [loading,setLoading]=useState(!demo),[error,setError]=useState(''),[busy,setBusy]=useState(false),busyRef=useRef(false);
@@ -65,10 +65,10 @@ export default function MiniApp(){
   async function mutate(fn,message){
     if(busyRef.current||!loaded)return false;
     busyRef.current=true;setBusy(true);setError('');
-    try{const current=ref.current,nextData=migrateData(fn(current.data),EMPTY);let revision=current.revision+1;
+    let nextData;try{const current=ref.current;nextData=migrateData(fn(current.data),EMPTY);let revision=current.revision+1;
       if(!demo){const result=await apiRequest('state',{method:'PUT',body:JSON.stringify({expectedRevision:current.revision,data:nextData})});revision=result.revision;}
       const next={...current,revision,data:nextData};ref.current=next;setState(next);notify(demo?'Демо: '+message:message);return true;
-    }catch(e){setError(e.status===409?'Данные изменились в боте или на другом устройстве. Обновите список и повторите действие.':e.message);return false;}
+    }catch(e){if(e.uncertain){try{const fresh=await apiRequest('state');fresh.data=migrateData(fresh.data,EMPTY);ref.current=fresh;setState(fresh);if(JSON.stringify(fresh.data)===JSON.stringify(nextData)){notify(message);return true;}}catch{}}setError(e.status===409?'Данные изменились в боте или на другом устройстве. Обновите список и повторите действие.':e.message);return false;}
     finally{busyRef.current=false;setBusy(false);}
   }
   const go=p=>{if(p==='add')track('entry_open');setPage(p);setDraft(p==='add'?entryDefaults(data,'expense',today,cats):null);setError('');};
@@ -76,7 +76,13 @@ export default function MiniApp(){
   const repeat=tx=>{track('entry_repeat');track('entry_open');setDraft(repeatEntry(data,tx,today,cats));setPage('add');setError('');};
   useEffect(()=>{const keys=e=>{if(!wide||!loaded||busyRef.current||page==='add'&&draft||e.ctrlKey||e.metaKey||e.altKey||e.target?.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName))return;if(e.key.toLowerCase()==='n'&&page!=='add'){e.preventDefault();go('add');}if(e.key==='/'){e.preventDefault();go('history');setTimeout(()=>historySearch.current?.focus(),0);}};document.addEventListener('keydown',keys);return()=>document.removeEventListener('keydown',keys);},[wide,loaded,page,!!draft]);
   const edit=tx=>{setDraft({...tx,amount:String(tx.amount)});setPage('add');};
-  const saveDraft=async event=>{event.preventDefault();try{const input={...draft,amount:parseMoney(draft.amount),note:draft.note?.trim()||categoryOf(draft.cat,cats).name};let entry;const ok=await mutate(d=>{const next=putTransaction(d,input);entry=next.history[0];return next;},'Операция сохранена');if(ok){track('entry_save');setLast(entry);setDraft(null);setQuick('');setPage('overview');}else track('entry_error');}catch(e){track('entry_error');setError(e.message);}};
+  const saveDraft=async event=>{event.preventDefault();try{const input={...draft,amount:parseMoney(draft.amount),note:draft.note?.trim()||categoryOf(draft.cat,cats).name};
+      if(!draft.id){
+        if(entryAttempt.current?.uncertain){const fresh=await apiRequest('state');fresh.data=migrateData(fresh.data,EMPTY);ref.current=fresh;setState(fresh);}
+        const existing=entryAttempt.current&&ref.current.data.transactions.find(t=>t.id===entryAttempt.current.id);
+        if(existing){entryAttempt.current=null;setDraft({...existing,amount:String(existing.amount)});setError('Эта запись уже сохранилась. Можно изменить её здесь, повторного списания не будет.');return;}
+        const signature=JSON.stringify(input);if(entryAttempt.current?.signature!==signature)entryAttempt.current={signature,id:crypto.randomUUID()};input.id=entryAttempt.current.id;
+      }let entry;const ok=await mutate(d=>{const next=putTransaction(d,input);entry=next.history[0];return next;},'Операция сохранена');if(ok){entryAttempt.current=null;track('entry_save');setLast(entry);setDraft(null);setQuick('');setPage('overview');}else{if(entryAttempt.current)entryAttempt.current.uncertain=true;track('entry_error');}}catch(e){track('entry_error');setError(e.message);}};
   const saveQuick=()=>{try{const picked=/зарплат|аванс|доход/i.test(quick)?entryDefaults(data,'income',today,cats):defaults;setDraft(parseEntry(quick,data.accounts,cats,today,data.settings.rememberEntryChoices===false?{}:picked));setPage('add');setError('');}catch(e){setError(e.message);}};
   const recent=useMemo(()=>sortedEntries(data.transactions.filter(t=>!companyLunch(t))),[data.transactions]);
   const expenseWeek=summary.daily.reduce((n,d)=>n+d.amount,0),maxDay=Math.max(...summary.daily.map(d=>d.amount),1);

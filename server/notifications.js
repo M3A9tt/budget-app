@@ -1,4 +1,4 @@
-import {lunchDayRatio} from '../src/lunch-budget.js';
+import {lunchDayRatio,lunchCalendarVerified} from '../src/lunch-budget.js';
 import {clockAt,settingTime,timeMinutes,DEFAULT_ZONE} from '../src/time-settings.js';
 import {moduleEnabled} from '../src/modules.js';
 import {plannedOccurrences,planType} from '../src/planned-model.js';
@@ -12,19 +12,21 @@ export function checkSchedule(data,today){
  if(s.checkEscalation===true&&idle>=(s.checkEscalationDays??3))repeats=Math.max(repeats,1);
  return Array.from({length:Math.min(3,repeats)+1},(_,i)=>start+i*interval).filter(h=>h*60<=1439);
 }
-export function notificationJobs(data,now,responses=[]){
+export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
  const{date:today,minutes}=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE),s=data.settings||{},reports=[],local=new Date(today+'T12:00:00Z');
+ const due=slot=>minutes===slot||(catchUp&&minutes>slot&&minutes-slot<=15);
  const answered=kind=>responses.find(r=>r.day===today&&r.kind===kind),expense=answered('expense'),lunch=answered('lunch');
  const slots=checkSchedule(data,today).map(h=>Math.round(h*60)),payload=expense?.payload?JSON.parse(expense.payload):{},nextMinute=payload.nextMinute??(payload.nextHour!==undefined?payload.nextHour*60:null);
- if(s.expenseCheckEnabled===true&&!['done','none','off'].includes(expense?.status)&&(nextMinute===null||minutes>=nextMinute)&&(slots.includes(minutes)||nextMinute===minutes)){
-  reports.push({id:'check:'+today+':'+minutes,kind:'expense',day:today,...expenseReminder(data,today,slots.indexOf(minutes))});
+ const eligible=[...slots,...(nextMinute===null?[]:[nextMinute])].filter(slot=>due(slot)&&(nextMinute===null||slot>=nextMinute)),slot=eligible.length?Math.max(...eligible):null;
+ if(s.expenseCheckEnabled===true&&!['done','none','off'].includes(expense?.status)&&(nextMinute===null||minutes>=nextMinute)&&slot!==null){
+  reports.push({id:'check:'+today+':'+slot,kind:'expense',day:today,...expenseReminder(data,today,slots.indexOf(slot))});
  }
  const hasLunch=data.transactions.some(t=>t.date===today&&(t.type==='lunch'||t.cat==='lunch'));
- if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&minutes===timeMinutes(settingTime(s,'lunchAsk',11))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&lunchDayRatio(data,today)>0&&!hasLunch&&!lunch?.status){
-  reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,...lunchReminder(today)});
+ if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&due(timeMinutes(settingTime(s,'lunchAsk',11)))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&lunchDayRatio(data,today)>0&&!hasLunch&&!lunch?.status){
+  const reminder=lunchReminder(today);if(!lunchCalendarVerified(data,today))reminder.text+='\n⚠️ Календарь года ещё не проверен: рабочий день и лимит предварительные.';reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,...reminder});
  }
- if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&minutes===timeMinutes(settingTime(s,'plannedReminder',18))){const due=plannedOccurrences(data,today,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,...plannedReminder(due)});}
- if(minutes!==timeMinutes(settingTime(s,'report',21)))return reports;
+ if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&due(timeMinutes(settingTime(s,'plannedReminder',18)))){const due=plannedOccurrences(data,today,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,...plannedReminder(due)});}
+ if(!due(timeMinutes(settingTime(s,'report',21))))return reports;
  if(s.dailyReport!==false)reports.push({id:'day:'+today,from:today,to:today,title:'Итог дня'});
  if(s.weeklyReport!==false&&local.getUTCDay()===0){const from=new Date(local);from.setUTCDate(from.getUTCDate()-6);reports.push({id:'week:'+today,from:from.toISOString().slice(0,10),to:today,title:'Итог недели'});}
  if(s.monthlyReport!==false&&local.getUTCDate()===1){const end=new Date(local);end.setUTCDate(0);reports.push({id:'month:'+end.toISOString().slice(0,7),from:end.toISOString().slice(0,8)+'01',to:end.toISOString().slice(0,10),title:'Итог месяца'});}

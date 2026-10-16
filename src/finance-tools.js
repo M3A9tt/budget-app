@@ -1,3 +1,5 @@
+import {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
+export {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
 import {debtDues} from './debt-state.js';
 import {accountTotals,isSavingAccount} from './account-balances.js';
 import {plannedOccurrences,planType} from './planned-model.js';
@@ -6,6 +8,7 @@ const id=()=>crypto.randomUUID();
 export function validDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;}
 const positive=v=>{const n=parseMoney(v);if(!Number.isFinite(n)||n<=0)throw Error('Нужна положительная сумма');return n;};
 export function reconcileAccount(data,{accountId,balance,date,note=''}){
+ if(date>new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date()))throw Error('Сверка — фактический остаток, выбери сегодняшнюю или прошлую дату');
  const a=data.accounts.find(a=>a.id===accountId),actual=parseMoney(balance);if(!a||!Number.isFinite(actual)||!validDate(date))throw Error('Проверьте счёт, остаток и дату');
  return {...data,accounts:data.accounts.map(x=>x.id===a.id?{...x,balance:actual,reconciledAt:date}:x),reconciliations:[...(data.reconciliations||[]),{id:id(),accountId,before:a.balance,after:actual,difference:roundMoney(actual-a.balance),date,note,createdAt:new Date().toISOString()}]};
 }
@@ -28,14 +31,14 @@ export function createInstallment(data,{name,total,count,firstDate,accountId,cat
  const anchor=new Date(firstDate+'T12:00:00Z'),payments=Array.from({length:n},(_,i)=>{const start=new Date(Date.UTC(anchor.getUTCFullYear(),anchor.getUTCMonth()+i,1,12)),day=Math.min(anchor.getUTCDate(),new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth()+1,0)).getUTCDate());start.setUTCDate(day);if(cadence!=='monthly')start.setTime(Date.parse(firstDate+'T12:00:00Z')+i*(cadence==='weekly'?7:14)*86400000);return{id:id(),date:start.toISOString().slice(0,10),amount:(Math.floor(cents/n)+(i<cents%n?1:0))/100};});
  return {...data,installments:[...(data.installments||[]),{id:id(),name:name.trim(),obligationKind,cadence,total:amount,currency:account.currency||'RUB',accountId,cat,payments}]};
 }
-export const paidInstallment=(data,p)=>data.transactions.some(t=>t.installmentPaymentId===p.id&&t.type==='expense');
 export function payInstallment(data,{planId,paymentId,date}){
  const plan=(data.installments||[]).find(p=>p.id===planId),payment=plan?.payments.find(p=>p.id===paymentId);
  if(!payment||paidInstallment(data,payment))throw Error('Платёж отсутствует или уже проведён');
- return putTransaction(data,{type:'expense',cat:plan.cat,amount:payment.amount,currency:plan.currency,accountId:plan.accountId,date,note:plan.name,installmentPaymentId:payment.id,tags:['рассрочка']});
+ return putTransaction(data,{type:'expense',cat:plan.cat,amount:installmentRemaining(data,payment),currency:plan.currency,accountId:plan.accountId,date,note:plan.name,installmentPaymentId:payment.id,tags:['рассрочка']});
 }
 export function forecast(data,today,days=30){
  if(!Number.isInteger(days)||days<1||days>366)throw Error('Прогноз — от 1 до 366 дней');
+ const installmentIndex=installmentRemainders(data);
  const past=new Date(today+'T12:00:00Z');past.setUTCDate(past.getUTCDate()-29);const from=past.toISOString().slice(0,10);
  const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&!t.debtId&&t.date>=from&&t.date<=today);
  const daily=rows.reduce((n,t)=>n+(t.amountRub??t.amount*(data.rates[t.currency||'RUB']||1)),0)/30;
@@ -43,12 +46,12 @@ export function forecast(data,today,days=30){
  const limit=new Date(today+'T12:00:00Z');limit.setUTCDate(limit.getUTCDate()+days);const plansByDate=new Map();for(const item of plannedOccurrences(data,today,limit.toISOString().slice(0,10))){if(isSavingAccount(data.accounts.find(a=>a.id===item.rule.accountId)))continue;if(!plansByDate.has(item.date))plansByDate.set(item.date,[]);plansByDate.get(item.date).push(item.rule);}
  const points=[];let expectedBalance=balance,plannedIncome=0,plannedExpense=0,overdue=0;
  for(const item of plannedOccurrences(data,today,today))if(planType(item.rule)==='expense'&&!item.rule.variable&&!isSavingAccount(data.accounts.find(a=>a.id===item.rule.accountId)))overdue+=item.rule.amount*(data.rates[item.rule.currency||'RUB']||1);
- for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const pay of p.payments)if(pay.date<=today&&!paidInstallment(data,pay))overdue+=pay.amount*(data.rates[p.currency]||1);
+ for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const pay of p.payments)if(pay.date<=today&&!paidInstallment(data,pay,installmentIndex))overdue+=installmentRemaining(data,pay,installmentIndex)*(data.rates[p.currency]||1);
  for(const debt of debtDues(data))if(debt.date<=today)overdue+=debt.amount*(data.rates[debt.currency]||1);
  balance=roundMoney(balance-overdue);expectedBalance=balance;
  for(let i=1;i<=days;i++){const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+i);const date=d.toISOString().slice(0,10);let due=0,income=0;
  for(const r of plansByDate.get(date)||[]){if(r.variable)unknown++;else if(planType(r)==='income')income+=r.amount*(data.rates[r.currency||'RUB']||1);else due+=r.amount*(data.rates[r.currency||'RUB']||1);}
- for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const pay of p.payments)if(pay.date===date&&!paidInstallment(data,pay))due+=pay.amount*(data.rates[p.currency]||1);
+ for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const pay of p.payments)if(pay.date===date&&!paidInstallment(data,pay,installmentIndex))due+=installmentRemaining(data,pay,installmentIndex)*(data.rates[p.currency]||1);
  for(const debt of debtDues(data))if(debt.date===date)due+=debt.amount*(data.rates[debt.currency]||1);
  balance=roundMoney(balance-daily-due);expectedBalance=roundMoney(expectedBalance-daily-due+income);plannedIncome=roundMoney(plannedIncome+income);plannedExpense=roundMoney(plannedExpense+due);points.push({date,balance,expectedBalance,income,due});}
  return {actualBalance:roundMoney(accountTotals(data).spendable),plannedIncome,plannedExpense,overdue:roundMoney(overdue),daily:roundMoney(daily),points,unknown,activeDays:new Set(rows.map(t=>t.date)).size,firstNegative:points.find(p=>p.balance<0)?.date};

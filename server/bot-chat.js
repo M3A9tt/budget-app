@@ -1,5 +1,5 @@
 import {isSavings} from '../src/savings.js';
-import {getPicture,originalPicture,uploadPicture,PICTURE_ERROR} from './bot-pictures.js';
+import {getPicture,originalPicture,uploadPicture,PICTURE_ERROR,pictureErrorCode} from './bot-pictures.js';
 import {collectTelemetry} from './telemetry.js';
 import {lunchReminder} from './notifications.js';
 import {setDayCheck} from './habits.js';
@@ -23,7 +23,7 @@ export async function cancelBotFlow(env,userId){await env.DB.prepare("UPDATE tel
 async function menu(env,userId,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:`b:r:${id}:${i}`}]);return {inline_keyboard:buttons};}
 async function render(env,userId,api,screen){return send(api,env,userId,[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),await menu(env,userId,screen));}
 export async function showBotView(env,userId,api,name='home',args={}){
- const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'accounts',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
+ const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'savings',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
  if(name==='backups'){const page=Math.max(0,Number(args.page)||0),rows=(await env.DB.prepare('SELECT revision,created_at FROM user_state_backups WHERE user_id=? ORDER BY revision DESC LIMIT 50').bind(userId).all()).results;return render(env,userId,api,{title:'Серверные резервные копии',lines:['Восстановление только после проверки.'],actions:[...rows.slice(page*8,page*8+8).map(r=>({label:`${r.created_at} · версия ${r.revision}`,special:'backup',args:{revision:r.revision}})),...(page>0?[view('← Копии','backups',{page:page-1})]:[]),...((page+1)*8<rows.length?[view('Копии →','backups',{page:page+1})]:[]),view('Меню копий','backup')]});}
  const screen=botView(s.data,name,args,s.isOwner);
  if(screen.picture&&(env.BROWSER||api.capturePicture)){
@@ -31,7 +31,7 @@ export async function showBotView(env,userId,api,name='home',args={}){
    const picture=await getPicture(env,userId,s,screen.picture,api.capturePicture);
    const actions=[...screen.actions,{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...picture.params,key:picture.cache_key}},view('📝 Текстом',name,{...args,textOnly:true})];
    return await uploadPicture(env,userId,picture,await menu(env,userId,{actions}),false,[screen.title,'',...screen.lines].join('\n'));
-  }catch{/* The same section and all its actions remain available if rendering fails. */}
+  }catch(error){console.warn('Picture fallback',pictureErrorCode(error));}
  }
  return render(env,userId,api,screen);
 }

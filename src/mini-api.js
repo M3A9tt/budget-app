@@ -14,5 +14,10 @@ export async function apiRequest(path,options={}){
   if(!pendingState.has(key))pendingState.set(key,request(path,options,initData).finally(()=>pendingState.delete(key)));
   return structuredClone(await pendingState.get(key));
  }
+ // Repeat the exact state payload with the same receipt key after a lost response.
+ if(path==='state'&&options.method==='PUT'){
+  const stable={...options,headers:{'Idempotency-Key':crypto.randomUUID(),...options.headers}};
+  for(let attempt=0;attempt<2;attempt++)try{return await request(path,stable,initData);}catch(error){if(error.status&&error.status<500)throw error;if(attempt===1){error.uncertain=true;throw error;}}
+ }
  return request(path,options,initData);
 }

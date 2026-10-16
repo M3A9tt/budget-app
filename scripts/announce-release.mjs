@@ -10,7 +10,7 @@ const key=createHash('sha256').update('budget-release:'+config.name+':'+token).d
 const secret=spawnSync('npx',['--no-install','wrangler','secret','put','RELEASE_DEPLOY_TOKEN','--config','server/wrangler.staging.jsonc'],{input:key+'\n',encoding:'utf8',env:process.env});
 if(secret.status!==0)throw Error('Could not configure announcement credential');
 const smoke=await fetch(new URL('/api/v1/releases/check-picture',config.vars.MINI_APP_URL),{method:'POST',headers:{'X-Budget-Release-Key':key},signal:AbortSignal.timeout(45000)});
-const checked=await smoke.json();if(!smoke.ok||checked.releaseId!==latestRelease.id||!checked.width||!checked.height)throw Error('Deployed screenshot render check failed');
+const checked=await smoke.json();if(!smoke.ok||checked.releaseId!==latestRelease.id||checked.storage!==true||!checked.width||!checked.height)throw Error('Deployed screenshot render check failed');
 console.log('Screenshot render check: '+JSON.stringify(checked));
 const endpoint=new URL('/api/v1/releases/announce',config.vars.MINI_APP_URL);
 for(let attempt=0;attempt<3;attempt++){
