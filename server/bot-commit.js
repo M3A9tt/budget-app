@@ -6,7 +6,7 @@ import {applyBotAction} from './bot-catalog.js';
 export async function commitBotAction(env,userId,id,p,readState){
  const key='bot:'+id,prior=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,key).first();if(prior)return {...JSON.parse(prior.result),duplicate:true};
  const state=await readState(env,userId);if(state.revision!==p.revision)throw Error('Данные изменились. Открой свежий предпросмотр.');
- const next=migrateData(applyBotAction(structuredClone(state.data),p.op,p.args,p.values),EMPTY),result={revision:state.revision+1},now=Date.now(),payload=JSON.stringify(p);
+ const next=migrateData(applyBotAction(structuredClone(state.data),p.op,p.args,p.values),EMPTY),result={revision:state.revision+1,...(p.op!=='undo'&&next.history?.[0]?.id!==state.data.history?.[0]?.id?{historyId:next.history?.[0]?.id}:{})},now=Date.now(),payload=JSON.stringify(p);
  validateStateChange(state.data,next);
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload)))).map(n=>n.toString(16).padStart(2,'0')).join('');
  const rows=await env.DB.batch([
