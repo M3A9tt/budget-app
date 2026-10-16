@@ -99,7 +99,7 @@ export function applyBotAction(d,op,args={},v={}){
  if(op==='payInstallment')return payInstallment(d,{planId:args.id,paymentId:args.paymentId,...v});
  if(op==='limit'){if(v.amount<0)throw Error('Лимит не может быть отрицательным');return {...d,categoryBudgets:{...d.categoryBudgets,[v.cat]:v.amount}};}
  if(op==='category'){if(!v.name?.trim())throw Error('Введите название');return {...d,customCats:[...d.customCats,{id:args.newId,name:v.name.trim(),icon:'other',color:'#b8dec4'}]};}
- if(op==='rate'){if(v.rate<=0)throw Error('Курс должен быть положительным');return {...d,rates:{...d.rates,[v.currency]:v.rate}};}
+ if(op==='rate'){if(v.currency==='RUB')throw Error('Базовый курс рубля всегда 1');if(v.rate<=0)throw Error('Курс должен быть положительным');return {...d,rates:{...d.rates,[v.currency]:v.rate}};}
  if(op==='module'){if(!MODULES.some(([k])=>k===args.key))throw Error('Раздел не найден');return {...d,settings:{...d.settings,modules:{...d.settings.modules,[args.key]:args.enabled},...(!args.enabled&&args.key==='lunch'?{lunchAskEnabled:false}:{}),...(!args.enabled&&args.key==='plans'?{plannedReminders:false}:{})}};}
  if(op==='setting'){const settings=reminderSettingsFromDraft({...d.settings,[args.key]:v.value});return {...d,settings:{...settings,...(args.key==='expenseCheckEnabled'&&v.value?{checkStartedDate:today}:{}),reminders:false}};}
  if(op==='dayOff'){const mod={...d.lunchDayMod},off=(d.lunchDayOff||[]).filter(x=>x!==v.date);delete mod[v.date];if(v.ratio!=='reset')mod[v.date]=v.ratio;return {...d,lunchDayOff:off,lunchDayMod:mod};}

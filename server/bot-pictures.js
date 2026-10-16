@@ -3,7 +3,8 @@ import {todayMoscow} from '../src/mini-model.js';
 import {latestRelease} from '../src/release-notes.js';
 export const PICTURE_ERROR='Картинку пока не удалось подготовить. Данные доступны в разделе и миниаппе. Попробуй немного позже.';
 const TTL=8*60*60*1000,MAX_BYTES=1_800_000;
-const ready=new WeakSet();
+const ready=new WeakSet(),flights=new WeakMap();
+export const pictureErrorCode=error=>/лимит/i.test(error?.message||'')?'quota':/занят/i.test(error?.message||'')?'busy':/Telegram/.test(error?.message||'')?'delivery':'render';
 export async function ensurePictures(env){
  if(ready.has(env.DB))return;
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_pictures(user_id TEXT NOT NULL,cache_key TEXT NOT NULL,png BLOB NOT NULL,file_id TEXT,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(user_id,cache_key))').run();
@@ -32,21 +33,43 @@ export async function capturePicture(env,data,params){
  const reader=response.body.getReader(),parts=[];let total=0;for(;;){const {done,value}=await reader.read();if(done)break;total+=value.length;if(total>MAX_BYTES){await reader.cancel();throw Error('Screenshot too large');}parts.push(value);}
  const bytes=new Uint8Array(total);let pos=0;for(const p of parts){bytes.set(p,pos);pos+=p.length;}pngInfo(bytes);return bytes;
 }
-export async function getPicture(env,userId,state,input,capture=capturePicture){
- const params=pictureParams(input,state.data);await ensurePictures(env);const now=Date.now(),day=todayMoscow(state.data.settings.timeZone),key=JSON.stringify([latestRelease.id,state.revision,day,params]);
- await env.DB.prepare('DELETE FROM bot_pictures WHERE expires_at<?').bind(now).run();
- const cached=await env.DB.prepare('SELECT * FROM bot_pictures WHERE user_id=? AND cache_key=? AND expires_at>?').bind(String(userId),key,now).first();
- if(cached)return {...cached,params,bytes:new Uint8Array(cached.png)};
+function pictureData(data,params){
+ const settings={timeZone:data.settings.timeZone||'Europe/Moscow'};
+ if(params.kind==='savings')return {accounts:data.accounts.filter(isSavings),goals:data.goals,wishes:data.wishes,rates:data.rates,settings};
+ if(params.kind==='lunch')return {transactions:data.transactions.filter(t=>t.date.startsWith(params.month)&&(t.type==='lunch'||t.cat==='lunch'||t.tags?.includes('обед-за-свои')||t._lunchCheckDay||/обед.*(?:сво|доплат)/i.test(t.note||''))),lunchDayOff:data.lunchDayOff,lunchDayMod:data.lunchDayMod,lunchAnswers:data.lunchAnswers,settings:{...settings,lunchDaily:data.settings.lunchDaily,lunchCalendar:data.settings.lunchCalendar,lunchWorkDays:data.settings.lunchWorkDays}};
+ if(['analytics','categories'].includes(params.kind))return {transactions:data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'),customCats:data.customCats,rates:data.rates,settings};
+ return {accounts:data.accounts,transactions:data.transactions,recurring:data.recurring,installments:data.installments,debts:data.debts,rates:data.rates,settings:{...settings,nextIncomeDate:data.settings.nextIncomeDate}};
+}
+async function cachedPicture(env,userId,key,params){const row=await env.DB.prepare('SELECT * FROM bot_pictures WHERE user_id=? AND cache_key=? AND expires_at>?').bind(String(userId),key,Date.now()).first();return row?{...row,params,bytes:new Uint8Array(row.png)}:null;}
+async function renderQueued(env,userId,state,params,key,capture){
+ const started=Date.now(),wait=Math.min(8000,Math.max(0,Number(env.PICTURE_QUEUE_MS??3500)||0));let lease=0;
  await env.DB.prepare('INSERT OR IGNORE INTO bot_picture_lock(id,lease_until) VALUES(1,0)').run();
- const lock=await env.DB.prepare('UPDATE bot_picture_lock SET lease_until=? WHERE id=1 AND lease_until<?').bind(now+45000,now).run();if(!lock.meta.changes)throw Error('Рендер занят');
+ for(;;){
+  const hit=await cachedPicture(env,userId,key,params);if(hit)return hit;
+  lease=Date.now()+45000;const lock=await env.DB.prepare('UPDATE bot_picture_lock SET lease_until=? WHERE id=1 AND lease_until<?').bind(lease,Date.now()).run();
+  if(lock.meta.changes)break;
+  if(Date.now()-started>=wait)throw Error('Рендер занят');
+  await new Promise(resolve=>setTimeout(resolve,Math.min(500,wait)));
+ }
  try{
-  // Atomic global cap also covers failed renders and demo smoke checks.
-  const permit=await env.DB.prepare('INSERT INTO bot_picture_limits(day,used) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET used=used+1 WHERE used<24 RETURNING used').bind(new Date().toISOString().slice(0,10)).first();if(!permit)throw Error('Дневной лимит картинок');
-  await env.DB.prepare('DELETE FROM bot_picture_limits WHERE day<?').bind(new Date(now-7*86400000).toISOString().slice(0,10)).run();
-  const bytes=await capture(env,state.data,params);pngInfo(bytes);
+  const limit=Math.min(100,Math.max(1,Number(env.PICTURE_DAILY_LIMIT)||24));
+  const permit=await env.DB.prepare('INSERT INTO bot_picture_limits(day,used) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET used=used+1 WHERE used<? RETURNING used').bind(new Date().toISOString().slice(0,10),limit).first();if(!permit)throw Error('Дневной лимит картинок');
+  await env.DB.prepare('DELETE FROM bot_picture_limits WHERE day<?').bind(new Date(Date.now()-7*86400000).toISOString().slice(0,10)).run();
+  const bytes=await capture(env,state.data,params);pngInfo(bytes);const now=Date.now();
   await env.DB.prepare('INSERT OR REPLACE INTO bot_pictures(user_id,cache_key,png,file_id,created_at,expires_at) VALUES(?,?,?,NULL,?,?)').bind(String(userId),key,bytes.buffer,now,now+TTL).run();
   return {user_id:String(userId),cache_key:key,bytes,params,created_at:now};
- }finally{await env.DB.prepare('UPDATE bot_picture_lock SET lease_until=0 WHERE id=1 AND lease_until=?').bind(now+45000).run();}
+ }finally{await env.DB.prepare('UPDATE bot_picture_lock SET lease_until=0 WHERE id=1 AND lease_until=?').bind(lease).run();}
+}
+export async function getPicture(env,userId,state,input,capture=capturePicture){
+ const params=pictureParams(input,state.data);await ensurePictures(env);const day=todayMoscow(state.data.settings.timeZone);
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(pictureData(state.data,params))));
+ const fingerprint=Array.from(new Uint8Array(digest)).map(n=>n.toString(16).padStart(2,'0')).join(''),key=JSON.stringify([latestRelease.id,fingerprint,day,params]);
+ await env.DB.prepare('DELETE FROM bot_pictures WHERE expires_at<?').bind(Date.now()).run();
+ const hit=await cachedPicture(env,userId,key,params);if(hit)return hit;
+ let tasks=flights.get(env.DB);if(!tasks){tasks=new Map();flights.set(env.DB,tasks);}const taskKey=JSON.stringify([String(userId),key]);
+ if(tasks.has(taskKey))return tasks.get(taskKey);
+ const task=renderQueued(env,userId,state,params,key,capture);tasks.set(taskKey,task);
+ try{return await task;}finally{tasks.delete(taskKey);}
 }
 export async function originalPicture(env,userId,key){
  await ensurePictures(env);const cached=await env.DB.prepare('SELECT * FROM bot_pictures WHERE user_id=? AND cache_key=? AND expires_at>?').bind(String(userId),String(key),Date.now()).first();

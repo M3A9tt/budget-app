@@ -1,3 +1,4 @@
+import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
 import {botChat,showBotView} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
@@ -21,7 +22,7 @@ import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
 // Separate new D1 database. This Worker never writes to legacy Supabase.
-import {putTransaction,migrateData,historicalRub} from '../src/ledger.js';
+import {putTransaction,migrateData,historicalRub,validateStateChange} from '../src/ledger.js';
 import {parseEntry} from '../src/quick-entry.js';
 
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
@@ -64,18 +65,19 @@ async function readState(env,userId) {
 async function writeTransaction(env,userId,input,key) {
   if(!key||key.length>160)throw new Error('Нужен уникальный Idempotency-Key');
   const state=await readState(env,userId);
-  const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])])):value;
-  const requestHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(canonical(input)))))).map(b=>b.toString(16).padStart(2,'0')).join('');
+  const requestHash=await hashRequest(input);
   const prior=await env.DB.prepare('SELECT result,request_hash FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,key).first();
   if(prior){if(prior.request_hash!==requestHash)throw new Error('Ключ уже использован для другой операции');return JSON.parse(prior.result);}
-  const next=putTransaction(state.data,input),tx=next.history[0].after;
+  const next=migrateData(putTransaction(state.data,input),EMPTY),tx=next.history[0].after;
   const result={transaction:tx,revision:state.revision+1};
   // SQLite transaction: INSERT result succeeds only for the matching snapshot.
   const rows=await env.DB.batch([
+    backupBefore(env,userId,state.revision),
     env.DB.prepare("INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM user_finance_state WHERE user_id=? AND revision=?)").bind(userId,key,requestHash,JSON.stringify(result),Date.now(),userId,state.revision),
-    env.DB.prepare("UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND EXISTS(SELECT 1 FROM user_idempotency WHERE user_id=? AND id=?)").bind(JSON.stringify(next),new Date().toISOString(),userId,state.revision,userId,key)
+    env.DB.prepare("UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND EXISTS(SELECT 1 FROM user_idempotency WHERE user_id=? AND id=?)").bind(encodeState(next),new Date().toISOString(),userId,state.revision,userId,key),
+    trimBackups(env,userId)
   ]);
-  if(rows[1].meta.changes!==1)throw new Error('Конфликт обновления. Повторите с тем же ключом');
+  if(rows[2].meta.changes!==1)throw new Error('Конфликт обновления. Повторите с тем же ключом');
   return result;
 }
 async function telegram(env,method,body) {
@@ -87,11 +89,11 @@ async function telegram(env,method,body) {
 async function mutateState(env,userId,change){
  const state=await readState(env,userId),next=migrateData(change(structuredClone(state.data)),EMPTY);
  const rows=await env.DB.batch([
- env.DB.prepare('INSERT OR IGNORE INTO user_state_backups(user_id,revision,data,created_at) SELECT user_id,revision,data,updated_at FROM user_finance_state WHERE user_id=? AND revision=?').bind(userId,state.revision),
- env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(JSON.stringify(next),new Date().toISOString(),userId,state.revision)
+ backupBefore(env,userId,state.revision),
+ env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(encodeState(next),new Date().toISOString(),userId,state.revision),
+ trimBackups(env,userId)
  ]);
  if(rows[1].meta.changes!==1)throw Error('Данные изменились. Повтори действие.');
- await env.DB.prepare('DELETE FROM user_state_backups WHERE user_id=? AND revision < ?').bind(userId,Math.max(0,state.revision-49)).run();
 }
 const habitApi={readState,mutateState,telegram};
 const lunchChatApi={readState,writeTransaction,telegram,setDayCheck};
@@ -195,7 +197,7 @@ export default {
     const url=new URL(request.url);
     if(url.pathname==='/api/v1/releases/check-picture'){
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);
-      try{const picture=await getPicture(env,'__fictional_render_check__',{revision:1,data:demoData()},{kind:'budget'});return json({releaseId:latestRelease.id,...pngInfo(picture.bytes)});}catch{return json({error:'Screenshot smoke check failed'},503);}
+      try{const storage=await checkPersistence(env,latestRelease.id),picture=await getPicture(env,'__fictional_render_check__',{revision:1,data:demoData()},{kind:'budget'});return json({releaseId:latestRelease.id,storage,...pngInfo(picture.bytes)});}catch{return json({error:'Screenshot smoke check failed'},503);}
     }
     if(url.pathname==='/card-demo'){
       const data=demoData();try{const params=pictureParams(Object.fromEntries(url.searchParams),data),{renderReportHtml}=await import('./report-html.jsx');return new Response(renderReportHtml(data,params),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch{return json({error:'Unknown demo card'},400);}
@@ -223,16 +225,22 @@ export default {
       if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await request.json(),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
-        const input=await request.json(),data=migrateData(input.data,EMPTY),current=await readState(env,userId);
+        const text=await request.text();if(new TextEncoder().encode(text).length>1_550_000)return json({error:'Профиль больше допустимого размера'},413);
+        const input=JSON.parse(text),key=request.headers.get('Idempotency-Key');
+        if(key&&(!/^[a-zA-Z0-9:_-]{1,160}$/.test(key)))return json({error:'Неверный ключ сохранения'},400);
+        const receipt=key?'state:'+key:null,hash=receipt?await hashRequest(input):null;
+        if(receipt){const prior=await env.DB.prepare('SELECT request_hash,result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,receipt).first();if(prior)return prior.request_hash===hash?json(JSON.parse(prior.result)):json({error:'Ключ сохранения уже использован'},409);}
+        const data=migrateData(input.data,EMPTY),current=await readState(env,userId);
         if(current.revision!==input.expectedRevision)return json({error:'Revision conflict'},409);
-        delete data._pinHash;
+        validateStateChange(current.data,data);delete data._pinHash;const result={revision:input.expectedRevision+1};
         const rows=await env.DB.batch([
-          env.DB.prepare('INSERT OR IGNORE INTO user_state_backups(user_id,revision,data,created_at) SELECT user_id,revision,data,updated_at FROM user_finance_state WHERE user_id=? AND revision=?').bind(userId,input.expectedRevision),
-          env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(JSON.stringify(data),new Date().toISOString(),userId,input.expectedRevision)
+          backupBefore(env,userId,input.expectedRevision),
+          env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(encodeState(data),new Date().toISOString(),userId,input.expectedRevision),
+          ...(receipt?[env.DB.prepare('INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) SELECT ?,?,?,?,? WHERE changes()=1').bind(userId,receipt,hash,JSON.stringify(result),Date.now())]:[]),
+          trimBackups(env,userId)
         ]);
         if(rows[1].meta.changes!==1)return json({error:'Revision conflict'},409);
-        await env.DB.prepare('DELETE FROM user_state_backups WHERE user_id=? AND revision < ?').bind(userId,Math.max(0,input.expectedRevision-49)).run();
-        return json({revision:input.expectedRevision+1});
+        return json(result);
       }
       if(request.method==='POST'&&url.pathname==='/api/v1/transactions')return json(await writeTransaction(env,userId,await request.json(),request.headers.get('Idempotency-Key')),201);
       if(request.method==='GET'&&url.pathname==='/api/v1/summary') {
@@ -251,7 +259,7 @@ export default {
       for(const profile of profiles.results){
         const userId=profile.user_id;if(!allowed.includes(String(userId))||profile.revision===0)continue;
         try{
-        const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=await dayChecks(env,userId,day),reports=notificationJobs(data,now,responses);
+        const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=await dayChecks(env,userId,day),reports=notificationJobs(data,now,responses,{catchUp:true});
         await deliverNotifications(env,userId,day,data,reports,responses,telegram,periodSummary,setDayCheck);
         }catch{console.error('Notification processing failed for profile',userId);}
       }

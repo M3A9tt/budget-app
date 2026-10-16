@@ -24,7 +24,8 @@ test('Company lunch and its savings never move personal balances; own top-up mov
  d=deleteTransaction(d,ownId);assert.equal(d.accounts[0].balance,10000);assert.equal(lunchBudget(d,'2026-10','2026-10-01').own,0);
  d=deleteTransaction(d,d.transactions[0].id);assert.equal(d.accounts[0].balance,10000);assert.equal(lunchBudget(d,'2026-10','2026-10-01').confirmedDifference,0);
 });
-test('Multiple orders, deficit, partial days and holiday override reconcile without double accrual',()=>{
+test('Multiple orders, deficit, partial days and holiday override reconcile without double accrual',t=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2026-11-04T12:00:00Z')});
  let d=state();for(const amount of [300,250])d=putTransaction(d,{type:'lunch',cat:'lunch',date:'2026-11-03',amount});
  d.lunchDayOff=['2026-11-02'];d.lunchDayMod={'2026-11-03':0.5,'2026-11-04':1};
  const b=lunchBudget(d,'2026-11','2026-11-03');assert.equal(b.budget,7800);assert.equal(b.accrued,200);assert.equal(b.deficit,350);assert.equal(b.confirmedDifference,-350);assert.equal(b.spent,550);

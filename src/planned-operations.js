@@ -13,5 +13,12 @@ export function preparePlanned(data,ruleId,period,today,changed){
 }
 export function skipPlanned(data,id,period){const r=data.recurring.find(x=>x.id===id);if(!r||plannedPaid(data,r,period))throw Error('План отсутствует или уже подтверждён');return {...data,recurring:data.recurring.map(x=>x.id===id?{...x,skippedPeriods:[...new Set([...(x.skippedPeriods||[]),period])]}:x)};}
 
-export function updatePlanned(data,id,values){const old=data.recurring.find(r=>r.id===id);if(!old)throw Error('План отсутствует');const added=createPlanned({...data,recurring:data.recurring.filter(r=>r.id!==id)},values);return {...added,recurring:added.recurring.map(r=>r.id===added.recurring.at(-1).id?{...r,active:old.active}:r)};}
+export function updatePlanned(data,id,values){
+ const old=data.recurring.find(r=>r.id===id);if(!old)throw Error('План отсутствует');
+ const checked=createPlanned({...data,recurring:data.recurring.filter(r=>r.id!==id)},values).recurring.at(-1);
+ const hasFacts=data.transactions.some(t=>t.recurringId===id)||!!old.lastCreated||(old.skippedPeriods||[]).length>0;
+ if(hasFacts&&(planType(old)!==checked.type||(old.currency||'RUB')!==checked.currency||(old.frequency||'monthly')!==checked.frequency))throw Error('У плана уже есть оплаченные или пропущенные периоды. Для другого типа, валюты или периодичности создай отдельный план');
+ const next={...old,...checked,id:old.id,active:old.active!==false,lastCreated:old.lastCreated||'',skippedPeriods:old.skippedPeriods||[]};
+ return {...data,recurring:data.recurring.map(r=>r.id===id?next:r)};
+}
 export function deletePlanned(data,id){return {...data,recurring:data.recurring.filter(r=>r.id!==id)};}

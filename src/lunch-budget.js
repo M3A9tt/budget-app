@@ -14,6 +14,7 @@ export function lunchDayRatio(data,date){
  if(mode==='ru-production'&&date.startsWith('2026-'))return weekday!==0&&weekday!==6&&!holidays2026.has(date.slice(5))?1:0;
  return (data.settings?.lunchWorkDays||[1,2,3,4,5]).includes(weekday)?1:0;
 }
+export const lunchCalendarVerified=(data,date)=>lunchCalendar(data.settings)!=='ru-production'||date.startsWith('2026-');
 export const companyLunch=t=>t.type==='lunch'||t.cat==='lunch';
 export const personalLunch=t=>t.type==='expense'&&!companyLunch(t)&&((t.tags||[]).includes('обед-за-свои')||t._lunchCheckDay||/обед.*(?:сво|доплат)/i.test(t.note||''));
 export function lunchBudget(data,month,today){
@@ -31,7 +32,7 @@ export function lunchBudget(data,month,today){
  for(const day of days){day.available=roundMoney(day.limit+cumulative);if(day.past)cumulative=roundMoney(cumulative+day.difference);day.cumulative=cumulative;}
  const sum=fn=>roundMoney(days.reduce((n,d)=>n+fn(d),0));
  const budget=sum(d=>d.limit),accrued=sum(d=>d.past?d.limit:0),spent=sum(d=>d.company),own=sum(d=>d.own),difference=roundMoney(accrued-spent);
- return {month,daily,days,workDays:sum(d=>d.ratio),budget,accrued,spent,own,difference,surplus:Math.max(0,difference),deficit:Math.max(0,-difference),remaining:roundMoney(budget-spent),future:roundMoney(budget-accrued),confirmedDifference:sum(d=>d.confirmed?d.difference:0),unrecorded:days.filter(d=>d.past&&d.ratio>0&&!d.confirmed).length,calendar:lunchCalendar(data.settings),verified:lunchCalendar(data.settings)!=='ru-production'||year===2026};
+ return {month,daily,days,workDays:sum(d=>d.ratio),budget,accrued,spent,own,difference,surplus:Math.max(0,difference),deficit:Math.max(0,-difference),remaining:roundMoney(budget-spent),future:roundMoney(budget-accrued),confirmedDifference:sum(d=>d.confirmed?d.difference:0),unrecorded:days.filter(d=>d.past&&d.ratio>0&&!d.confirmed).length,calendar:lunchCalendar(data.settings),verified:lunchCalendarVerified(data,month)};
 }
 export function lunchCalculator(items){
  const cents=items.reduce((sum,item)=>{const price=parseMoney(item.price),count=Number(item.count);if(!Number.isFinite(price)||price<0||!Number.isInteger(count)||count<1||count>100||!item.name.trim())throw Error('Укажи название, цену и количество от 1 до 100');return sum+Math.round(price*100)*count;},0);
