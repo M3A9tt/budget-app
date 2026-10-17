@@ -1,3 +1,4 @@
+import {classifyIncomingMessage} from '../src/input-intent.js';
 import {lunchOrders,parseLunchOrder,recognitionCorrection} from '../src/lunch-recognition.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {lunchDayRatio,companyLunch,lunchCalendarVerified} from '../src/lunch-budget.js';
@@ -19,9 +20,12 @@ export async function lunchChatMessage(env,userId,message,api){
  if(active&&!text.startsWith('/')&&!/^[💼📊🍽🔔]/u.test(text)){const value=recognitionCorrection(active.field,text),payload=JSON.parse(active.payload);payload.tx[active.field]=value;payload.corrected=true;const claimed=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();if(!claimed.meta.changes)throw Error('Эта правка уже обработана');const id=await insert(env,userId,payload);await card(env,userId,id,payload,api);return true;}
  if(text==='/cancel'&&active){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='cancelled' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();await api.telegram(env,'sendMessage',{chat_id:userId,text:'Обед отменён. Ничего не записано.'});return true;}
  if(text.startsWith('/'))return false;
- const forwarded=!!(message.forward_origin||message.forward_date);const orders=lunchOrders(text),hasIdentity=orders.some(o=>o.employeeId&&o.body&&(/\(\d{1,5}\)/u.test(text)||/^\p{Lu}/u.test(o.name))); // Recognition is reserved for forwards, employee headers or explicit lunches.
- const dish=/суп|салат|котлет|пюре|картоф|лапш|плов|пирож|булоч|рис|греч|макарон|отбивн|крокет|голуб|рулет|биточ|сосиск|чай|кола|обед|стейк|печень|запеканк/iu.test(text);const signedPersonal=/(?<![\p{L}\p{N}])[-−]\s*\d/u.test(text);if(!hasIdentity&&(!forwarded||!dish||signedPersonal))return false; // Plain financial phrases belong to quick-entry, not forwarded-meal recognition.if(/обед.*(?:за сво|сам оплатил|свои деньги)/iu.test(text))return false;
- const {data}=await api.readState(env,userId),stamp=message.forward_origin?.date||message.forward_date,date=clockAt(stamp?new Date(stamp*1000):new Date(),data.settings?.timeZone||DEFAULT_ZONE).date;
+ const forwarded=!!(message.forward_origin||message.forward_date),orders=lunchOrders(text);
+ // Only forwarded messages and clearly identified employee orders enter the company parser.
+ if(!forwarded&&!orders.some(o=>o.employeeId&&o.body))return false;
+ const {data}=await api.readState(env,userId);
+ if(classifyIncomingMessage({message,orders,accounts:data.accounts}).route!=='company-order')return false;
+ const stamp=message.forward_origin?.date||message.forward_date,date=clockAt(stamp?new Date(stamp*1000):new Date(),data.settings?.timeZone||DEFAULT_ZONE).date;
  if(data.settings.modules?.lunch===false&&!/обед\s+(?:компании|от работодателя)/iu.test(text))return false;
  if(orders.length>1){const selected=data.settings.lunchEmployeeId&&orders.filter(o=>o.employeeId===data.settings.lunchEmployeeId);if(selected?.length===1){await openOrder(env,userId,selected[0],date,api);return true;}if(orders.length>40)throw Error('Перешли свой заказ отдельно: в списке больше 40 заказов');const id=await insert(env,userId,{orders,date},'choose');await api.telegram(env,'sendMessage',{chat_id:userId,text:'В пересылке несколько заказов. Какой записать тебе?',reply_markup:{inline_keyboard:orders.map((o,i)=>[{text:(o.name+' · №'+o.employeeId).slice(0,60),callback_data:'lc:pick:'+id+':'+i}])}});return true;}
  await openOrder(env,userId,orders[0],date,api);return true;
