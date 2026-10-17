@@ -171,7 +171,7 @@ test('Transaction card is four rows with sum, dishes and relative day; navigatio
  const d=f.snapshot();d.transactions=[{id:'company-lunch',date:today,type:'lunch',cat:'lunch',currency:'RUB',amount:379,note:'Суп, гречка'}];
  f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
  await f.update('/history');await f.press(/Суп, гречка/);
- const card=f.last();assert.match(card.text,/🍽 Обед · 379/);assert.match(card.text,/Сегодня/);assert.match(card.text,/Блюда:\\nСуп, гречка/);assert.doesNotMatch(card.text,/с возвратом остатка/);
+ const card=f.last();assert.match(card.text,/🍽 Обед · 379/);assert.match(card.text,/Сегодня/);assert.match(card.text,/Блюда:\nСуп, гречка/);assert.doesNotMatch(card.text,/с возвратом остатка/);
  assert.equal(card.reply_markup.inline_keyboard.length,4);assert.deepEqual(card.reply_markup.inline_keyboard.map(row=>row.length),[1,2,1,1]);
  assert.ok(card.reply_markup.inline_keyboard.flat().some(x=>x.text==='⋯ Действия'));assert.ok(!card.reply_markup.inline_keyboard.flat().some(x=>x.text.startsWith('Удалить')));
  await f.press('⋯ Действия');assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='Удалить запись'));
