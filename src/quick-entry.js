@@ -1,14 +1,5 @@
-const boundary='[\\p{L}\\p{N}]',escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-export function entryType(text){return /(?<![\p{L}\d])\+\s*\d/u.test(text)||/зарплат|аванс|доход/iu.test(text)||/(?<!\p{L})(?:зп|получил(?:а)?)(?!\p{L})/iu.test(text)?'income':'expense';}
-export function accountMentions(text,accounts){
- const candidates=[];
- for(const a of accounts){const names=[a.name];for(const [root,aliases] of [['сбер',['сбер','сбера']],['альф',['альфа','альфы']],['тинькофф',['тинькофф','тинькоффа']],['т-банк',['т-банк','т-банка']]])if(a.name.toLocaleLowerCase('ru').includes(root))names.push(...aliases);
-  for(const name of new Set(names)){const re=new RegExp(`(?<!${boundary})${escape(name)}(?!${boundary})`,'giu');for(const m of text.matchAll(re))candidates.push({account:a,start:m.index,end:m.index+m[0].length});}
- }
- candidates.sort((a,b)=>(b.end-b.start)-(a.end-a.start));const chosen=[];
- for(const hit of candidates){const overlapping=chosen.filter(x=>hit.start<x.end&&hit.end>x.start);if(overlapping.some(x=>x.account.id===hit.account.id))continue;if(overlapping.some(x=>x.end-x.start>hit.end-hit.start))continue;chosen.push(hit);}
- return chosen.sort((a,b)=>a.start-b.start);
-}
+import {accountMentions,classifyFinancialIntent} from './input-intent.js';
+export {accountMentions} from './input-intent.js';
 function without(text,spans){for(const x of [...spans].sort((a,b)=>b.start-a.start))text=text.slice(0,x.start)+' '+text.slice(x.end);return text;}
 function datePart(value,today){
  let date=today;
@@ -32,15 +23,7 @@ export function parseEntry(text,accounts,categories,date,defaults={}){
  const dated=datePart(text.trim(),date),hits=accountMentions(dated.value,accounts),ids=[...new Set(hits.map(x=>x.account.id))];if(ids.length>1)throw Error('Названо несколько счетов — выберите один');
  let working=without(dated.value,hits.map(x=>{const before=dated.value.slice(0,x.start).match(/(?:^|\s)(?:с|со|на|в|из|сч[её]т:?)\s*$/iu);return {...x,start:before?x.start-before[0].length:x.start};}));
  const parsed=amountPart(working),memo=parsed.note.toLocaleLowerCase('ru');
- const mentionsLunch=/(?<!\p{L})обед(?!\p{L})/u.test(memo);
- // An explicit debit sign or named personal account always wins over the bare
- // word "обед". Keep "обед 379" as a corporate shortcut only without an account.
- const companyLunch=/обед\s+(?:компании|от работодателя|за сч[её]т компании)|(?:корпоративн[а-я]*\s+обед)|(?:оплачивает|оплатила)\s+компания/u.test(memo);
- const companyShortcut=mentionsLunch&&memo.trim()==='обед'&&!hits.length&&defaults.companyLunchEnabled!==false;
- const signed=parsed.sign==='-'||parsed.sign==='−'||parsed.sign==='+';
- const ownLunch=mentionsLunch&&(/за сво[ий]|свои деньги|сам оплатил|сам заплатил/u.test(memo)||(!!hits.length&&!companyLunch)||(!companyLunch&&!companyShortcut));
- const lunch=mentionsLunch&&!signed&&!ownLunch&&(companyLunch||companyShortcut);
- const type=parsed.sign==='+'?'income':parsed.sign==='-'||parsed.sign==='−'?'expense':lunch?'lunch':entryType(text);
+ const {type,companyLunch:lunch,mentionsLunch}=classifyFinancialIntent({memo,sign:parsed.sign,hasNamedAccount:hits.length>0,companyLunchEnabled:defaults.companyLunchEnabled!==false,inferredType:entryType(text)});
  const preferred=accounts.find(a=>a.id===defaults.accountId&&(a.currency||'RUB')==='RUB'&&a.accType!=='savings'&&a.savingsKind!=='deposit'),account=hits[0]?.account||(accounts.length===1?accounts[0]:preferred);
  if(!lunch&&accounts.length&&!account&&!defaults.allowMissingAccount)throw Error('Допишите название счёта, например: кофе 180 Сбер');
  const keywords=[['health',/аптек|таблет|врач|стомат|лекар/],['transport',/проезд|метро|такси|автобус/],['food',/кофе|продукт|еда|магазин|хлеб/],['housing',/жкх|квартплат|электрич/],['fun',/игра|кино/]];
