@@ -180,3 +180,17 @@ test('Two simultaneous selection taps create just one corporate order draft',asy
   assert.equal((await(await call('222')).json()).data.transactions.length,0);
  });
 });
+
+test('An interrupted employee choice can be retried after lease expiry',async()=>{
+ const {env,db,call,data}=fixture();const d=data(1000);d.settings.modules={lunch:true};
+ await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await forwardedLunch(env,222,'Один (9001) Суп 300р\nДва (9002) Пюре 340р');
+  const selected=lunchButton(messages,'pick');
+  const id=selected.split(':')[2];
+  db.prepare("UPDATE lunch_chat_drafts SET status='choosing',lease_until=1 WHERE id=?").run(id);
+  await webhook(env,222,'',selected);
+  assert.equal(db.prepare("SELECT status FROM lunch_chat_drafts WHERE id=?").get(id).status,'superseded');
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM lunch_chat_drafts WHERE user_id='222' AND status='open'").get().n,1);
+ });
+});
