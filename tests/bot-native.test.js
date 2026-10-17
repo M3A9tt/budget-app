@@ -182,3 +182,26 @@ test('Transaction card is four rows with sum, dishes and relative day; navigatio
  await f.update('/history');
  assert.ok(f.sent.some(x=>x.method==='editMessageReplyMarkup'&&x.body.message_id===id&&x.body.reply_markup.inline_keyboard.length===0));
 }));
+
+test('Budget bot labels, settings, planned income and debt refunds remain human-readable',()=>{
+ const d=seed();
+ d.settings.nextIncomeDate='';
+ d.settings.expenseCheckEnabled=true;d.settings.lunchAskDays=[1,2,5];
+ d.recurring=[{id:'income-month',name:'Зарплата',frequency:'monthly',active:true,type:'income',startDate:today,amount:30000,accountId:'bank',currency:'RUB'}];
+ d.history=[{id:'hist-1',type:'add_tx',after:{note:'Покупка',amount:180,currency:'RUB'}}];
+ d.debts=[{id:'debt-1',type:'my',person:'Друг',amount:500,payments:[{id:'pay-1',amount:200,date:today}],currency:'RUB'}];
+ let card=botView(d,'settingGroup',{group:'reminders'});
+ assert.ok(card.actions.some(a=>a.label==='Проверка расходов: Включено'));
+ assert.ok(card.actions.some(a=>a.label.includes('Пн, Вт, Пт')));
+ assert.match(botView(d,'activity').actions.find(a=>a.label.includes('Покупка')).label,/Добавление/);
+ assert.match(botView(d,'plan',{id:'income-month'}).lines.join(' '),/Ежемесячно/);
+ assert.match(botView(d,'dueItem',{id:'income-month',period:today.slice(0,7)}).lines.join(' '),/поступление/i);
+ assert.match(botView(d,'debtHistory',{id:'debt-1'}).actions[1].label,/200/);
+});
+test('Cancel closes old input keyboard and preserves real account balance',()=>run(async f=>{
+ await f.update('/add');await f.press('− Расход');await f.update('100');
+ const cardId=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload).cardId;
+ await f.update('/cancel');
+ assert.ok(f.sent.some(x=>x.method==='editMessageReplyMarkup'&&x.body.message_id===cardId&&x.body.reply_markup.inline_keyboard.length===0));
+ assert.equal(f.snapshot().accounts[0].balance,10000);
+}));
