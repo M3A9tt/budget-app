@@ -33,7 +33,18 @@ export async function lunchChatMessage(env,userId,message,api){
 export async function lunchChatCallback(env,userId,callback,api){
  if(!(callback.data||'').startsWith('lc:'))return false;const [,action,id,argument]=callback.data.split(':'),row=await draft(env,userId,id),payload=row.payload;
  const answer=text=>api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text});
- if(action==='pick'){if(row.status!=='choose'||!/^\d+$/.test(argument||'')||!payload.orders?.[Number(argument)])throw Error('Выбери заказ заново');await openOrder(env,userId,payload.orders[Number(argument)],payload.date,api);await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE id=? AND user_id=? AND status='choose'").bind(id,userId).run();try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:callback.message.message_id,reply_markup:{inline_keyboard:[]}});}catch{}await answer('Заказ выбран');return true;}
+ if(action==='pick'){
+  if(row.status!=='choose'||!/^\d+$/.test(argument||'')||!payload.orders?.[Number(argument)])throw Error('Выбери заказ заново');
+  // The command is claimed before the external Telegram send. Two rapid taps
+  // cannot create two independent active confirmations for one choice.
+  const claimed=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='choosing',lease_until=? WHERE id=? AND user_id=? AND status='choose'").bind(Date.now()+60000,id,userId).run();
+  if(!claimed.meta.changes)throw Error('Заказ уже выбран или обрабатывается');
+  try {await openOrder(env,userId,payload.orders[Number(argument)],payload.date,api);
+   await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded',lease_until=0 WHERE id=? AND user_id=? AND status='choosing'").bind(id,userId).run();
+  }catch(e){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='choose',lease_until=0 WHERE id=? AND user_id=? AND status='choosing'").bind(id,userId).run();throw e;}
+  try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:callback.message.message_id,reply_markup:{inline_keyboard:[]}});}catch{}
+  await answer('Заказ выбран');return true;
+ }
  if(row.status==='saved'){await answer('Уже записано');return true;}
  if(!['open','editing'].includes(row.status))throw Error('Эта карточка отменена или заменена. Используй последнюю.');
  if(action==='cancel'){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('open','editing')").bind(id,userId).run();await answer('Отменено');await api.telegram(env,'editMessageText',{chat_id:userId,message_id:callback.message.message_id,text:'Обед отменён. Ничего не записано.',reply_markup:{inline_keyboard:[]}});return true;}
@@ -42,7 +53,9 @@ export async function lunchChatCallback(env,userId,callback,api){
  if(action!=='save'||row.status!=='open')throw Error('Сначала заверши правку и подтверди новую карточку');
  const now=Date.now(),claim=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='saving',lease_until=? WHERE id=? AND user_id=? AND status='open'").bind(now+60000,id,userId).run();if(!claim.meta.changes)throw Error('Обед уже обрабатывается');
  try{const state=await api.readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,tx=payload.tx;if(tx.date>today)throw Error('Будущий обед пока не записываем. Исправь дату.');if(!tx.amount)throw Error('Сначала укажи стоимость');
- const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode([tx.date,tx.amount,tx.note.trim().toLocaleLowerCase('ru')].join('|')));const key='lunch-chat:'+Array.from(new Uint8Array(digest)).map(n=>n.toString(16).padStart(2,'0')).join('');
+ // Idempotency belongs to the user command, not to its amount or memo.
+  // Two genuinely separate orders may have the same date, price and dishes.
+  const key='lunch-chat:'+id;
  await api.writeTransaction(env,userId,tx,key);await env.DB.prepare("UPDATE lunch_chat_drafts SET status='saved',lease_until=0 WHERE id=? AND user_id=?").bind(id,userId).run();await api.setDayCheck(env,userId,tx.date,'lunch','recorded');
  try{await queueCorrection(env,userId,id,payload.parsed,{amount:tx.amount,note:tx.note},state.data.settings.lunchLearningEnabled!==false);}catch{/* Financial saving succeeds independently of optional training. */}
  await answer('Записано');await api.telegram(env,'editMessageText',{chat_id:userId,message_id:callback.message.message_id,text:'Обед записан ✅\n'+tx.note+'\n'+money(tx.amount)+' · '+tx.date,reply_markup:{inline_keyboard:[]}});
