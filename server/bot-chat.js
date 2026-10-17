@@ -28,7 +28,7 @@ async function load(env,userId,id){const row=await env.DB.prepare('SELECT * FROM
 async function create(env,userId,p,prefix='bv_'){const id=prefix+uid();await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,userId,JSON.stringify(p),Date.now()+1800000).run();return id;}
 async function replace(env,userId,row,p){const result=await env.DB.prepare('UPDATE telegram_drafts SET payload=? WHERE id=? AND owner=? AND payload=? AND consumed=0').bind(JSON.stringify(p),row.id,userId,row.payload).run();if(!result.meta.changes)throw Error('Шаг уже изменился. Используй последнее сообщение.');return {...row,payload:JSON.stringify(p)};}
 export async function cancelBotFlow(env,userId){await env.DB.prepare("UPDATE telegram_drafts SET consumed=1 WHERE owner=? AND id GLOB 'bf_*' AND consumed=0").bind(userId).run();}
-async function menu(env,userId,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:`b:r:${id}:${i}`}]);return {inline_keyboard:buttons};}
+async function menu(env,userId,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:`b:r:${id}:${i}`}]);if(screen.origin?.name==='transaction'&&buttons.length===5)return {inline_keyboard:[buttons[0],[...buttons[1],...buttons[2]],buttons[3],buttons[4]]};return {inline_keyboard:buttons};}
 async function render(env,userId,api,screen){
  const text=[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),reply_markup=await menu(env,userId,screen);
  if(api.viewMessage?.message_id&&!api.viewMessage.photo)try{return await api.telegram(env,'editMessageText',{chat_id:userId,message_id:api.viewMessage.message_id,text,reply_markup});}catch{/* Old or deleted cards remain navigable through a new message. */}
@@ -58,7 +58,7 @@ async function formCard(env,userId,api,id,text,markup,expectedValues){
  const fresh=await load(env,userId,id);if(fresh.p.cardVersion===version)await replace(env,userId,fresh.row,{...fresh.p,cardId:message?.message_id||p.cardId});return message;
 }
 async function pendingForm(env,userId){const row=await env.DB.prepare("SELECT * FROM telegram_drafts WHERE owner=? AND id GLOB 'bf_*' AND consumed=0 AND expires_at>? ORDER BY expires_at DESC LIMIT 1").bind(userId,Date.now()).first();return row?{row,p:JSON.parse(row.payload)}:null;}
-async function pauseForm(env,userId){const active=await pendingForm(env,userId);if(active&&!active.p.paused)await replace(env,userId,active.row,{...active.p,paused:true});}
+async function pauseForm(env,userId,api){const active=await pendingForm(env,userId);if(active&&!active.p.paused){await replace(env,userId,active.row,{...active.p,paused:true});if(active.p.cardId&&api)try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:active.p.cardId,reply_markup:{inline_keyboard:[]}});}catch{/* Old or deleted message: draft remains safely paused. */}}}
 async function resumeMenu(env,userId,api,active,op,args){return render(env,userId,api,{title:'✍️ Есть незавершённая запись',lines:[active.p.values.amount?money(active.p.values.amount,active.p.values.currency||'RUB'):'Можно продолжить с последнего поля.'],actions:[{label:'▶️ Продолжить запись',special:'resumeForm',args:{id:active.row.id}},{label:'Начать заново',special:'restartForm',args:{op,args}},view('Главная','home')]});}
 async function start(env,userId,api,op,args={}){
  const active=await pendingForm(env,userId);if(active&&!args.forceNew)return resumeMenu(env,userId,api,active,op,args);
@@ -94,7 +94,7 @@ export async function preview(env,userId,api,id,p){
   if(p.op==='moderate'){if(!s.isOwner)throw Error('Только владелец');lines=[p.args.action==='approve'?'Одобрить правило распознавания':p.args.action==='reject'?'Отклонить пример':'Отключить правило'];}
   else if(p.op==='feedback'){if(p.values.message.length<5)throw Error('Опиши проблему подробнее');lines=[p.values.message,'Будет отправлено владельцу Бюрджета.'];}
   else if(p.op==='import')return importPreview(env,userId,api,id,p);
-  else {const next=migrateData(applyBotAction(structuredClone(s.data),p.op,p.args,p.values),EMPTY);lines=fields.filter(f=>f.key!=='content').map(f=>{const v=p.values[f.key]??f.default;return `${f.label}: ${f.choices?.find(([x])=>String(x)===String(v))?.[1]??v??''}`;});if(p.op==='restore')lines=[`Счета: ${s.data.accounts.length} → ${next.accounts.length}`,`Операции: ${s.data.transactions.length} → ${next.transactions.length}`,'Нынешний бюджет будет заменён. Копия перед заменой отправлена файлом.'];else if(p.op==='homeLayout')lines=['На главной:',...homeBlocks(next).map(id=>'• '+HOME_BLOCKS.find(([key])=>key===id)[1])];else if(!fields.length){const tx=s.data.transactions.find(t=>t.id===p.args.id),plan=s.data.recurring.find(t=>t.id===p.args.id),wish=(s.data.wishes||[]).find(t=>t.id===p.args.id);lines=[tx?`${tx.note||'Операция'} · ${money(tx.amount,tx.currency)} · ${tx.date}`:plan?.name||wish?.name||p.args.key||'Подтверди действие.',p.op==='repeat'?'Будет создана новая операция на сегодня.':p.op==='deleteTx'?'Операция будет удалена, связанный остаток восстановится.':''];}}
+  else {const next=migrateData(applyBotAction(structuredClone(s.data),p.op,p.args,p.values),EMPTY);lines=fields.filter(f=>f.key!=='content').map(f=>{const v=p.values[f.key]??f.default;return `${f.label}: ${f.choices?.find(([x])=>String(x)===String(v))?.[1]??v??''}`;});if(p.op==='restore')lines=[`Счета: ${s.data.accounts.length} → ${next.accounts.length}`,`Операции: ${s.data.transactions.length} → ${next.transactions.length}`,'Нынешний бюджет будет заменён. Копия перед заменой отправлена файлом.'];else if(p.op==='homeLayout')lines=['На главной:',...homeBlocks(next).map(id=>'• '+HOME_BLOCKS.find(([key])=>key===id)[1])];else if(!fields.length){const tx=s.data.transactions.find(t=>t.id===p.args.id),plan=s.data.recurring.find(t=>t.id===p.args.id),wish=(s.data.wishes||[]).find(t=>t.id===p.args.id);lines=[tx?`${tx.note||'Операция'} · ${money(tx.amount,tx.currency)} · ${tx.date}`:plan?.name||wish?.name||p.args.key||'Подтверди действие.',p.op==='repeat'?'Будет создана новая операция на сегодня.':p.op==='deleteTx'?'Запись будет удалена. Итоги пересчитаются по правилам операции.':''];}}
  }catch(e){error=e.message;lines=[error];}
  if(!error&&p.op==='tx')lines=compactTransaction(s.data,p);
  const loaded=await load(env,userId,id);if(loaded.row.payload!==JSON.stringify(p))throw Error('Карточка изменилась. Открой последний шаг.');const updated={...loaded.p,status:'confirm',revision:s.revision};await replace(env,userId,loaded.row,updated);
@@ -112,7 +112,7 @@ async function importPreview(env,userId,api,id,p,page=0){
 async function route(env,userId,api,r){
  if(r.special==='resumeForm'){const active=await load(env,userId,r.args.id);const next={...active.p,paused:false,cardId:undefined};await replace(env,userId,active.row,next);return next.status==='confirm'?preview(env,userId,api,r.args.id,next):prompt(env,userId,api,r.args.id,next);}
  if(r.special==='restartForm')return start(env,userId,api,r.args.op,{...r.args.args,forceNew:true});
- if(r.view){await pauseForm(env,userId);return showBotView(env,userId,api,r.view,r.args);}
+ if(r.view){await pauseForm(env,userId,api);return showBotView(env,userId,api,r.view,r.args);}
  if(r.op==='repeat'){
   const state=await api.readState(env,userId),tx=state.data.transactions.find(t=>t.id===r.args.id);if(!tx)throw Error('Запись больше не существует');
   const prefill=repeatEntry(state.data,tx,todayMoscow(state.data.settings.timeZone),CATEGORIES.concat(state.data.customCats||[]));
@@ -152,12 +152,12 @@ export async function botChat(update,env,userId,api){
    const state=await api.readState(env,userId),today=todayMoscow(state.data.settings.timeZone);
    const item=duePayments(state.data,today).find(x=>x.id===arg&&(id==='p'?x.kind==='plan'&&x.period===extra:id==='i'?x.kind==='installment':id==='d'&&x.kind==='debt'));
    if(!item){await send(api,env,userId,'Этот платёж уже закрыт или изменён. Показываю актуальный список.');await showBotView(env,userId,api,'due');return true;}
-   await pauseForm(env,userId);
+   await pauseForm(env,userId,api);
    const returnTo={name:'due',args:{}};
    await start(env,userId,api,item.kind==='plan'?'confirmPlan':item.kind==='installment'?'payInstallment':'repay',{...(item.kind==='plan'?{id:item.id,period:item.period}:item.kind==='installment'?{id:item.planId,paymentId:item.id}:{id:item.id}),returnTo});return true;
   }
   if(action==='v'&&id==='app'){await api.command('/app');return true;}
-  if(action==='v'){await pauseForm(env,userId);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
+  if(action==='v'){await pauseForm(env,userId,api);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   let loaded;try{loaded=await load(env,userId,id);}catch{const receipt=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,'bot:'+id).first();return render(env,userId,api,{title:receipt?'✅ Это действие уже выполнено':'Эта карточка уже закрыта',lines:[receipt?'Повторной записи не будет. Открой историю, чтобы посмотреть результат.':'Открой актуальный раздел.'],actions:[view('✍️ Записать','add'),view('История','history'),view('Главная','home')]});}const {p}=loaded;
   if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');let r=p.routes[Number(arg)];if(r.op)r={...r,args:{...r.args,returnTo:p.origin}};if(r.view==='transaction'&&p.origin?.name==='history')r={...r,args:{...r.args,backTo:p.origin}};await route(env,userId,r.view?{...api,viewMessage:callback.message}:api,r);return true;}
   if(p.kind!=='bot-form')throw Error('Карточка устарела');
@@ -185,10 +185,10 @@ export async function botChat(update,env,userId,api){
  }
  if(!message)return false;const text=api.navigationCommand((message.text||'').trim());
  if(['/cancel','Отмена'].includes(text)){const active=await env.DB.prepare("SELECT id FROM telegram_drafts WHERE owner=? AND id GLOB 'bf_*' AND consumed=0 AND expires_at>? LIMIT 1").bind(userId,Date.now()).first();if(!active)return false;await cancelBotFlow(env,userId);await send(api,env,userId,'Ввод отменён. Ничего не записано.');return true;}
- if(['/start','/menu'].includes(text)){await pauseForm(env,userId);await send(api,env,userId,'💼 Бюрджет\nВесь бюджет теперь доступен прямо в чате 👇',botKeyboard(env.MINI_APP_URL,(await api.readState(env,userId)).data));await showBotView(env,userId,api,'home');return true;}
+ if(['/start','/menu'].includes(text)){await pauseForm(env,userId,api);await send(api,env,userId,'💼 Бюрджет\nВесь бюджет теперь доступен прямо в чате 👇',botKeyboard(env.MINI_APP_URL,(await api.readState(env,userId)).data));await showBotView(env,userId,api,'home');return true;}
  if(text==='/add'){const active=await pendingForm(env,userId);if(active){await resumeMenu(env,userId,api,active,'tx',{type:'expense'});return true;}}
  if(text==='/add'||text==='/import'){await (text==='/add'?showBotView(env,userId,api,'add'):start(env,userId,api,'import'));return true;}
- if(COMMANDS[text]){await pauseForm(env,userId);await showBotView(env,userId,api,COMMANDS[text]==='reminders'?'settingGroup':COMMANDS[text],text==='/reminders'?{group:'reminders'}:{});return true;}
+ if(COMMANDS[text]){await pauseForm(env,userId,api);await showBotView(env,userId,api,COMMANDS[text]==='reminders'?'settingGroup':COMMANDS[text],text==='/reminders'?{group:'reminders'}:{});return true;}
  if(text.startsWith('/'))return false;
  const rows=(await env.DB.prepare("SELECT * FROM telegram_drafts WHERE owner=? AND id GLOB 'bf_*' AND consumed=0 AND expires_at>? ORDER BY expires_at DESC LIMIT 1").bind(userId,Date.now()).all()).results;
  const row=rows[0];if(!row)return false;const p=JSON.parse(row.payload);if(p.paused)return false;if(p.status!=='form'){await send(api,env,userId,'Карточка ждёт подтверждения. Нажми «Подтвердить», «Изменить поля» или /cancel.');return true;}
