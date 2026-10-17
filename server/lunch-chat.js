@@ -1,4 +1,5 @@
 import {classifyIncomingMessage} from '../src/input-intent.js';
+import {correctionBelongsToDraft} from './dialog-focus.js';
 import {lunchOrders,parseLunchOrder,recognitionCorrection} from '../src/lunch-recognition.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {lunchDayRatio,companyLunch,lunchCalendarVerified} from '../src/lunch-budget.js';
@@ -17,8 +18,8 @@ async function openOrder(env,userId,order,date,api){const parsed=parseLunchOrder
 export async function lunchChatMessage(env,userId,message,api){
  await ensure(env);const text=(message.text||message.caption||'').trim();if(!text)return false;
  const active=await env.DB.prepare("SELECT * FROM lunch_chat_drafts WHERE user_id=? AND status='editing' AND expires_at>? ORDER BY rowid DESC LIMIT 1").bind(userId,Date.now()).first();
- if(active&&!text.startsWith('/')&&!/^[💼📊🍽🔔]/u.test(text)){const value=recognitionCorrection(active.field,text),payload=JSON.parse(active.payload);payload.tx[active.field]=value;payload.corrected=true;const claimed=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();if(!claimed.meta.changes)throw Error('Эта правка уже обработана');const id=await insert(env,userId,payload);await card(env,userId,id,payload,api);return true;}
- if(text==='/cancel'&&active){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='cancelled' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();await api.telegram(env,'sendMessage',{chat_id:userId,text:'Обед отменён. Ничего не записано.'});return true;}
+ if(active&&correctionBelongsToDraft(message,active.field,JSON.parse(active.payload).promptId)){const value=recognitionCorrection(active.field,text),payload=JSON.parse(active.payload);payload.tx[active.field]=value;payload.corrected=true;const claimed=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();if(!claimed.meta.changes)throw Error('Эта правка уже обработана');const id=await insert(env,userId,payload);await card(env,userId,id,payload,api);return true;}
+ if(['/cancel','Отмена'].includes(text)&&active){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='cancelled' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();await api.telegram(env,'sendMessage',{chat_id:userId,text:'Обед отменён. Ничего не записано.'});return true;}
  if(text.startsWith('/'))return false;
  const forwarded=!!(message.forward_origin||message.forward_date),orders=lunchOrders(text);
  // Only forwarded messages and clearly identified employee orders enter the company parser.
@@ -27,6 +28,7 @@ export async function lunchChatMessage(env,userId,message,api){
  if(classifyIncomingMessage({message,orders,accounts:data.accounts}).route!=='company-order')return false;
  const stamp=message.forward_origin?.date||message.forward_date,date=clockAt(stamp?new Date(stamp*1000):new Date(),data.settings?.timeZone||DEFAULT_ZONE).date;
  if(data.settings.modules?.lunch===false&&!/обед\s+(?:компании|от работодателя)/iu.test(text))return false;
+ if(active)await pauseLunchEdit(env,userId);
  if(orders.length>1){const selected=data.settings.lunchEmployeeId&&orders.filter(o=>o.employeeId===data.settings.lunchEmployeeId);if(selected?.length===1){await openOrder(env,userId,selected[0],date,api);return true;}if(orders.length>40)throw Error('Перешли свой заказ отдельно: в списке больше 40 заказов');const id=await insert(env,userId,{orders,date},'choose');await api.telegram(env,'sendMessage',{chat_id:userId,text:'В пересылке несколько заказов. Какой записать тебе?',reply_markup:{inline_keyboard:orders.map((o,i)=>[{text:(o.name+' · №'+o.employeeId).slice(0,60),callback_data:'lc:pick:'+id+':'+i}])}});return true;}
  await openOrder(env,userId,orders[0],date,api);return true;
 }
@@ -49,7 +51,7 @@ export async function lunchChatCallback(env,userId,callback,api){
  if(!['open','editing'].includes(row.status))throw Error('Эта карточка отменена или заменена. Используй последнюю.');
  if(action==='cancel'){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='cancelled' WHERE id=? AND user_id=? AND status IN ('open','editing')").bind(id,userId).run();await answer('Отменено');await api.telegram(env,'editMessageText',{chat_id:userId,message_id:callback.message.message_id,text:'Обед отменён. Ничего не записано.',reply_markup:{inline_keyboard:[]}});return true;}
  if(action==='edit'){await answer('Выбери поле');await api.telegram(env,'sendMessage',{chat_id:userId,text:'Что исправить в обеде?',reply_markup:{inline_keyboard:[['amount','Сумму'],['note','Блюда'],['date','Дату']].map(([field,label])=>[{text:label,callback_data:'lc:field:'+id+':'+field}])}});return true;}
- if(action==='field'){if(!['amount','note','date'].includes(argument))throw Error('Неизвестное поле');await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE user_id=? AND status='editing' AND id<>?").bind(userId,id).run();await env.DB.prepare("UPDATE lunch_chat_drafts SET status='editing',field=? WHERE id=? AND user_id=? AND status IN ('open','editing')").bind(argument,id,userId).run();await answer('Жду правку');await api.telegram(env,'sendMessage',{chat_id:userId,text:{amount:'Напиши правильную сумму, например 340 или 340,50.',note:'Напиши правильные названия блюд.',date:'Напиши дату: 2026-10-14 или 14.10.2026.'}[argument]+' /cancel — отменить.',reply_markup:{force_reply:true}});return true;}
+ if(action==='field'){if(!['amount','note','date'].includes(argument))throw Error('Неизвестное поле');await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE user_id=? AND status='editing' AND id<>?").bind(userId,id).run();await env.DB.prepare("UPDATE lunch_chat_drafts SET status='editing',field=? WHERE id=? AND user_id=? AND status IN ('open','editing')").bind(argument,id,userId).run();await answer('Жду правку');const prompt=await api.telegram(env,'sendMessage',{chat_id:userId,text:{amount:'Напиши правильную сумму, например 340 или 340,50.',note:'Напиши правильные названия блюд.',date:'Напиши дату: 2026-10-14 или 14.10.2026.'}[argument]+' /cancel — отменить.',reply_markup:{force_reply:true}});if(prompt?.message_id)await env.DB.prepare("UPDATE lunch_chat_drafts SET payload=? WHERE id=? AND user_id=? AND status='editing' AND field=?").bind(JSON.stringify({...payload,promptId:prompt.message_id}),id,userId,argument).run();return true;}
  if(action!=='save'||row.status!=='open')throw Error('Сначала заверши правку и подтверди новую карточку');
  const now=Date.now(),claim=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='saving',lease_until=? WHERE id=? AND user_id=? AND status='open'").bind(now+60000,id,userId).run();if(!claim.meta.changes)throw Error('Обед уже обрабатывается');
  try{const state=await api.readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,tx=payload.tx;if(tx.date>today)throw Error('Будущий обед пока не записываем. Исправь дату.');if(!tx.amount)throw Error('Сначала укажи стоимость');
@@ -63,3 +65,9 @@ export async function lunchChatCallback(env,userId,callback,api){
 }
 
 export async function pruneLunchChat(env){await ensure(env);await env.DB.prepare('DELETE FROM lunch_chat_drafts WHERE expires_at<?').bind(Date.now()).run();}
+
+export async function pauseLunchEdit(env,userId){
+ await ensure(env);
+ const result=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE user_id=? AND status='editing' AND expires_at>?").bind(userId,Date.now()).run();
+ return result.meta.changes>0;
+}

@@ -1,3 +1,4 @@
+import {load,create,replace,pendingForm} from './bot-drafts.js';
 import {moduleEnabled} from '../src/modules.js';
 import {parseEntry,parseOwnTransfer,entryType} from '../src/quick-entry.js';
 import {entryDefaults} from '../src/entry-assist.js';
@@ -13,7 +14,7 @@ import {lunchReminder} from './notifications.js';
 import {setDayCheck} from './habits.js';
 import {botView,view,act} from './bot-views.js';
 import {fieldsFor,parseField,applyBotAction,initialValues,botImportPreview} from './bot-catalog.js';
-import {botKeyboard} from './bot-navigation.js';
+import {botKeyboard,BOT_SECTIONS} from './bot-navigation.js';
 import {EMPTY,money,todayMoscow} from '../src/mini-model.js';
 import {migrateData} from '../src/ledger.js';
 import {lunchCalculator} from '../src/lunch-budget.js';
@@ -22,11 +23,7 @@ import {telemetryReport} from './telemetry.js';
 import {learningQueue,moderateLearning} from './lunch-learning.js';
 import {sendTestMessage} from './test-messages.js';
 import {sendFeedback} from './feedback.js';
-const uid=()=>crypto.randomUUID().replaceAll('-','');
 const short=(s,n=58)=>String(s).slice(0,n),send=(api,env,userId,text,markup)=>api.telegram(env,'sendMessage',{chat_id:userId,text,...(markup?{reply_markup:markup}:{})});
-async function load(env,userId,id){const row=await env.DB.prepare('SELECT * FROM telegram_drafts WHERE id=? AND owner=?').bind(id,userId).first();if(!row||row.expires_at<Date.now()||row.consumed)throw Error('Эта карточка уже выполнена или устарела. Открой раздел заново.');return {row,p:JSON.parse(row.payload)};}
-async function create(env,userId,p,prefix='bv_'){const id=prefix+uid();await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,userId,JSON.stringify(p),Date.now()+1800000).run();return id;}
-async function replace(env,userId,row,p){const result=await env.DB.prepare('UPDATE telegram_drafts SET payload=? WHERE id=? AND owner=? AND payload=? AND consumed=0').bind(JSON.stringify(p),row.id,userId,row.payload).run();if(!result.meta.changes)throw Error('Шаг уже изменился. Используй последнее сообщение.');return {...row,payload:JSON.stringify(p)};}
 export async function cancelBotFlow(env,userId,api){
  const rows=(await env.DB.prepare("SELECT payload FROM telegram_drafts WHERE owner=? AND id GLOB 'bf_*' AND consumed=0").bind(userId).all()).results;
  await env.DB.prepare("UPDATE telegram_drafts SET consumed=1 WHERE owner=? AND id GLOB 'bf_*' AND consumed=0").bind(userId).run();
@@ -65,8 +62,7 @@ async function formCard(env,userId,api,id,text,markup,expectedValues){
  if(!message)message=await send(api,env,userId,text,reply_markup);
  const fresh=await load(env,userId,id);if(fresh.p.cardVersion===version)await replace(env,userId,fresh.row,{...fresh.p,cardId:message?.message_id||p.cardId});return message;
 }
-async function pendingForm(env,userId){const row=await env.DB.prepare("SELECT * FROM telegram_drafts WHERE owner=? AND id GLOB 'bf_*' AND consumed=0 AND expires_at>? ORDER BY expires_at DESC LIMIT 1").bind(userId,Date.now()).first();return row?{row,p:JSON.parse(row.payload)}:null;}
-async function pauseForm(env,userId,api){const active=await pendingForm(env,userId);if(active&&!active.p.paused){await replace(env,userId,active.row,{...active.p,paused:true});if(active.p.cardId&&api)try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:active.p.cardId,reply_markup:{inline_keyboard:[]}});}catch{/* Old or deleted message: draft remains safely paused. */}}}
+export async function pauseBotForm(env,userId,api){const active=await pendingForm(env,userId);if(active&&!active.p.paused){await replace(env,userId,active.row,{...active.p,paused:true});if(active.p.cardId&&api)try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:active.p.cardId,reply_markup:{inline_keyboard:[]}});}catch{/* Old or deleted message: draft remains safely paused. */}}}
 async function resumeMenu(env,userId,api,active,op,args){return render(env,userId,api,{title:'✍️ Есть незавершённая запись',lines:[active.p.values.amount?money(active.p.values.amount,active.p.values.currency||'RUB'):'Можно продолжить с последнего поля.'],actions:[{label:'▶️ Продолжить запись',special:'resumeForm',args:{id:active.row.id}},{label:'Начать заново',special:'restartForm',args:{op,args}},view('Главная','home')]});}
 async function start(env,userId,api,op,args={}){
  const active=await pendingForm(env,userId);if(active&&!args.forceNew)return resumeMenu(env,userId,api,active,op,args);
@@ -120,7 +116,7 @@ async function importPreview(env,userId,api,id,p,page=0){
 async function route(env,userId,api,r){
  if(r.special==='resumeForm'){const active=await load(env,userId,r.args.id);const next={...active.p,paused:false,cardId:undefined};await replace(env,userId,active.row,next);return next.status==='confirm'?preview(env,userId,api,r.args.id,next):prompt(env,userId,api,r.args.id,next);}
  if(r.special==='restartForm')return start(env,userId,api,r.args.op,{...r.args.args,forceNew:true});
- if(r.view){await pauseForm(env,userId,api);return showBotView(env,userId,api,r.view,r.args);}
+ if(r.view){await pauseBotForm(env,userId,api);return showBotView(env,userId,api,r.view,r.args);}
  if(r.op==='repeat'){
   const state=await api.readState(env,userId),tx=state.data.transactions.find(t=>t.id===r.args.id);if(!tx)throw Error('Запись больше не существует');
   const prefill=repeatEntry(state.data,tx,todayMoscow(state.data.settings.timeZone),CATEGORIES.concat(state.data.customCats||[]));
@@ -151,7 +147,6 @@ async function route(env,userId,api,r){
  if(r.special==='moderation'){if(!s.isOwner)throw Error('Только владелец');const queue=await learningQueue(env),page=Math.max(0,Number(r.args?.page)||0);return render(env,userId,api,{title:'Модерация обедов',lines:[`Ожидают: ${queue.examples.filter(x=>x.status==='pending').length} · правил: ${queue.rules.length}`],actions:[...queue.examples.slice(page*8,page*8+8).map(x=>({label:`${x.status} · ${x.parsed.amount} → ${x.corrected.amount}`,special:'learning',args:{id:x.id}})),...(page>0?[{label:'← Примеры',special:'moderation',args:{page:page-1}}]:[]),...((page+1)*8<queue.examples.length?[{label:'Примеры →',special:'moderation',args:{page:page+1}}]:[]),view('Главная','home')]});}
  if(r.special==='learning'){if(!s.isOwner)throw Error('Только владелец');const x=(await learningQueue(env)).examples.find(x=>x.id===r.args.id);if(!x)throw Error('Пример отсутствует');return render(env,userId,api,{title:'Пример распознавания',lines:[x.source,`Было: ${x.parsed.amount} → исправлено: ${x.corrected.amount}`,x.status],actions:(x.status==='pending'?['approve','reject']:['disable']).map(action=>act({approve:'Одобрить',reject:'Отклонить',disable:'Отключить правило'}[action],'moderate',{id:x.id,action}))});}
 }
-const COMMANDS={'/budget':'home','/accounts':'accounts','/savings':'savings','/goals':'goals','/history':'history','/payments':'payments','/plans':'plans','/debts':'debts','/lunch':'lunch','/settings':'settings','/reminders':'reminders','/analytics':'analytics','/backup':'backup','/tests':'tests','/more':'more','/help':'help','/updates':'updates'};
 export async function botChat(update,env,userId,api){
  const callback=update.callback_query,message=update.message;
  if(callback?.data?.startsWith('b:')){
@@ -160,12 +155,12 @@ export async function botChat(update,env,userId,api){
    const state=await api.readState(env,userId),today=todayMoscow(state.data.settings.timeZone);
    const item=duePayments(state.data,today).find(x=>x.id===arg&&(id==='p'?x.kind==='plan'&&x.period===extra:id==='i'?x.kind==='installment':id==='d'&&x.kind==='debt'));
    if(!item){await send(api,env,userId,'Этот платёж уже закрыт или изменён. Показываю актуальный список.');await showBotView(env,userId,api,'due');return true;}
-   await pauseForm(env,userId,api);
+   await pauseBotForm(env,userId,api);
    const returnTo={name:'due',args:{}};
    await start(env,userId,api,item.kind==='plan'?'confirmPlan':item.kind==='installment'?'payInstallment':'repay',{...(item.kind==='plan'?{id:item.id,period:item.period}:item.kind==='installment'?{id:item.planId,paymentId:item.id}:{id:item.id}),returnTo});return true;
   }
   if(action==='v'&&id==='app'){await api.command('/app');return true;}
-  if(action==='v'){await pauseForm(env,userId,api);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
+  if(action==='v'){await pauseBotForm(env,userId,api);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   let loaded;try{loaded=await load(env,userId,id);}catch{const receipt=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,'bot:'+id).first();return render(env,userId,api,{title:receipt?'✅ Это действие уже выполнено':'Эта карточка уже закрыта',lines:[receipt?'Повторной записи не будет. Открой историю, чтобы посмотреть результат.':'Открой актуальный раздел.'],actions:[view('✍️ Записать','add'),view('История','history'),view('Главная','home')]});}const {p}=loaded;
   if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');let r=p.routes[Number(arg)];if(r.op)r={...r,args:{...r.args,returnTo:p.origin}};if(r.view==='transaction'&&p.origin?.name==='history')r={...r,args:{...r.args,backTo:p.origin}};await route(env,userId,r.view?{...api,viewMessage:callback.message}:api,r);return true;}
   if(p.kind!=='bot-form')throw Error('Карточка устарела');
@@ -193,13 +188,12 @@ export async function botChat(update,env,userId,api){
  }
  if(!message)return false;const text=api.navigationCommand((message.text||'').trim());
  if(['/cancel','Отмена'].includes(text)){const active=await env.DB.prepare("SELECT id FROM telegram_drafts WHERE owner=? AND id GLOB 'bf_*' AND consumed=0 AND expires_at>? LIMIT 1").bind(userId,Date.now()).first();if(!active)return false;await cancelBotFlow(env,userId,api);await send(api,env,userId,'Ввод отменён. Ничего не записано.');return true;}
- if(['/start','/menu'].includes(text)){await pauseForm(env,userId,api);await send(api,env,userId,'💼 Бюрджет\nВесь бюджет теперь доступен прямо в чате 👇',botKeyboard(env.MINI_APP_URL,(await api.readState(env,userId)).data));await showBotView(env,userId,api,'home');return true;}
+ if(['/start','/menu'].includes(text)){await pauseBotForm(env,userId,api);await send(api,env,userId,'💼 Бюрджет\nВесь бюджет теперь доступен прямо в чате 👇',botKeyboard(env.MINI_APP_URL,(await api.readState(env,userId)).data));await showBotView(env,userId,api,'home');return true;}
  if(text==='/add'){const active=await pendingForm(env,userId);if(active){await resumeMenu(env,userId,api,active,'tx',{type:'expense'});return true;}}
  if(text==='/add'||text==='/import'){await (text==='/add'?showBotView(env,userId,api,'add'):start(env,userId,api,'import'));return true;}
- if(COMMANDS[text]){await pauseForm(env,userId,api);await showBotView(env,userId,api,COMMANDS[text]==='reminders'?'settingGroup':COMMANDS[text],text==='/reminders'?{group:'reminders'}:{});return true;}
+ if(BOT_SECTIONS[text]){await pauseBotForm(env,userId,api);await showBotView(env,userId,api,BOT_SECTIONS[text]==='reminders'?'settingGroup':BOT_SECTIONS[text],text==='/reminders'?{group:'reminders'}:{});return true;}
  if(text.startsWith('/'))return false;
- const rows=(await env.DB.prepare("SELECT * FROM telegram_drafts WHERE owner=? AND id GLOB 'bf_*' AND consumed=0 AND expires_at>? ORDER BY expires_at DESC LIMIT 1").bind(userId,Date.now()).all()).results;
- const row=rows[0];if(!row)return false;const p=JSON.parse(row.payload);if(p.paused)return false;if(p.status!=='form'){await send(api,env,userId,'Карточка ждёт подтверждения. Нажми «Подтвердить», «Изменить поля» или /cancel.');return true;}
+ const active=await pendingForm(env,userId);if(!active)return false;const {row,p}=active;if(p.paused)return false;if(p.status!=='form'){await send(api,env,userId,'Карточка ждёт подтверждения. Нажми «Подтвердить», «Изменить поля» или /cancel.');return true;}
  if(update.update_id!==undefined&&p.lastUpdate!==undefined&&update.update_id<=p.lastUpdate)return true;
  if(message.reply_to_message&&p.promptId&&message.reply_to_message.message_id!==p.promptId){await send(api,env,userId,'Это ответ на старый шаг. Ответь на последнее сообщение или /cancel.');return true;}
  const s=await api.readState(env,userId),f=fieldsFor(s.data,p.op,p.args,p.values)[p.step];if(message.reply_to_message?.text&&f&&!message.reply_to_message.text.split('\n')[0].includes(f.label)){await send(api,env,userId,'Это ответ на старый шаг. Ответь на последнее сообщение или /cancel.');return true;}if(!f){await preview(env,userId,api,row.id,p);return true;}

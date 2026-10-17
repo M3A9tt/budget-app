@@ -194,3 +194,78 @@ test('An interrupted employee choice can be retried after lease expiry',async()=
   assert.equal(db.prepare("SELECT COUNT(*) n FROM lunch_chat_drafts WHERE user_id='222' AND status='open'").get().n,1);
  });
 });
+
+
+test('A forwarded company meal owns the message and pauses an unfinished transaction form',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await webhook(env,222,'кофе 180 Bank');
+  const pending=db.prepare("SELECT id,payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0 ORDER BY rowid DESC LIMIT 1").get();
+  assert.ok(pending);assert.equal(Boolean(JSON.parse(pending.payload).paused),false);
+  await forwardedLunch(env,222,'Сотрудник (9001)\nСуп\n340 р.');
+  const paused=JSON.parse(db.prepare('SELECT payload FROM telegram_drafts WHERE id=?').get(pending.id).payload);
+  assert.equal(paused.paused,true);
+  assert.ok(messages.at(-1).body.text.includes('Оплачивает компания'));
+  assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
+  await webhook(env,222,'',lunchButton(messages,'save'));
+  const state=(await(await call('222')).json()).data;
+  assert.equal(state.transactions.length,1);assert.equal(state.transactions[0].type,'lunch');
+  assert.equal(state.accounts[0].balance,5000);
+ });
+});
+test('Unrelated expense does not overwrite an in-progress meal correction',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await forwardedLunch(env,222,'Сотрудник (9001)\nСуп без стоимости');
+  await webhook(env,222,'',lunchButton(messages,'edit'));
+  const field=messages.at(-1).body.reply_markup.inline_keyboard[0][0].callback_data;
+  await webhook(env,222,'',field);
+  const row=db.prepare("SELECT id,payload FROM lunch_chat_drafts WHERE user_id='222' AND status='editing'").get();
+  assert.ok(row);
+  db.prepare("UPDATE lunch_chat_drafts SET payload=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.payload),promptId:777}),row.id);
+  await webhook(env,222,'кофе 180 Bank');
+  assert.equal(db.prepare('SELECT status FROM lunch_chat_drafts WHERE id=?').get(row.id).status,'superseded');
+  const form=db.prepare("SELECT payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0 ORDER BY rowid DESC LIMIT 1").get();
+  assert.ok(form);
+  assert.equal(JSON.parse(form.payload).values.amount,180);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
+});
+
+
+test('Correction reply is attributed to its Telegram prompt, never to another transaction form',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await forwardedLunch(env,222,'Сотрудник (9001)\nСуп без стоимости');
+  await webhook(env,222,'',lunchButton(messages,'edit'));
+  const field=messages.at(-1).body.reply_markup.inline_keyboard[0][0].callback_data;
+  await webhook(env,222,'',field);
+  const row=db.prepare("SELECT id,payload FROM lunch_chat_drafts WHERE user_id='222' AND status='editing'").get();
+  db.prepare("UPDATE lunch_chat_drafts SET payload=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.payload),promptId:777}),row.id);
+  const reply=message_id=>worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':env.TELEGRAM_WEBHOOK_SECRET},body:JSON.stringify({message:{text:'340',from:{id:222},chat:{id:222,type:'private'},reply_to_message:{message_id}}})}),env);
+  // An unrelated reply starts a new transaction dialog rather than modifying an old meal.
+  await reply(999);
+  assert.equal(db.prepare('SELECT status FROM lunch_chat_drafts WHERE id=?').get(row.id).status,'superseded');
+  const next=db.prepare("SELECT payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0 ORDER BY rowid DESC LIMIT 1").get();
+  assert.equal(JSON.parse(next.payload).values.amount,340);
+  assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
+});
+
+test('A reply to the active correction prompt updates only the meal draft',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await forwardedLunch(env,222,'Сотрудник (9001)\nСуп без стоимости');
+  await webhook(env,222,'',lunchButton(messages,'edit'));
+  await webhook(env,222,'',messages.at(-1).body.reply_markup.inline_keyboard[0][0].callback_data);
+  const row=db.prepare("SELECT id,payload FROM lunch_chat_drafts WHERE user_id='222' AND status='editing'").get();
+  db.prepare("UPDATE lunch_chat_drafts SET payload=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.payload),promptId:777}),row.id);
+  const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':env.TELEGRAM_WEBHOOK_SECRET},body:JSON.stringify({message:{text:'340',from:{id:222},chat:{id:222,type:'private'},reply_to_message:{message_id:777}}})}),env);
+  assert.equal(response.status,200);
+  assert.equal(db.prepare('SELECT status FROM lunch_chat_drafts WHERE id=?').get(row.id).status,'superseded');
+  const next=db.prepare("SELECT payload FROM lunch_chat_drafts WHERE user_id='222' AND status='open' ORDER BY rowid DESC LIMIT 1").get();
+  assert.equal(JSON.parse(next.payload).tx.amount,340);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
+});

@@ -205,3 +205,27 @@ test('Cancel closes old input keyboard and preserves real account balance',()=>r
  assert.ok(f.sent.some(x=>x.method==='editMessageReplyMarkup'&&x.body.message_id===cardId&&x.body.reply_markup.inline_keyboard.length===0));
  assert.equal(f.snapshot().accounts[0].balance,10000);
 }));
+
+
+test('Section commands and keyboard navigation release meal correction before new financial input',()=>run(async f=>{
+ await f.update('/menu');
+ for(const navigation of ['/goals','💰 Бюджет','/app','/analytics']){
+  const id=crypto.randomUUID(),payload={tx:{type:'lunch',amount:300,currency:'RUB',date:today,note:'Обед'},parsed:{},promptId:77};
+  f.sqlite.prepare("INSERT INTO lunch_chat_drafts(id,user_id,payload,status,field,expires_at) VALUES(?,'111',?,'editing','amount',?)").run(id,JSON.stringify(payload),Date.now()+60000);
+  await f.update(navigation);
+  assert.equal(f.sqlite.prepare('SELECT status FROM lunch_chat_drafts WHERE id=?').get(id).status,'superseded',navigation);
+  await f.update('/add');await f.press('− Расход');await f.update('180');
+  assert.match(f.last().text,/Запись операции/);assert.equal(f.snapshot().transactions.length,0);
+  await f.update('/cancel');
+ }
+ assert.equal(f.snapshot().accounts[0].balance,10000);
+}));
+
+test('Text cancellation closes both forms without saving or leaving an active meal editor',()=>run(async f=>{
+ await f.update('/add');await f.press('− Расход');
+ f.sqlite.prepare("INSERT INTO lunch_chat_drafts(id,user_id,payload,status,field,expires_at) VALUES('meal','111',?,'editing','note',?)").run(JSON.stringify({promptId:77}),Date.now()+60000);
+ await f.update('Отмена');
+ assert.equal(f.sqlite.prepare("SELECT status FROM lunch_chat_drafts WHERE id='meal'").get().status,'cancelled');
+ assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().n,0);
+ assert.equal(f.snapshot().transactions.length,0);assert.equal(f.snapshot().accounts[0].balance,10000);
+}));
