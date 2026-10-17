@@ -1,0 +1,9 @@
+import React,{useRef,useState} from 'react';
+import Icon from './mini-icons.jsx';
+import {apiRequest} from './mini-api.js';
+import {TEST_MESSAGE_TYPES} from './test-message-types.js';
+export default function TestMessages({demo=false,busy=false}){
+ const [sending,setSending]=useState(''),[sent,setSent]=useState({}),[error,setError]=useState('');const pending=useRef({}),guard=useRef(false);
+ const send=async type=>{if(guard.current||demo||busy)return;guard.current=true;setSending(type);setError('');try{const id=pending.current[type]||crypto.randomUUID();pending.current[type]=id;await apiRequest('notifications/test',{method:'POST',body:JSON.stringify({id,type})});delete pending.current[type];setSent(old=>({...old,[type]:true}));}catch(e){setError(e.message);}finally{guard.current=false;setSending('');}};
+ return <details className="mini-card test-messages"><summary><Icon name="message" size={20}/> Проверить сообщения</summary><p className="mini-small mini-muted">Отправить себе в Telegram. Используются сохранённые настройки; тестовые ответы ничего не меняют.</p>{demo&&<p className="mini-small mini-muted">В демо отправка недоступна.</p>}<div className="mini-rows">{TEST_MESSAGE_TYPES.map(([type,label,icon],i)=><button type="button" key={type} className="mini-tx" disabled={demo||busy||!!sending} onClick={()=>send(type)}><span className={'mini-tx-icon settings-tone-'+i%4}><Icon name={icon}/></span><span className="mini-tx-center"><strong>{label}</strong></span><span className="test-message-status">{sending===type?'Отправляем…':sent[type]?'Отправлено ✓':<Icon name="arrow" size={17}/>}</span></button>)}</div>{error&&<p className="mini-alert" role="alert">{error}</p>}<p className="mini-small mini-muted" role="status">{Object.values(sent).some(Boolean)?'Проверь чат с ботом.':''}</p></details>;
+}

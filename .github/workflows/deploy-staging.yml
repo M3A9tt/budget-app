@@ -1,0 +1,56 @@
+name: Deploy Budget staging
+on:
+  push:
+    branches: ["codex/multiuser-staging-20261013"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: budget-staging-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/codex/multiuser-staging-20261013'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Require release notes
+        env:
+          RELEASE_BASE: ${{ github.event.before }}
+        run: node scripts/check-release.mjs
+      - run: npm test
+      - run: npm run build
+      - name: Configure existing staging Worker
+        env:
+          STAGING_FRIEND_IDS: ${{ vars.TELEGRAM_ALLOWED_IDS }}
+        run: >-
+          node scripts/configure-staging.mjs
+          --owner 800154021
+          --database caeac098-77f3-4549-b5bd-cffb94cc0531
+          --url https://budget-staging.apersunov5.workers.dev
+          --friends "$STAGING_FRIEND_IDS"
+      - name: Validate staging bundle
+        run: npx --no-install wrangler deploy --dry-run --config server/wrangler.staging.jsonc
+      - name: Deploy staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a3a43b37c767374a248624f195d0b90c
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Add repository Actions secret CLOUDFLARE_API_TOKEN, then re-run this workflow."
+            exit 1
+          fi
+          npm run deploy:staging
+      - name: Announce deployed release
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a3a43b37c767374a248624f195d0b90c
+        run: node scripts/announce-release.mjs

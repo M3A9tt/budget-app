@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {releases,validateReleases,releaseText} from '../src/release-notes.js';
+test('Release notes are unique, dated, descriptive and fit a Telegram message',()=>{validateReleases(releases);assert.ok(releaseText().length<3500);assert.throws(()=>validateReleases([...releases,releases[0]]));assert.throws(()=>validateReleases([{...releases[0],changes:[]} ]));assert.throws(()=>validateReleases([{...releases[0],date:'2026-02-30'}]));});
+
+test('Historical notes keep their release data but display the current Бюрджет brand',async()=>{const {brandText}=await import('../src/release-notes.js');assert.equal(brandText('Бургет · настройки Бургета'),'Бюрджет · настройки Бюрджета');assert.ok(releaseText().startsWith('Бюрджет'));assert.ok(releaseText(releases.find(r=>r.version==='2.3.0.2')).includes('Бюрджет 2.3.0.2'));});
