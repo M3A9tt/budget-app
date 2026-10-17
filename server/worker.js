@@ -17,7 +17,7 @@ import {broadcastRelease} from './releases.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
 import {dayChecks,setDayCheck,habitCallback,habitAmount} from './habits.js';
 import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invitedUsers,setMemberAccess} from './users.js';
-import {dashboard,EMPTY,CATEGORIES,demoData} from '../src/mini-model.js';
+import {dashboard,EMPTY,CATEGORIES,demoData,money} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
@@ -148,7 +148,7 @@ async function handleTelegram(update,env) {
         if(payload._lunchCheckDay)await setDayCheck(env,userId,payload._lunchCheckDay,'lunch','recorded');
         await env.DB.prepare('UPDATE telegram_drafts SET consumed=1 WHERE id=? AND owner=?').bind(id,userId).run();
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Записано'});
-        await telegram(env,'editMessageText',{chat_id:chat.id,message_id:callback.message.message_id,text:`Записано: ${result.transaction.note} · ${result.transaction.amount} ₽\nID: ${result.transaction.id}`,reply_markup:{inline_keyboard:[]}});
+        await telegram(env,'editMessageText',{chat_id:chat.id,message_id:callback.message.message_id,text:`✅ Записано: ${result.transaction.note||'Операция'} · ${money(result.transaction.amount,result.transaction.currency)}`,reply_markup:{inline_keyboard:[]}});
       }
       return;
     }
