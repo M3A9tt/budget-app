@@ -1,10 +1,11 @@
 import {initialProfile} from '../src/home-layout.js';
 import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
-import {botChat,showBotView,openQuickEntry} from './bot-chat.js';
+import {botChat,showBotView,openQuickEntry,pauseBotForm,cancelBotFlow} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
 import {sendBotFile,readBotDocument} from './bot-files.js';
-import {lunchChatMessage,lunchChatCallback,pruneLunchChat} from './lunch-chat.js';
+import {lunchChatMessage,lunchChatCallback,pruneLunchChat,pauseLunchEdit} from './lunch-chat.js';
+import {userSwitchedDialog} from './dialog-focus.js';
 import {learningQueue,moderateLearning,pruneLearning} from './lunch-learning.js';
 import {botKeyboard,navigationCommand,summariesMenu,extraMenu,botHelp} from './bot-navigation.js';
 import {sendTestMessage} from './test-messages.js';
@@ -120,11 +121,22 @@ async function handleTelegram(update,env) {
   const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);await send(periodSummary(state.data,from,today,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period]));};
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
   try {
-    if(await botChat(update,env,userId,botApi))return;
+    // One dispatcher arbitrates typed messages before individual dialog handlers.
+    // Explicit meal replies and forwarded orders own their messages; the previous
+    // bot form is suspended instead of silently consuming another form's answer.
+    if(update.message&&await lunchChatMessage(env,userId,update.message,lunchChatApi)){
+      if((update.message.text||'').trim()==='/cancel')await cancelBotFlow(env,userId,botApi);
+      else await pauseBotForm(env,userId,botApi);
+      return;
+    }
+    if(await botChat(update,env,userId,botApi)){
+      if(userSwitchedDialog(update))await pauseLunchEdit(env,userId);
+      return;
+    }
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
       if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await showBotView(env,userId,botApi,'more');else if(action==='updates')await send(releaseText());else if(action==='help')await showBotView(env,userId,botApi,'help');else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
-      if(await lunchChatCallback(env,userId,callback,lunchChatApi))return;
+      if(await lunchChatCallback(env,userId,callback,lunchChatApi)){await pauseBotForm(env,userId,botApi);return;}
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
       if(await habitCallback(env,userId,callback,habitApi))return;
       if(data.startsWith('notify:')){
@@ -180,9 +192,9 @@ async function handleTelegram(update,env) {
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
     if(['/today','/week','/month'].includes(text)){await showSummary({'/today':'day','/week':'week','/month':'month'}[text]);return;}
     if(update.message.document){await showBotView(env,userId,botApi,'backup');await send('Для выписки выбери «Ещё → Импорт», для полного бэкапа — «Восстановить из файла», затем отправь файл.');return;}
-    if(await lunchChatMessage(env,userId,update.message,lunchChatApi))return;
-    if(await habitAmount(env,userId,text,habitApi))return;
+    if(await habitAmount(env,userId,text,habitApi)){await pauseLunchEdit(env,userId);return;}
     await openQuickEntry(env,userId,botApi,text);
+    await pauseLunchEdit(env,userId);
   } catch(e){await send(e.message);}
 }
 export default {
