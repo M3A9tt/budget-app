@@ -150,3 +150,8 @@ test('Reminder buttons settle shared plan, installment and debt, reject stale/fo
   await f.update('','b:n:i:payment');assert.match(f.last().text,/Что оплатить сейчас/);assert.equal(f.snapshot().transactions.length,3);
  },d);
 });
+
+test('Home and module controls persist per user through native confirmation and never change money',()=>run(async f=>{
+ const initial=f.snapshot();await f.update('/budget');await f.press('⚙️ Моя главная');await f.press('Минимум');assert.equal(f.snapshot().settings.homeLayout,undefined);await f.press('✅ Подтвердить');assert.deepEqual(f.snapshot().settings.homeLayout.hidden.includes('wishes'),true);assert.equal(f.snapshot('222').settings.homeLayout,undefined);
+ await f.update('/settings');await f.press('🧩 Модули');await f.press('✓ Цели накоплений');await f.press('✅ Подтвердить');assert.equal(f.snapshot().settings.modules.goals,false);assert.deepEqual(f.snapshot().accounts,initial.accounts);assert.deepEqual(f.snapshot().transactions,initial.transactions);assert.equal(f.snapshot('222').settings.modules,undefined);
+}));

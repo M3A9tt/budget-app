@@ -51,3 +51,7 @@ CREATE TABLE IF NOT EXISTS user_release_outbox(user_id TEXT NOT NULL,release_id 
 -- Additive v2.2.0.0 delivery and feedback tables; financial records stay untouched.
 CREATE TABLE IF NOT EXISTS user_feedback(user_id TEXT NOT NULL,id TEXT NOT NULL,message TEXT NOT NULL,created_at INTEGER NOT NULL,delivered INTEGER NOT NULL DEFAULT 0,lease_until INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,id));
 CREATE TABLE IF NOT EXISTS user_notification_outbox(user_id TEXT NOT NULL,id TEXT NOT NULL,day TEXT NOT NULL,payload TEXT NOT NULL,lease_until INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,id));
+
+-- Reusable invitations and membership are independent of link lifetime.
+CREATE TABLE IF NOT EXISTS user_join_links(hash TEXT PRIMARY KEY,owner_id TEXT NOT NULL,created_at INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS user_memberships(user_id TEXT NOT NULL,owner_id TEXT NOT NULL,invite_hash TEXT,status TEXT NOT NULL DEFAULT 'active',created_at INTEGER NOT NULL,PRIMARY KEY(user_id,owner_id));

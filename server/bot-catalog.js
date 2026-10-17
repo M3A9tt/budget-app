@@ -1,3 +1,4 @@
+import {customizeHome} from '../src/home-layout.js';
 import {repeatEntry} from '../src/entry-assist.js';
 import {EMPTY,CATEGORIES,todayMoscow} from '../src/mini-model.js';
 import {parseMoney,putTransaction,deleteTransaction,undoTransaction,transferMoney,migrateData} from '../src/ledger.js';
@@ -12,7 +13,7 @@ import {parseImportJson,previewJsonImport,commitJsonImport} from '../src/json-im
 import {previewImport,commitImport} from '../src/finance-tools.js';
 import {prepareImportAccounts,importAccountSources,resolveImportAccount} from '../src/import-accounts.js';
 import {reminderSettingsFromDraft} from '../src/reminder-settings.js';
-import {MODULES} from '../src/modules.js';
+import {MODULES,setModule} from '../src/modules.js';
 import {validZone} from '../src/time-settings.js';
 const text=(key,label,extra={})=>({key,label,type:'text',...extra}),num=(key,label,extra={})=>text(key,label,{type:'money',...extra}),date=(key,label,extra={})=>text(key,label,{type:'date',...extra}),choice=(key,label,choices,extra={})=>text(key,label,{type:'choice',choices,...extra});
 const yesno=[[true,'Да'],[false,'Нет']],currencies=d=>Object.keys(d.rates).map(x=>[x,x]),accounts=(d,filter=()=>true)=>d.accounts.filter(filter).map(a=>[a.id,a.name+' · '+a.currency]),cats=d=>CATEGORIES.concat(d.customCats||[]).map(c=>[c.id,c.name]);
@@ -100,7 +101,8 @@ export function applyBotAction(d,op,args={},v={}){
  if(op==='limit'){if(v.amount<0)throw Error('Лимит не может быть отрицательным');return {...d,categoryBudgets:{...d.categoryBudgets,[v.cat]:v.amount}};}
  if(op==='category'){if(!v.name?.trim())throw Error('Введите название');return {...d,customCats:[...d.customCats,{id:args.newId,name:v.name.trim(),icon:'other',color:'#b8dec4'}]};}
  if(op==='rate'){if(v.currency==='RUB')throw Error('Базовый курс рубля всегда 1');if(v.rate<=0)throw Error('Курс должен быть положительным');return {...d,rates:{...d.rates,[v.currency]:v.rate}};}
- if(op==='module'){if(!MODULES.some(([k])=>k===args.key))throw Error('Раздел не найден');return {...d,settings:{...d.settings,modules:{...d.settings.modules,[args.key]:args.enabled},...(!args.enabled&&args.key==='lunch'?{lunchAskEnabled:false}:{}),...(!args.enabled&&args.key==='plans'?{plannedReminders:false}:{})}};}
+ if(op==='module')return setModule(d,args.key,args.enabled);
+ if(op==='homeLayout')return customizeHome(d,args);
  if(op==='setting'){const settings=reminderSettingsFromDraft({...d.settings,[args.key]:v.value});return {...d,settings:{...settings,...(args.key==='expenseCheckEnabled'&&v.value?{checkStartedDate:today}:{}),reminders:false}};}
  if(op==='dayOff'){const mod={...d.lunchDayMod},off=(d.lunchDayOff||[]).filter(x=>x!==v.date);delete mod[v.date];if(v.ratio!=='reset')mod[v.date]=v.ratio;return {...d,lunchDayOff:off,lunchDayMod:mod};}
  if(op==='import')return commitBotImport(d,v,args);
