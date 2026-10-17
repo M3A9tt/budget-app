@@ -6,6 +6,7 @@ test('Only an explicit reply may replace free-form meal descriptions',()=>{
  assert.equal(correctionBelongsToDraft({text:'Суп и гречка',reply_to_message:{message_id:10}},'note',10),true);
  assert.equal(correctionBelongsToDraft({text:'Суп и гречка',reply_to_message:{message_id:9}},'note',10),false);
  assert.equal(correctionBelongsToDraft({text:'Суп и гречка'},'note',10),false);
+ assert.equal(correctionBelongsToDraft({text:'Суп и гречка'},'note',null),false);
  assert.equal(correctionBelongsToDraft({text:'/history'},'note',10),false);
 });
 test('Bare amounts and dates remain easy, unrelated financial text is not stolen',()=>{
