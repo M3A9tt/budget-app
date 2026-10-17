@@ -12,7 +12,7 @@ export function compactTransaction(data,p){
   type==='lunch'?'Оплачивает компания':account?`${account.name} · ${money(account.balance,account.currency)}`:'Без счёта — остатки счетов не изменятся',
   v.note||'',`${v.date===todayMoscow(data.settings.timeZone)?'Сегодня':v.date}${v.paymentMethod==='sbp'?' · СБП':''}`].filter(Boolean);
 }
-export function actionDestination(p){
+export function actionDestination(p){if(p.op==='homeLayout')return {name:'homeLayout',args:{}};if(p.op==='module')return {name:'modules',args:{}};
  const id=p.args.id;
  if(p.op==='payInstallment')return {name:'installment',args:{id}};
  if(['repay','linkDebt','debtDate'].includes(p.op))return {name:'debt',args:{id}};

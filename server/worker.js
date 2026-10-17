@@ -1,3 +1,4 @@
+import {initialProfile} from '../src/home-layout.js';
 import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
 import {botChat,showBotView} from './bot-chat.js';
@@ -16,7 +17,7 @@ import {broadcastRelease} from './releases.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
 import {entryDefaults} from '../src/entry-assist.js';
 import {dayChecks,setDayCheck,habitCallback,habitAmount} from './habits.js';
-import {allAllowedUsers,hasAccess,ensureInvites} from './users.js';
+import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invitedUsers,setMemberAccess} from './users.js';
 import {dashboard,EMPTY,CATEGORIES,demoData} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
@@ -58,7 +59,7 @@ async function readState(env,userId) {
     env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) SELECT ?,id,created_at FROM reports_sent').bind(String(userId)),
     env.DB.prepare('INSERT OR IGNORE INTO legacy_owner_migrations(user_id,created_at) VALUES(?,?)').bind(String(userId),Date.now())
   ]);
-  await env.DB.prepare('INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) VALUES(?,0,?,?)').bind(String(userId),JSON.stringify(EMPTY),new Date().toISOString()).run();
+  await env.DB.prepare('INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) VALUES(?,0,?,?)').bind(String(userId),JSON.stringify(initialProfile(EMPTY)),new Date().toISOString()).run();
   const row=await env.DB.prepare('SELECT revision,data FROM user_finance_state WHERE user_id=?').bind(String(userId)).first();
   return {revision:row.revision,data:JSON.parse(row.data),userId:String(userId),isOwner:String(userId)===String(env.TELEGRAM_OWNER_ID),uninitialized:row.revision===0};
 }
@@ -107,12 +108,7 @@ async function handleTelegram(update,env) {
     const token=command.slice('/start invite_'.length);
     if(!/^[a-f0-9]{32}$/.test(token)){await telegram(env,'sendMessage',{chat_id:chat.id,text:'Приглашение недействительно.'});return;}
     const hash=await hashToken(token);
-    const row=await env.DB.prepare('SELECT * FROM user_invites WHERE hash=? AND owner_id=?').bind(hash,String(env.TELEGRAM_OWNER_ID)).first();
-    if(!row||row.expires_at<Date.now()||row.claimed_user&&row.claimed_user!==String(source.id)){await telegram(env,'sendMessage',{chat_id:chat.id,text:'Приглашение истекло или уже использовано. Попросите новую ссылку.'});return;}
-    if(!await hasAccess(env,source.id)){
-      const result=await env.DB.prepare('UPDATE user_invites SET claimed_user=? WHERE hash=? AND claimed_user IS NULL AND expires_at>?').bind(String(source.id),hash,Date.now()).run();
-      if(!result.meta.changes){await telegram(env,'sendMessage',{chat_id:chat.id,text:'Приглашение уже использовано.'});return;}
-    }
+    if(!await acceptInvite(env,hash,source.id)){await telegram(env,'sendMessage',{chat_id:chat.id,text:'Ссылка закрыта, истекла или доступ отозван. Попросите владельца проверить приглашение.'});return;}
     update.message.text='/start';
   }
 
@@ -137,12 +133,13 @@ async function handleTelegram(update,env) {
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки в чате'});
         await showBotView(env,userId,botApi,'settingGroup',{group:'reminders'});return;
       }
-      if(data.startsWith('revoke:')&&userId===String(env.TELEGRAM_OWNER_ID)){
-        const id=data.slice(7);
-        await ensureInvites(env);
-        await env.DB.prepare('DELETE FROM user_invites WHERE claimed_user=? AND owner_id=?').bind(id,userId).run();
-        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Доступ по приглашению закрыт'});
-        await send('Доступ по приглашению закрыт. Данные сохранены.');return;
+      if((data.startsWith('revoke:')||data.startsWith('restoreAccess:'))&&userId===String(env.TELEGRAM_OWNER_ID)){
+        const enabled=data.startsWith('restoreAccess:'),id=data.split(':')[1];
+        if(isAllowedUser(env,id)){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Этот доступ задан в конфигурации приложения'});return;}
+        if(!((await invitedUsers(env)).some(r=>r.user_id===id))){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Пользователь не найден'});return;}
+        await setMemberAccess(env,id,enabled);
+        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:enabled?'Доступ восстановлен':'Доступ закрыт'});
+        await send(enabled?'Доступ восстановлен. Бюджет сохранён.':'Доступ закрыт. Данные сохранены.');return;
       }
       if(data.startsWith('save:')) {
         const id=data.slice(5),draft=await env.DB.prepare('SELECT * FROM telegram_drafts WHERE id=? AND owner=?').bind(id,userId).first();
@@ -169,14 +166,18 @@ async function handleTelegram(update,env) {
       await ensureInvites(env);
       const token=crypto.randomUUID().replaceAll('-',''),bot=await telegram(env,'getMe',{});
       if(!bot.username)throw Error('Не удалось получить адрес бота');
-      await env.DB.prepare('INSERT INTO user_invites(hash,owner_id,expires_at) VALUES(?,?,?)').bind(await hashToken(token),userId,Date.now()+86400000).run();
-      await send('Отправьте другу эту ссылку:\nhttps://t.me/'+bot.username+'?start=invite_'+token+'\nОдно приглашение для одного человека, действует 24 часа. У друга будет отдельный пустой бюджет.');return;
+      await env.DB.prepare('INSERT INTO user_join_links(hash,owner_id,created_at) VALUES(?,?,?)').bind(await hashToken(token),userId,Date.now()).run();
+      await send('Многоразовая ссылка для всех:\nhttps://t.me/'+bot.username+'?start=invite_'+token+'\nКаждому — отдельный пустой бюджет. Действует до отключения владельцем.\nЗакрыть все ссылки: /invite_close');return;
     }
-    if(text==='/friends'){
+    if(text==='/invite_close'){
+      if(userId!==String(env.TELEGRAM_OWNER_ID)){await send('Ссылками управляет владелец.');return;}
+      await ensureInvites(env);await env.DB.batch([env.DB.prepare('UPDATE user_join_links SET revoked=1 WHERE owner_id=?').bind(userId),env.DB.prepare('UPDATE user_invites SET expires_at=0 WHERE owner_id=? AND claimed_user IS NULL').bind(userId)]);
+      await send('Ссылки закрыты. Уже приглашённые пользователи сохранили доступ. Новая ссылка: /invite');return;
+    }
+    if(/^\/friends(?: \d+)?$/.test(text)){
       if(userId!==String(env.TELEGRAM_OWNER_ID)){await send('Список приглашений доступен владельцу.');return;}
-      await ensureInvites(env);
-      const rows=await env.DB.prepare('SELECT claimed_user FROM user_invites WHERE claimed_user IS NOT NULL AND owner_id=?').bind(userId).all();
-      await telegram(env,'sendMessage',{chat_id:chat.id,text:rows.results.length?'Приглашённые пользователи. Кнопка закрывает доступ, сохраняя данные.':'Пока никто не принял приглашение. Создать ссылку: /invite',reply_markup:{inline_keyboard:rows.results.map((r,i)=>[{text:'Закрыть доступ гостю '+(i+1),callback_data:'revoke:'+r.claimed_user}])}});return;
+      const rows=(await invitedUsers(env)).filter(r=>!isAllowedUser(env,r.user_id)),page=Math.max(0,Math.min((Number(text.split(' ')[1])||1)-1,Math.ceil(rows.length/40)-1));
+      await telegram(env,'sendMessage',{chat_id:chat.id,text:rows.length?`Участники · ${rows.length}. Страница ${page+1}. Можно закрыть или восстановить доступ, сохранив бюджет.${(page+1)*40<rows.length?' Ещё: /friends '+(page+2):''}`:'Участников пока нет. Общая ссылка: /invite',reply_markup:{inline_keyboard:rows.slice(page*40,(page+1)*40).map(r=>[{text:(r.status==='active'?'Закрыть доступ · ':'Восстановить · ')+r.user_id,callback_data:(r.status==='active'?'revoke:':'restoreAccess:')+r.user_id}])}});return;
     }
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
     const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;

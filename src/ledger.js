@@ -1,3 +1,4 @@
+import {validateHome} from './home-layout.js';
 import {validateInstallmentLinks} from './installment-state.js';
 import {validateDebtLinks} from './debt-state.js';
 import {validateWishes} from './wishes.js';
@@ -155,7 +156,7 @@ export function migrateData(input, defaults) {
   if(data.settings.lunchLearningEnabled!==undefined&&typeof data.settings.lunchLearningEnabled!=='boolean')throw Error('Неверная настройка обучения обедов');
   if(data.settings.reserveNote!==undefined&&(typeof data.settings.reserveNote!=='string'||data.settings.reserveNote.length>160))throw Error('Назначение резерва — до 160 символов');
   validateWishes(data);
-  validateReminderSettings(data.settings);validateModules(data.settings);
+  validateReminderSettings(data.settings);validateModules(data.settings);validateHome(data.settings);
   if(data.settings.rememberEntryChoices!==undefined&&typeof data.settings.rememberEntryChoices!=='boolean')throw Error('Неверная настройка быстрого ввода');
   for (const a of data.accounts) if (!a.id || (!Number.isFinite(a.balance)||Math.abs(a.balance)>1e14) || !currencies.has(a.currency||'RUB')) throw new Error('Неверный счёт в бэкапе');
   for(const a of data.accounts){if(a.storageKind!==undefined&&!['bank','cash','other'].includes(a.storageKind))throw Error('Неверное место хранения денег');if(a.savingsKind==='deposit'&&a.storageKind&&a.storageKind!=='bank')throw Error('Вклад хранится в банке');if(a.annualRate!==undefined&&(!Number.isFinite(a.annualRate)||a.annualRate<0))throw Error('Неверная ставка вклада');if(a.maturityDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(a.maturityDate)||Number.isNaN(Date.parse(a.maturityDate))||new Date(a.maturityDate+'T12:00:00Z').toISOString().slice(0,10)!==a.maturityDate))throw Error('Неверная дата окончания вклада');}

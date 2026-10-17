@@ -11,7 +11,7 @@ const bundle=buildSync({stdin:{contents:"export {default as LunchPage} from './s
 function components(search=''){const context={module:{exports:{}},exports:{},require,Intl,Date,console,location:{search},URLSearchParams,structuredClone};context.exports=context.module.exports;vm.runInNewContext(bundle,context);return context.module.exports;}
 test('Settings initially show only the category menu, with no long import or reminder forms',()=>{
  const {SettingsPage}=components(),html=renderToStaticMarkup(React.createElement(SettingsPage,{data:structuredClone(EMPTY),cats:CATEGORIES,busy:false,demo:true,mutate:async()=>true,onUpdates:()=>{}}));
- for(const label of ['Твой Бюрджет','Твой ритм','Бюджет и лимиты','Импорт операций','Резервные копии','Свои категории','Обратная связь'])assert.ok(html.includes(label));
+ for(const label of ['Модули и главная','Твой ритм','Бюджет и лимиты','Импорт операций','Резервные копии','Свои категории','Обратная связь'])assert.ok(html.includes(label));
  assert.ok(!html.includes('<form'));assert.ok(!html.includes('<input'));assert.ok(!html.includes('<textarea'));
  assert.ok((html.match(/<svg/g)||[]).length>=14);
 });

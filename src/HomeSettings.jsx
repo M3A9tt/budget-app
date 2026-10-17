@@ -1,0 +1,8 @@
+import React from 'react';
+import Icon from './mini-icons.jsx';
+import {HOME_BLOCKS,homeOrder,homeVisible,customizeHome} from './home-layout.js';
+import {moduleEnabled} from './modules.js';
+export default function HomeSettings({data,mutate,busy}){
+ const change=args=>mutate(d=>customizeHome(d,args),'Главная обновлена');
+ return <section className="mini-card home-settings"><h2>Главная под тебя</h2><p className="mini-small mini-muted">Выбери блоки и расставь по удобству.</p><div className="home-presets">{[['simple','Минимум'],['everyday','На каждый день'],['full','Всё под рукой']].map(([preset,label])=><button className="mini-secondary" disabled={busy} key={preset} onClick={()=>change({preset})}>{label}</button>)}</div><div className="home-block-list">{homeOrder(data).map((key,i)=>{const [,label,icon,module]=HOME_BLOCKS.find(([id])=>id===key),unavailable=module&&!moduleEnabled(data,module);return <div key={key} className={unavailable?'home-block-unavailable':''}><Icon name={icon}/><label htmlFor={'home-block-'+key}><span>{label}</span>{unavailable&&<small>Модуль выключен</small>}</label><input id={'home-block-'+key} aria-label={'Показывать: '+label} type="checkbox" disabled={busy||unavailable||key==='actions'} checked={homeVisible(data,key)} onChange={e=>change({key,visible:e.target.checked})}/><button aria-label={'Выше: '+label} disabled={busy||i===0} onClick={()=>change({key,move:-1})}>↑</button><button aria-label={'Ниже: '+label} disabled={busy||i===HOME_BLOCKS.length-1} onClick={()=>change({key,move:1})}>↓</button></div>;})}</div><button className="mini-text-button" disabled={busy} onClick={()=>change({reset:true})}>Вернуть исходный вид</button></section>;
+}

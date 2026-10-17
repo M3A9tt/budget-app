@@ -35,7 +35,7 @@ export async function capturePicture(env,data,params){
 }
 function pictureData(data,params){
  const settings={timeZone:data.settings.timeZone||'Europe/Moscow'};
- if(params.kind==='savings')return {accounts:data.accounts.filter(isSavings),goals:data.goals,wishes:data.wishes,rates:data.rates,settings};
+ if(params.kind==='savings')return {accounts:data.accounts.filter(isSavings),goals:data.goals,wishes:data.wishes,rates:data.rates,settings:{...settings,modules:{goals:data.settings.modules?.goals}}};
  if(params.kind==='lunch')return {transactions:data.transactions.filter(t=>t.date.startsWith(params.month)&&(t.type==='lunch'||t.cat==='lunch'||t.tags?.includes('обед-за-свои')||t._lunchCheckDay||/обед.*(?:сво|доплат)/i.test(t.note||''))),lunchDayOff:data.lunchDayOff,lunchDayMod:data.lunchDayMod,lunchAnswers:data.lunchAnswers,settings:{...settings,lunchDaily:data.settings.lunchDaily,lunchCalendar:data.settings.lunchCalendar,lunchWorkDays:data.settings.lunchWorkDays}};
  if(['analytics','categories'].includes(params.kind))return {transactions:data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'),customCats:data.customCats,rates:data.rates,settings};
  return {accounts:data.accounts,transactions:data.transactions,recurring:data.recurring,installments:data.installments,debts:data.debts,rates:data.rates,settings:{...settings,nextIncomeDate:data.settings.nextIncomeDate}};
