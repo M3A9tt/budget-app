@@ -46,7 +46,7 @@ export function parseOwnTransfer(text,accounts,today){
  if(!/^\s*(?:перевод|перевести|перевёл|перевел)\s/iu.test(dated.value)||!/(?:→|->|между своими|со?\s.+\sна\s)/iu.test(text))return null;
  const hits=accountMentions(dated.value,accounts),unique=[...new Set(hits.map(x=>x.account.id))];if(unique.length!==2)throw Error('Для перевода укажи два своих счёта: перевод 1000 Сбер → Копилка');
  const first=hits.find(x=>x.account.id===unique[0]).account,second=hits.find(x=>x.account.id===unique[1]).account;
- if((first.currency||'RUB')!==(second.currency||'RUB'))throw Error('Перевод между разными валютами пока вводится через форму «Между счетами»');
+ if((first.currency||'RUB')!==(second.currency||'RUB'))throw Error('Перевод между разными валютами пока не поддерживается: сначала зафиксируй обмен и фактический курс');
  const amount=amountPart(without(dated.value,hits));if(amount.currency&&amount.currency!==(first.currency||'RUB'))throw Error('Валюта суммы должна совпадать с валютой счетов');
  return {from:first.id,to:second.id,amount:amount.amount,fee:0,date:dated.date,note:'Перевод между своими счетами'};
 }
