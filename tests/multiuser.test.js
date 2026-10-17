@@ -162,7 +162,7 @@ test('Free-form Telegram lunch with an account and no currency marker enters per
    assert.equal(p.op,'tx');assert.equal(p.values.type,'expense');assert.equal(p.values.amount,1039.97);
    assert.equal(p.values.accountId,'same-account');assert.equal(p.values.cat,'food');
    assert.deepEqual(p.values.tags,['обед-за-свои']);
-   assert.ok(messages.at(-1).body.text.includes('1 039,97'));
+   assert.match(messages.at(-1).body.text,/1[\s\u00a0\u202f]039,97/);
    assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
   });
  }
