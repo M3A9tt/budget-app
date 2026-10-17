@@ -12,16 +12,20 @@ export function dashboard(data,today=todayMoscow(data.settings?.timeZone)) {
   const expenses=txs.filter(t=>t.type==='expense'&&t.cat!=='lunch'),income=txs.filter(t=>t.type==='income').reduce((n,t)=>n+rub(t),0);
   const spent=expenses.reduce((n,t)=>n+rub(t),0),balance=accountTotals(data).spendable;
   const payday=data.settings.nextIncomeDate,hasPayday=/^\d{4}-\d{2}-\d{2}$/.test(payday||'')&&payday>today;
-  const end=hasPayday?payday:today;
-  const installmentIndex=installmentRemainders(data);let obligations=0,unknown=0;const obligationItems=[];
-  for(const {rule:r,date} of plannedOccurrences(data,today,end).filter(i=>!hasPayday||i.date<end)){if(planType(r)!=='expense'||isSavingAccount(data.accounts.find(a=>a.id===r.accountId)))continue;const amount=r.variable?null:r.amount*(data.rates[r.currency||'RUB']||1);obligationItems.push({id:r.id+':'+date,source:'plan',sourceId:r.id,name:r.name,date,amount,kind:'План'});if(r.variable)unknown++;else obligations+=amount;}
-  for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const x of p.payments)if((hasPayday?x.date<end:x.date<=today)&&!paidInstallment(data,x,installmentIndex)){const amount=installmentRemaining(data,x,installmentIndex)*(data.rates[p.currency]||1);obligations+=amount;obligationItems.push({id:x.id,source:'installment',sourceId:p.id,name:p.name,date:x.date,amount,kind:({split:'Сплит',loan:'Кредит',mortgage:'Ипотека'})[p.obligationKind]||'Рассрочка'});}
-  for(const debt of debtDues(data).filter(d=>d.date<=today||d.date<end)){const amount=debt.amount*(data.rates[debt.currency]||1);obligations+=amount;obligationItems.push({id:'debt:'+debt.id,source:'debt',sourceId:debt.id,name:debt.name,date:debt.date,amount,kind:'Долг'});}
+  // Show upcoming commitments even when a payday is not configured. A known payday
+  // is exclusive: its payments belong to the next budgeting period.
+  const horizon=new Date(today+'T12:00:00Z');horizon.setUTCDate(horizon.getUTCDate()+30);
+  const end=hasPayday?payday:horizon.toISOString().slice(0,10);
+  const beforeEnd=date=>hasPayday?date<end:date<=end;
+  const installmentIndex=installmentRemainders(data);let obligations=0,unknown=0,plannedExpenses=0;const obligationItems=[];
+  for(const {rule:r,date} of plannedOccurrences(data,today,end).filter(i=>beforeEnd(i.date))){if(planType(r)!=='expense'||isSavingAccount(data.accounts.find(a=>a.id===r.accountId)))continue;const amount=r.variable?null:r.amount*(data.rates[r.currency||'RUB']||1);obligationItems.push({id:r.id+':'+date,source:'plan',sourceId:r.id,name:r.name,date,amount,kind:'План'});if(r.variable)unknown++;else {obligations+=amount;plannedExpenses+=amount;}}
+  for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const x of p.payments)if(beforeEnd(x.date)&&!paidInstallment(data,x,installmentIndex)){const amount=installmentRemaining(data,x,installmentIndex)*(data.rates[p.currency]||1);obligations+=amount;obligationItems.push({id:x.id,source:'installment',sourceId:p.id,name:p.name,date:x.date,amount,kind:({split:'Сплит',loan:'Кредит',mortgage:'Ипотека'})[p.obligationKind]||'Рассрочка'});}
+  for(const debt of debtDues(data).filter(d=>beforeEnd(d.date))){const amount=debt.amount*(data.rates[debt.currency]||1);obligations+=amount;obligationItems.push({id:'debt:'+debt.id,source:'debt',sourceId:debt.id,name:debt.name,date:debt.date,amount,kind:'Долг'});}
   const reserve=accountTotals(data).savings,free=balance-obligations;
   const days=hasPayday?Math.round((new Date(payday+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/86400000):null;
   const categories=CATEGORIES.concat(data.customCats||[]).map(c=>({...c,value:expenses.filter(t=>t.cat===c.id).reduce((n,t)=>n+rub(t),0)})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
   const daily=Array.from({length:7},(_,i)=>{const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-6+i);const date=d.toISOString().slice(0,10);return{date,label:new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:'UTC'}).format(d),amount:data.transactions.filter(t=>t.date===date&&t.type==='expense'&&t.cat!=='lunch').reduce((n,t)=>n+rub(t),0)};});
-  return {balance,spent,income,free,reserve,obligations,obligationItems:obligationItems.sort((a,b)=>a.date.localeCompare(b.date)),unknown,days,daily,categories};
+  return {balance,spent,income,free,reserve,obligations,plannedExpenses,budgetUntil:end,budgetHorizon:hasPayday?'payday':'30-days',obligationItems:obligationItems.sort((a,b)=>a.date.localeCompare(b.date)),unknown,days,daily,categories};
 }
 export function demoData(today=todayMoscow()) {
   const d=structuredClone(EMPTY),date=days=>{const value=new Date(today+'T12:00:00Z');value.setUTCDate(value.getUTCDate()+days);return value.toISOString().slice(0,10);};
