@@ -31,15 +31,23 @@ export function parseEntry(text,accounts,categories,date,defaults={}){
  if(typeof text!=='string'||text.length>2000)throw Error('Одна операция — сообщение до 2000 символов');
  const dated=datePart(text.trim(),date),hits=accountMentions(dated.value,accounts),ids=[...new Set(hits.map(x=>x.account.id))];if(ids.length>1)throw Error('Названо несколько счетов — выберите один');
  let working=without(dated.value,hits.map(x=>{const before=dated.value.slice(0,x.start).match(/(?:^|\s)(?:с|со|на|в|из|сч[её]т:?)\s*$/iu);return {...x,start:before?x.start-before[0].length:x.start};}));
- const parsed=amountPart(working),memo=parsed.note.toLocaleLowerCase('ru'),ownLunch=/обед/u.test(memo)&&(/за сво[ий]|свои деньги|сам оплатил/u.test(memo)||defaults.companyLunchEnabled===false&&!/обед\s+(?:компании|от работодателя)/u.test(memo)),lunch=/обед/u.test(memo)&&!ownLunch;
- const type=lunch?'lunch':parsed.sign==='+'?'income':parsed.sign==='-'||parsed.sign==='−'?'expense':entryType(text);
+ const parsed=amountPart(working),memo=parsed.note.toLocaleLowerCase('ru');
+ const mentionsLunch=/(?<!\\p{L})обед(?!\\p{L})/u.test(memo);
+ // An explicit debit sign or named personal account always wins over the bare
+ // word "обед". Keep "обед 379" as a corporate shortcut only without an account.
+ const companyLunch=/обед\\s+(?:компании|от работодателя|за сч[её]т компании)|(?:корпоративн[а-я]*\\s+обед)|(?:оплачивает|оплатила)\\s+компания/u.test(memo);
+ const companyShortcut=mentionsLunch&&memo.trim()==='обед'&&!hits.length&&defaults.companyLunchEnabled!==false;
+ const signed=parsed.sign==='-'||parsed.sign==='−'||parsed.sign==='+';
+ const ownLunch=mentionsLunch&&(/за сво[ий]|свои деньги|сам оплатил|сам заплатил/u.test(memo)||(!!hits.length&&!companyLunch)||(!companyLunch&&!companyShortcut));
+ const lunch=mentionsLunch&&!signed&&!ownLunch&&(companyLunch||companyShortcut);
+ const type=parsed.sign==='+'?'income':parsed.sign==='-'||parsed.sign==='−'?'expense':lunch?'lunch':entryType(text);
  const preferred=accounts.find(a=>a.id===defaults.accountId&&(a.currency||'RUB')==='RUB'&&a.accType!=='savings'&&a.savingsKind!=='deposit'),account=hits[0]?.account||(accounts.length===1?accounts[0]:preferred);
  if(!lunch&&accounts.length&&!account&&!defaults.allowMissingAccount)throw Error('Допишите название счёта, например: кофе 180 Сбер');
  const keywords=[['health',/аптек|таблет|врач|стомат|лекар/],['transport',/проезд|метро|такси|автобус/],['food',/кофе|продукт|еда|магазин|хлеб/],['housing',/жкх|квартплат|электрич/],['fun',/игра|кино/]];
  let cat=categories.find(c=>memo.includes(c.name.toLocaleLowerCase('ru')))?.id||keywords.find(([,re])=>re.test(memo))?.[0]||'other';
  const tags=[...parsed.note.matchAll(/#([\p{L}\p{N}_-]+)/gu)];for(const tag of tags){const found=categories.find(c=>[c.id,c.name].some(n=>n.toLocaleLowerCase('ru')===tag[1].toLocaleLowerCase('ru')));if(found){cat=found.id;parsed.note=parsed.note.replace(tag[0],' ');}}
  const note=parsed.note.replace(/(?<!\p{L})(?:сбп|наличными|наличные|картой|банковский перевод)(?!\p{L})/giu,' ').replace(/^\s*(?:расход|доход|получил(?:а)?|потратил(?:а)?)\s*[:;|]?\s*/iu,'').replace(/^[\s:;|,−+\-]+|[\s:;|,−+\-]+$/gu,'').replace(/\s+/g,' ').trim();
- return {type,cat:lunch?'lunch':type==='income'?'income':ownLunch?'food':cat,amount:parsed.amount,currency:lunch?'RUB':parsed.currency||account?.currency||'RUB',date:dated.date,note:note||(type==='income'?'Доход':lunch?'Обед компании':'Покупка'),paymentMethod:/сбп/u.test(memo)?'sbp':/налич/u.test(memo)?'cash':/карт/u.test(memo)?'card':/перевод/u.test(memo)?'bank':(account?.id===defaults.accountId?defaults.paymentMethod:'unknown')||'unknown',tags:ownLunch?['обед-за-свои']:[],accountId:lunch?undefined:account?.id||''};
+ return {type,cat:lunch?'lunch':type==='income'?'income':mentionsLunch?'food':cat,amount:parsed.amount,currency:lunch?'RUB':parsed.currency||account?.currency||'RUB',date:dated.date,note:note||(type==='income'?'Доход':lunch?'Обед компании':'Покупка'),paymentMethod:/сбп/u.test(memo)?'sbp':/налич/u.test(memo)?'cash':/карт/u.test(memo)?'card':/перевод/u.test(memo)?'bank':(account?.id===defaults.accountId?defaults.paymentMethod:'unknown')||'unknown',tags:mentionsLunch&&!lunch&&type==='expense'?['обед-за-свои']:[],accountId:lunch?undefined:account?.id||''};
 }
 export function parseOwnTransfer(text,accounts,today){
  const dated=datePart(text,today);
