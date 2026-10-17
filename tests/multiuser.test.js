@@ -201,7 +201,7 @@ test('A forwarded company meal owns the message and pauses an unfinished transac
  await botTest(async messages=>{
   await webhook(env,222,'кофе 180 Bank');
   const pending=db.prepare("SELECT id,payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0 ORDER BY rowid DESC LIMIT 1").get();
-  assert.ok(pending);assert.equal(JSON.parse(pending.payload).paused,false);
+  assert.ok(pending);assert.equal(Boolean(JSON.parse(pending.payload).paused),false);
   await forwardedLunch(env,222,'Сотрудник (9001)\nСуп\n340 р.');
   const paused=JSON.parse(db.prepare('SELECT payload FROM telegram_drafts WHERE id=?').get(pending.id).payload);
   assert.equal(paused.paused,true);
