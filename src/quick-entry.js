@@ -1,5 +1,6 @@
 import {accountMentions,classifyFinancialIntent} from './input-intent.js';
 export {accountMentions} from './input-intent.js';
+export function entryType(text){return /(?<![\p{L}\d])\+\s*\d/u.test(text)||/зарплат|аванс|доход/iu.test(text)||/(?<!\p{L})(?:зп|получил(?:а)?)(?!\p{L})/iu.test(text)?'income':'expense';}
 function without(text,spans){for(const x of [...spans].sort((a,b)=>b.start-a.start))text=text.slice(0,x.start)+' '+text.slice(x.end);return text;}
 function datePart(value,today){
  let date=today;
