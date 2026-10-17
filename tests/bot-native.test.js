@@ -65,7 +65,7 @@ test('Native invalid values reject early; editing USD transaction retains its cu
 test('Native edit from history changes the same operation; deletion and undo restore balances and debt state',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('100');await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9900);
  await f.update('/history');await f.press(/Еда ·/);await f.press('✏️ Изменить');await f.update('200');await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,9800);
- await f.update('/history');await f.press(/Еда ·/);await f.press('Удалить с возвратом остатка');await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,10000);
+ await f.update('/history');await f.press(/Еда ·/);await f.press('⋯ Действия');await f.press('Удалить запись');await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,10000);
  await f.update('/history');await f.press('Отменить изменение');await f.press(/^delete_tx/);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9800);assert.equal(f.snapshot().transactions.length,1);
 }));
 test('Native wizard cancellation preserves pending lunch input; a test callback never runs real reminder actions',()=>run(async f=>{
@@ -120,7 +120,7 @@ test('Paused forms reject silent replacement, resume unchanged, require fresh re
  const row=f.sqlite.prepare("SELECT id FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get(),old=f.button('✕ Отмена');f.sqlite.prepare('UPDATE telegram_drafts SET expires_at=0 WHERE id=?').run(row.id);await f.update('',old);assert.match(f.last().text,/закрыта/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(b=>b.text==='История'));
 }));
 test('History filters and installment ownership survive confirmations; outcome reads actual remaining schedule',()=>run(async f=>{
- await f.update('/add');await f.press('− Расход');await f.update('100');await f.press('✅ Подтвердить');await f.update('/history');await f.press('Расходы');await f.press(/Еда ·/);await f.press('✏️ Изменить');await f.update('120');await f.press('✅ Подтвердить');await f.press('↩️ Вернуться в раздел');await f.press('История');
+ await f.update('/add');await f.press('− Расход');await f.update('100');await f.press('✅ Подтвердить');await f.update('/history');await f.press('Расходы');await f.press(/Еда ·/);await f.press('✏️ Изменить');await f.update('120');await f.press('✅ Подтвердить');await f.press('↩️ Вернуться в раздел');await f.press('⋯ Действия');await f.press('История');
  const viewDraft=f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id=?").get(f.button('Все записи').split(':')[2]);assert.equal(JSON.parse(viewDraft.payload).origin.args.type,'expense');
  const d=f.snapshot();d.installments=[{id:'split',name:'Покупка частями',accountId:'bank',currency:'RUB',total:1000,payments:[{id:'p1',date:today,amount:400},{id:'p2',date:'2026-12-01',amount:600}]}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
  await f.update('/payments');await f.press('Кредиты / сплит / ипотека');await f.press(/Покупка частями/);await f.press(/Оплатил/);await f.press(/^Оставить:/);await f.press('✅ Подтвердить');assert.match(f.last().text,/осталось 600/);assert.match(f.last().text,/2026-12-01/);await f.press('↩️ Вернуться в раздел');assert.match(f.last().text,/Покупка частями/);assert.match(f.last().text,/600/);
@@ -166,3 +166,19 @@ test('Free text selects only missing account, edits shared review, credits incom
   await f.update('обед 300');assert.match(f.last().text,/Еда/);await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,3);assert.equal(f.snapshot().transactions[0].type,'expense');assert.equal(f.snapshot().accounts[0].balance,8250);
  },d);
 });
+
+test('Transaction card is four rows with sum, dishes and relative day; navigation hides draft buttons',()=>run(async f=>{
+ const d=f.snapshot();d.transactions=[{id:'company-lunch',date:today,type:'lunch',cat:'lunch',currency:'RUB',amount:379,note:'Суп, гречка'}];
+ f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
+ await f.update('/history');await f.press(/Суп, гречка/);
+ const card=f.last();assert.match(card.text,/🍽 Обед · 379/);assert.match(card.text,/Сегодня/);assert.match(card.text,/Блюда:\nСуп, гречка/);assert.doesNotMatch(card.text,/с возвратом остатка/);
+ assert.equal(card.reply_markup.inline_keyboard.length,4);assert.deepEqual(card.reply_markup.inline_keyboard.map(row=>row.length),[1,2,1,1]);
+ assert.ok(card.reply_markup.inline_keyboard.flat().some(x=>x.text==='⋯ Действия'));assert.ok(!card.reply_markup.inline_keyboard.flat().some(x=>x.text.startsWith('Удалить')));
+ await f.press('⋯ Действия');assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='Удалить запись'));
+ const yesterday=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);d.transactions[0].date=yesterday;
+ assert.match(botView(d,'transaction',{id:'company-lunch'}).lines.join(' '),/Вчера/);
+ await f.update('/add');await f.press('− Расход');await f.update('100');
+ const id=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload).cardId;
+ await f.update('/history');
+ assert.ok(f.sent.some(x=>x.method==='editMessageReplyMarkup'&&x.body.message_id===id&&x.body.reply_markup.inline_keyboard.length===0));
+}));
