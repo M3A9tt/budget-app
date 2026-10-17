@@ -41,7 +41,7 @@ export function classifyIncomingMessage({message={},orders=[],accounts=[]}={}){
  const value=String(message.text||message.caption||'').trim();
  const forwarded=!!(message.forward_origin||message.forward_date);
  const hasEmployeeOrder=orders.some(o=>o.employeeId&&o.body&&(/\(\d{1,5}\)/u.test(value)||/^\p{Lu}/u.test(o.name)));
- const personalDebit=/(?<![\p{L}\p{N}])[-−]\s*\d/u.test(value);
+ const personalDebit=/^\s*[-−]\s*\d/u.test(value);
  const namedAccount=accountMentions(value,accounts).length>0;
  const companyOrder=!personalDebit&&!namedAccount&&(hasEmployeeOrder||forwarded&&dishWords.test(value));
  return {route:companyOrder?'company-order':'financial-entry',hasEmployeeOrder,forwarded};
