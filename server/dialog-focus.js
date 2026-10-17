@@ -7,7 +7,8 @@ export function correctionBelongsToDraft(message,field,promptId){
  if(replyId!=null)return promptId!=null&&Number(replyId)===Number(promptId);
  // Telegram's ForceReply normally supplies reply_to_message. Bare text remains
  // accepted only for unambiguous amounts/dates, never for free-form notes.
- if(promptId==null)return true; // Legacy drafts and test transport without ID.
+ // If the old draft has no stored prompt ID, only strictly parseable scalar
+ // fields may consume bare text. Unknown free-form notes never take ownership.
  if(field==='amount')return /^\d+(?:[.,]\d{1,2})?\s*(?:₽|руб(?:лей|ля)?\.?|р\.?)?$/iu.test(text);
  if(field==='date')return /^(?:\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4})$/u.test(text);
  return false;
