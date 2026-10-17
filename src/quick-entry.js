@@ -32,10 +32,10 @@ export function parseEntry(text,accounts,categories,date,defaults={}){
  const dated=datePart(text.trim(),date),hits=accountMentions(dated.value,accounts),ids=[...new Set(hits.map(x=>x.account.id))];if(ids.length>1)throw Error('Названо несколько счетов — выберите один');
  let working=without(dated.value,hits.map(x=>{const before=dated.value.slice(0,x.start).match(/(?:^|\s)(?:с|со|на|в|из|сч[её]т:?)\s*$/iu);return {...x,start:before?x.start-before[0].length:x.start};}));
  const parsed=amountPart(working),memo=parsed.note.toLocaleLowerCase('ru');
- const mentionsLunch=/(?<!\\p{L})обед(?!\\p{L})/u.test(memo);
+ const mentionsLunch=/(?<!\p{L})обед(?!\p{L})/u.test(memo);
  // An explicit debit sign or named personal account always wins over the bare
  // word "обед". Keep "обед 379" as a corporate shortcut only without an account.
- const companyLunch=/обед\\s+(?:компании|от работодателя|за сч[её]т компании)|(?:корпоративн[а-я]*\\s+обед)|(?:оплачивает|оплатила)\\s+компания/u.test(memo);
+ const companyLunch=/обед\s+(?:компании|от работодателя|за сч[её]т компании)|(?:корпоративн[а-я]*\s+обед)|(?:оплачивает|оплатила)\s+компания/u.test(memo);
  const companyShortcut=mentionsLunch&&memo.trim()==='обед'&&!hits.length&&defaults.companyLunchEnabled!==false;
  const signed=parsed.sign==='-'||parsed.sign==='−'||parsed.sign==='+';
  const ownLunch=mentionsLunch&&(/за сво[ий]|свои деньги|сам оплатил|сам заплатил/u.test(memo)||(!!hits.length&&!companyLunch)||(!companyLunch&&!companyShortcut));
