@@ -66,7 +66,7 @@ test('Native edit from history changes the same operation; deletion and undo res
  await f.update('/add');await f.press('− Расход');await f.update('100');await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9900);
  await f.update('/history');await f.press(/Еда ·/);await f.press('✏️ Изменить');await f.update('200');await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,9800);
  await f.update('/history');await f.press(/Еда ·/);await f.press('⋯ Действия');await f.press('Удалить запись');await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,10000);
- await f.update('/history');await f.press('Отменить изменение');await f.press(/^delete_tx/);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9800);assert.equal(f.snapshot().transactions.length,1);
+ await f.update('/history');await f.press('Отменить изменение');await f.press(/^Удаление/);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9800);assert.equal(f.snapshot().transactions.length,1);
 }));
 test('Native wizard cancellation preserves pending lunch input; a test callback never runs real reminder actions',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('100');await f.update('/cancel');assert.equal(f.snapshot().transactions.length,0);await f.update('/tests');await f.press('Вопрос об обеде');const callback=f.last().reply_markup.inline_keyboard[0][0].callback_data;await f.update('',callback);assert.equal(f.snapshot().transactions.length,0);
@@ -192,7 +192,7 @@ test('Budget bot labels, settings, planned income and debt refunds remain human-
  d.debts=[{id:'debt-1',type:'my',person:'Друг',amount:500,payments:[{id:'pay-1',amount:200,date:today}],currency:'RUB'}];
  let card=botView(d,'settingGroup',{group:'reminders'});
  assert.ok(card.actions.some(a=>a.label==='Проверка расходов: Включено'));
- assert.ok(card.actions.some(a=>a.label.includes('Пн, Вт, Пт')));
+ assert.ok(botView(d,'settingGroup',{group:'reminders',page:1}).actions.some(a=>a.label.includes('Пн, Вт, Пт')));
  assert.match(botView(d,'activity').actions.find(a=>a.label.includes('Покупка')).label,/Добавление/);
  assert.match(botView(d,'plan',{id:'income-month'}).lines.join(' '),/Ежемесячно/);
  assert.match(botView(d,'dueItem',{id:'income-month',period:today.slice(0,7)}).lines.join(' '),/поступление/i);
