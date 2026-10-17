@@ -124,10 +124,10 @@ test('Release broadcast installs seven-button keyboard only for allowed profiles
 
 async function forwardedLunch(env,id,text,date=Date.now()/1000){return worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':env.TELEGRAM_WEBHOOK_SECRET,'Content-Type':'application/json'},body:JSON.stringify({message:{message_id:77,chat:{id,type:'private'},from:{id,first_name:'Test'},text,forward_origin:{type:'hidden_user',sender_user_name:'Private sender',date:Math.floor(date)}}})}),env);}
 const lunchButton=(messages,action)=>messages.filter(m=>m.body.reply_markup?.inline_keyboard?.flat().some(b=>b.callback_data?.startsWith('lc:'+action+':'))).at(-1).body.reply_markup.inline_keyboard.flat().find(b=>b.callback_data.startsWith('lc:'+action+':')).callback_data;
-test('Forwarded employee lunch waits for confirmation, uses original date and cumulative daily surplus, deduplicates and preserves accounts',async()=>{
+test('Forwarded lunch confirmation is idempotent per command, but two identical orders are separate records',async()=>{
  const {call,data,env}=fixture();const d=data(1000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});const stamp=Date.parse('2026-10-14T09:00:00Z')/1000;
  await botTest(async messages=>{await forwardedLunch(env,222,'Сотрудник (9001)\nОтбивная\nПюре\n340 р.',stamp);assert.equal((await(await call('222')).json()).data.transactions.length,0);const preview=messages.at(-1).body;assert.ok(preview.text.includes('60'));assert.ok(preview.text.includes('2026-10-14'));assert.ok(!preview.text.includes('9001'));const save=lunchButton(messages,'save');await webhook(env,111,'',save);assert.equal((await(await call('222')).json()).data.transactions.length,0);await webhook(env,222,'',save);await webhook(env,222,'',save);let state=await(await call('222')).json();assert.equal(state.data.transactions.length,1);assert.equal(state.data.transactions[0].amount,340);assert.equal(state.data.accounts[0].balance,1000);assert.equal(state.data.transactions[0].date,'2026-10-14');assert.equal((await dayChecks(env,'222','2026-10-14'))[0].status,'recorded');
- await forwardedLunch(env,222,'Сотрудник (9001)\nОтбивная\nПюре\n340 р.',stamp);await webhook(env,222,'',lunchButton(messages,'save'));assert.equal((await(await call('222')).json()).data.transactions.length,1);
+ await forwardedLunch(env,222,'Сотрудник (9001)\nОтбивная\nПюре\n340 р.',stamp);const second=lunchButton(messages,'save');await webhook(env,222,'',second);await webhook(env,222,'',second);const after=(await(await call('222')).json()).data;assert.equal(after.transactions.length,2);assert.notEqual(after.transactions[0].id,after.transactions[1].id);assert.equal(after.accounts[0].balance,1000);
  });
 });
 test('Editing invalidates old cards, saves corrected amount only, and moderated structure rules contain no text or employee identity',async()=>{
@@ -166,4 +166,17 @@ test('Free-form Telegram lunch with an account and no currency marker enters per
    assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
   });
  }
+});
+
+test('Two simultaneous selection taps create just one corporate order draft',async()=>{
+ const {env,db,call,data}=fixture();const d=data(1000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await forwardedLunch(env,222,'Один (9001) Суп 300р\nДва (9002) Пюре 340р');
+  const selected=lunchButton(messages,'pick');
+  const responses=await Promise.all([webhook(env,222,'',selected),webhook(env,222,'',selected)]);
+  assert.ok(responses.every(r=>r.status===200));
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM lunch_chat_drafts WHERE user_id='222' AND status='open'").get().n,1);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM lunch_chat_drafts WHERE user_id='222' AND status='superseded'").get().n,1);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
 });
