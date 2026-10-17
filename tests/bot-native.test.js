@@ -129,3 +129,24 @@ test('History filters and installment ownership survive confirmations; outcome r
 test('Multiple accounts require an explicit first choice; currency follows a newly selected account',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('10');assert.match(f.last().text,/Откуда оплатили/);assert.equal(f.snapshot().transactions.length,0);await f.press(/Доллар/);assert.match(f.last().text,/USD|\$/);await f.press('✅ Подтвердить');const tx=f.snapshot().transactions[0];assert.equal(tx.currency,'USD');assert.equal(tx.accountId,'usd');assert.equal(f.snapshot().accounts.find(a=>a.id==='usd').balance,90);
 },{...seed(),accounts:[...seed().accounts,{id:'usd',name:'Доллар',currency:'USD',balance:100}]}));
+
+test('Reminder buttons settle shared plan, installment and debt, reject stale/foreign targets, preserve free budget',()=>{
+ const d=seed();d.settings.nextIncomeDate=new Date(Date.parse(today+'T12:00:00Z')+10*86400000).toISOString().slice(0,10);
+ d.recurring=[{id:'rent',name:'ЖКХ',type:'expense',active:true,frequency:'monthly',startDate:today,dueDay:Number(today.slice(-2)),amount:500,currency:'RUB',accountId:'bank',cat:'housing'}];
+ d.installments=[{id:'split',name:'Сплит',total:300,currency:'RUB',accountId:'bank',payments:[{id:'payment',date:today,amount:300}]}];
+ d.debts=[{id:'mom',person:'Мама',type:'iowe',amount:200,currency:'RUB',dueDate:today,payments:[]}];
+ return run(async f=>{
+  const free=dashboard(f.snapshot(),today).free;
+  f.sqlite.prepare('UPDATE user_finance_state SET data=? WHERE user_id=?').run(JSON.stringify(seed()),'222');
+  await f.update('','b:n:p:rent:'+today.slice(0,7),222);assert.match(f.last().text,/Что оплатить сейчас/);assert.equal(f.snapshot('222').transactions.length,0);
+  assert.equal(f.snapshot().transactions.length,0);
+  await f.update('','b:n:p:missing:once');assert.match(f.last().text,/Что оплатить сейчас/);
+  await f.update('','b:n:p:rent:'+today.slice(0,7));await f.press('Нет');await f.press('Оставить: '+today);await f.press('✅ Подтвердить');
+  assert.equal(f.snapshot().accounts[0].balance,9500);assert.equal(f.snapshot().transactions[0].recurringId,'rent');assert.equal(dashboard(f.snapshot(),today).free,free);
+  await f.update('','b:n:p:rent:'+today.slice(0,7));assert.match(f.last().text,/Что оплатить сейчас/);assert.equal(f.snapshot().transactions.length,1);
+  await f.update('','b:n:i:payment');await f.press('Оставить: '+today);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9200);assert.equal(dashboard(f.snapshot(),today).free,free);
+  await f.update('','b:n:d:mom');await f.update('200');await f.press(/Банк/);await f.press('Оставить: '+today);await f.press('✅ Подтвердить');
+  assert.equal(f.snapshot().accounts[0].balance,9000);assert.equal(debtRemaining(f.snapshot().debts[0],f.snapshot()),0);assert.equal(dashboard(f.snapshot(),today).free,free);
+  await f.update('','b:n:i:payment');assert.match(f.last().text,/Что оплатить сейчас/);assert.equal(f.snapshot().transactions.length,3);
+ },d);
+});

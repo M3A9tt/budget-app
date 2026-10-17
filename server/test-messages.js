@@ -1,14 +1,14 @@
 import {TEST_MESSAGE_TYPES} from '../src/test-message-types.js';
-import {expenseReminder,lunchReminder,plannedReminder} from './notifications.js';
+import {expenseReminder,lunchReminder,paymentReminder} from './notifications.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
-import {plannedOccurrences} from '../src/planned-model.js';
+import {duePayments} from '../src/due-payments.js';
 import {releaseText} from '../src/release-notes.js';
 export function testMessage(data,type,summary,now=new Date(),appUrl){
  if(!TEST_MESSAGE_TYPES.some(([id])=>id===type))throw Error('Неизвестный тип сообщения');
  const today=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,shift=n=>new Date(Date.parse(today+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);let body;
  if(type==='expense')body=expenseReminder(data,today);
  if(type==='lunch')body=lunchReminder(today);
- if(type==='planned'){const due=plannedOccurrences(data,today,today);body=plannedReminder(due.length?due:[{date:today,rule:{name:'Пример платежа · тестовые данные',type:'expense'}}]);if(appUrl)body.reply_markup={inline_keyboard:[[{text:'Открыть планы в чате',callback_data:'b:v:due'}]]};}
+ if(type==='planned'){const due=duePayments(data,today);body=paymentReminder(due.length?due:[{kind:'plan',id:'example',period:'once',date:today,name:'Пример платежа · тестовые данные',amount:500,currency:'RUB'}]);}
  if(['day','week','month'].includes(type)){let from=type==='week'?shift(-6):today,to=today;if(type==='month'){const end=new Date(today+'T12:00:00Z');end.setUTCDate(0);to=end.toISOString().slice(0,10);from=to.slice(0,8)+'01';}body={text:summary(data,from,to,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[type])};}
  if(type==='release'){body={text:releaseText()};if(appUrl)body.reply_markup={inline_keyboard:[[{text:'Что нового',callback_data:'b:v:updates'}]]};}
  // Keep real templates, but sandbox callback buttons before they reach production handlers.
