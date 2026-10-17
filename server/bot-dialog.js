@@ -26,6 +26,7 @@ export function actionOutcome(data,p,receipt){
  const entry=receipt.historyId&&data.history.find(h=>h.id===receipt.historyId),tx=entry?.after||entry?.before,lines=[];
  let title=p.op==='undo'?'↩️ Изменение отменено':'✅ Сохранено';
  if(tx){title=`✅ ${tx.note||'Операция'} · ${tx.type==='income'?'+':tx.type==='expense'?'−':''}${money(tx.amount,tx.currency)}`;if(p.op==='deleteTx')title='✅ Операция удалена';const a=data.accounts.find(a=>a.id===tx.accountId);lines.push(a?`${a.name}: ${money(a.balance,a.currency)}`:tx.type==='lunch'?'Оплачивает компания':'Запись без счёта');}
+ if(p.op==='transfer')for(const id of [p.values.from,p.values.to]){const account=data.accounts.find(a=>a.id===id);if(account)lines.push(`${account.name}: ${money(account.balance,account.currency)}`);}
  if(tx?.balanceEffect==='history-only')lines.push('История · остатки счетов не менялись');
  const debt=data.debts.find(d=>d.id===(tx?.debtId||(['repay','linkDebt'].includes(p.op)?p.args.id:undefined)));if(debt)lines.push(`Осталось ${debt.type==='tome'?'получить':'вернуть'}: ${money(debtRemaining(debt,data),debt.currency)}`);
  const plan=(data.installments||[]).find(i=>i.id===(p.op==='payInstallment'?p.args.id:undefined)||i.payments.some(x=>x.id===tx?.installmentPaymentId));

@@ -1,7 +1,7 @@
 import {initialProfile} from '../src/home-layout.js';
 import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
-import {botChat,showBotView} from './bot-chat.js';
+import {botChat,showBotView,openQuickEntry} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
 import {sendBotFile,readBotDocument} from './bot-files.js';
 import {lunchChatMessage,lunchChatCallback,pruneLunchChat} from './lunch-chat.js';
@@ -15,7 +15,6 @@ import {sendFeedback} from './feedback.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {broadcastRelease} from './releases.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
-import {entryDefaults} from '../src/entry-assist.js';
 import {dayChecks,setDayCheck,habitCallback,habitAmount} from './habits.js';
 import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invitedUsers,setMemberAccess} from './users.js';
 import {dashboard,EMPTY,CATEGORIES,demoData} from '../src/mini-model.js';
@@ -24,7 +23,6 @@ import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
 // Separate new D1 database. This Worker never writes to legacy Supabase.
 import {putTransaction,migrateData,historicalRub,validateStateChange} from '../src/ledger.js';
-import {parseEntry} from '../src/quick-entry.js';
 
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 async function equalSecret(a,b) {
@@ -180,17 +178,11 @@ async function handleTelegram(update,env) {
       await telegram(env,'sendMessage',{chat_id:chat.id,text:rows.length?`Участники · ${rows.length}. Страница ${page+1}. Можно закрыть или восстановить доступ, сохранив бюджет.${(page+1)*40<rows.length?' Ещё: /friends '+(page+2):''}`:'Участников пока нет. Общая ссылка: /invite',reply_markup:{inline_keyboard:rows.slice(page*40,(page+1)*40).map(r=>[{text:(r.status==='active'?'Закрыть доступ · ':'Восстановить · ')+r.user_id,callback_data:(r.status==='active'?'revoke:':'restoreAccess:')+r.user_id}])}});return;
     }
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
-    const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;
     if(['/today','/week','/month'].includes(text)){await showSummary({'/today':'day','/week':'week','/month':'month'}[text]);return;}
     if(update.message.document){await showBotView(env,userId,botApi,'backup');await send('Для выписки выбери «Ещё → Импорт», для полного бэкапа — «Восстановить из файла», затем отправь файл.');return;}
     if(await lunchChatMessage(env,userId,update.message,lunchChatApi))return;
     if(await habitAmount(env,userId,text,habitApi))return;
-    const defaults=state.data.settings.rememberEntryChoices===false?{}:entryDefaults(state.data,/зарплат|аванс|доход/i.test(text)?'income':'expense',today,CATEGORIES.concat(state.data.customCats||[]));
-    const draft=parseEntry(text,state.data.accounts,state.data.customCats||[],today,defaults);
-    const id=crypto.randomUUID();
-    await env.DB.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').bind(id,userId,JSON.stringify(draft),Date.now()+600000).run();
-    const account=state.data.accounts.find(a=>a.id===draft.accountId)?.name||(draft.type==='lunch'?'Оплата компанией':'Без счёта');
-    await telegram(env,'sendMessage',{chat_id:chat.id,text:`Проверьте: ${draft.note}\n${draft.amount} ₽ · ${account}\nКатегория: ${draft.cat}\nОплата: ${{sbp:'СБП',card:'Карта',cash:'Наличные',bank:'Банковский перевод',unknown:'Не указана'}[draft.paymentMethod]||'Не указана'}\nДата: ${draft.date}`,reply_markup:{inline_keyboard:[[{text:'Записать',callback_data:'save:'+id}]]}});
+    await openQuickEntry(env,userId,botApi,text);
   } catch(e){await send(e.message);}
 }
 export default {
