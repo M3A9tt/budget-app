@@ -22,6 +22,6 @@ test('Allocation lists precisely dashboard deductions and links to existing sour
  const d=structuredClone(EMPTY);d.accounts=[{id:'a',name:'Банк',balance:1000,currency:'RUB'},{id:'cash',name:'Резерв наличными',balance:500,accType:'savings',currency:'RUB'}];
  const now=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(new Date());
  d.recurring=[{id:'rent',name:'ЖКХ',active:true,amount:200,type:'expense',frequency:'once',startDate:now,accountId:'a',currency:'RUB'},{id:'unknown',name:'Свет',active:true,variable:true,type:'expense',amount:1,frequency:'once',startDate:now,accountId:'a',currency:'RUB'}];
- const sum=dashboard(d,now),screen=botView(d,'allocation');assert.equal(sum.free,800);assert.equal(sum.reserve,500);assert.ok(screen.lines.some(x=>x.includes('неизвестной суммой')));assert.ok(screen.lines.some(x=>x.includes('только наступившие')));
+ const sum=dashboard(d,now),screen=botView(d,'allocation');assert.equal(sum.free,800);assert.equal(sum.reserve,500);assert.ok(screen.lines.some(x=>x.includes('неизвестной суммой')));assert.ok(screen.lines.some(x=>x.includes('ближайшие 30 дней')));
  const rows=botView(d,'allocationItems').actions.filter(x=>x.view==='dueItem');assert.equal(rows.length,sum.obligationItems.length);assert.deepEqual(rows.map(x=>x.args),[{id:'rent',period:'once'},{id:'unknown',period:'once'}]);
 });
