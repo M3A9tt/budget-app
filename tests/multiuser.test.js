@@ -149,3 +149,21 @@ test('Telemetry default is enabled while explicit opt-out and schema validation 
 test('Moderation rejects conflicting rules against approved examples and cannot activate rejected examples',async()=>{const{call,env}=fixture();const {queueCorrection}=await import('../server/lunch-learning.js'),{parseLunchOrder}=await import('../src/lunch-recognition.js');const p=parseLunchOrder('Первое 100р\nВторое 300р',moscowDate());await queueCorrection(env,'222','first',p,{amount:100,note:p.note},true);let data=await(await call('111','admin/lunch-learning')).json();const first=data.examples[0].id;assert.equal((await call('111','admin/lunch-learning','POST',{id:first,action:'approve'})).status,200);await queueCorrection(env,'222','second',p,{amount:300,note:p.note},true);data=await(await call('111','admin/lunch-learning')).json();const second=data.examples.find(x=>x.status==='pending').id;assert.equal((await call('111','admin/lunch-learning','POST',{id:second,action:'approve'})).status,400);assert.equal((await call('111','admin/lunch-learning','POST',{id:second,action:'reject'})).status,200);assert.equal((await call('111','admin/lunch-learning','POST',{id:second,action:'approve'})).status,400);assert.equal((await(await call('111','admin/lunch-learning')).json()).rules[0].example_id,first);});
 
 test('Legacy single-use invitations survive additive migration; shared links admit many users without sharing profiles',async()=>{const {env,call,db}=fixture(),token='a'.repeat(32);db.prepare('INSERT INTO user_invites(hash,owner_id,expires_at) VALUES(?,?,?)').run(await hashToken(token),'111',Date.now()+60000);await botTest(async messages=>{await webhook(env,333,'/start invite_'+token);assert.equal((await call('333')).status,200);await webhook(env,444,'/start invite_'+token);assert.equal((await call('444')).status,401);await webhook(env,111,'/invite');const shared=messages.find(m=>m.body.text?.includes('?start=invite_')).body.text.match(/invite_([a-f0-9]{32})/)[1];for(const id of [444,555,666]){await webhook(env,id,'/start invite_'+shared);const profile=await(await call(String(id))).json();assert.equal(profile.data.accounts.length,0);assert.equal(profile.data.settings.modules.lunch,false);assert.equal(profile.data.settings.modules.debts,false);}const {allAllowedUsers}=await import('../server/users.js');for(const id of ['333','444','555','666'])assert.ok((await allAllowedUsers(env)).includes(id));await webhook(env,111,'/invite_close');assert.equal((await call('333')).status,200);assert.equal((await call('555')).status,200);});});
+
+test('Free-form Telegram lunch with an account and no currency marker enters personal expense preview',async()=>{
+ for(const text of ['-1039,97 обед в Бургер Кинге Альфа','-1039,97 р. обед в Бургер Кинге Альфа']){
+  const {env,call,data,db}=fixture(),d=data(5000);d.accounts[0].name='Альфа';d.settings.modules={lunch:true};
+  await call('222','state','PUT',{expectedRevision:0,data:d});
+  await botTest(async messages=>{
+   const response=await webhook(env,222,text);assert.equal(response.status,200);
+   const stored=db.prepare("SELECT payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0").get();
+   assert.ok(stored,'Expected a transaction confirmation, not a lunch-recognition request: '+text);
+   const p=JSON.parse(stored.payload);
+   assert.equal(p.op,'tx');assert.equal(p.values.type,'expense');assert.equal(p.values.amount,1039.97);
+   assert.equal(p.values.accountId,'same-account');assert.equal(p.values.cat,'food');
+   assert.deepEqual(p.values.tags,['обед-за-свои']);
+   assert.ok(messages.at(-1).body.text.includes('1 039,97'));
+   assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
+  });
+ }
+});
