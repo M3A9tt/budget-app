@@ -19,7 +19,7 @@ export async function lunchChatMessage(env,userId,message,api){
  await ensure(env);const text=(message.text||message.caption||'').trim();if(!text)return false;
  const active=await env.DB.prepare("SELECT * FROM lunch_chat_drafts WHERE user_id=? AND status='editing' AND expires_at>? ORDER BY rowid DESC LIMIT 1").bind(userId,Date.now()).first();
  if(active&&correctionBelongsToDraft(message,active.field,JSON.parse(active.payload).promptId)){const value=recognitionCorrection(active.field,text),payload=JSON.parse(active.payload);payload.tx[active.field]=value;payload.corrected=true;const claimed=await env.DB.prepare("UPDATE lunch_chat_drafts SET status='superseded' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();if(!claimed.meta.changes)throw Error('Эта правка уже обработана');const id=await insert(env,userId,payload);await card(env,userId,id,payload,api);return true;}
- if(text==='/cancel'&&active){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='cancelled' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();await api.telegram(env,'sendMessage',{chat_id:userId,text:'Обед отменён. Ничего не записано.'});return true;}
+ if(['/cancel','Отмена'].includes(text)&&active){await env.DB.prepare("UPDATE lunch_chat_drafts SET status='cancelled' WHERE id=? AND user_id=? AND status='editing'").bind(active.id,userId).run();await api.telegram(env,'sendMessage',{chat_id:userId,text:'Обед отменён. Ничего не записано.'});return true;}
  if(text.startsWith('/'))return false;
  const forwarded=!!(message.forward_origin||message.forward_date),orders=lunchOrders(text);
  // Only forwarded messages and clearly identified employee orders enter the company parser.

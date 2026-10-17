@@ -121,16 +121,16 @@ async function handleTelegram(update,env) {
   const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);await send(periodSummary(state.data,from,today,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period]));};
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
   try {
+    if(userSwitchedDialog(update)&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim())))await pauseLunchEdit(env,userId);
     // One dispatcher arbitrates typed messages before individual dialog handlers.
     // Explicit meal replies and forwarded orders own their messages; the previous
     // bot form is suspended instead of silently consuming another form's answer.
     if(update.message&&await lunchChatMessage(env,userId,update.message,lunchChatApi)){
-      if((update.message.text||'').trim()==='/cancel')await cancelBotFlow(env,userId,botApi);
+      if(['/cancel','Отмена'].includes((update.message.text||'').trim()))await cancelBotFlow(env,userId,botApi);
       else await pauseBotForm(env,userId,botApi);
       return;
     }
     if(await botChat(update,env,userId,botApi)){
-      if(userSwitchedDialog(update))await pauseLunchEdit(env,userId);
       return;
     }
     if(update.callback_query) {

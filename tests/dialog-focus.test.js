@@ -24,3 +24,12 @@ test('Known navigation and bot callbacks switch dialog ownership',()=>{
  assert.equal(userSwitchedDialog({callback_query:{data:'lc:edit:id'}}),false);
  assert.equal(userSwitchedDialog({message:{text:'кофе 180'}}),false);
 });
+
+test('Every section command and keyboard alias shares navigation ownership',async()=>{
+ const {BOT_SECTIONS,BOT_BUTTONS}=await import('../server/bot-navigation.js');
+ for(const text of [...Object.keys(BOT_SECTIONS),...Object.values(BOT_BUTTONS),'/app','/summary','Отмена']){
+  assert.equal(userSwitchedDialog({message:{text}}),true,text);
+  assert.equal(correctionBelongsToDraft({text,reply_to_message:{message_id:10}},'note',10),false,text);
+ }
+ assert.equal(userSwitchedDialog({message:{text:'/unknown'}}),false);
+});
