@@ -1,3 +1,6 @@
+import {moduleEnabled} from '../src/modules.js';
+import {parseEntry,parseOwnTransfer,entryType} from '../src/quick-entry.js';
+import {entryDefaults} from '../src/entry-assist.js';
 import {homeBlocks,HOME_BLOCKS} from '../src/home-layout.js';
 import {duePayments} from '../src/due-payments.js';
 import {quickDefaults,compactTransaction,actionOutcome,actionDestination} from './bot-dialog.js';
@@ -59,7 +62,7 @@ async function pauseForm(env,userId){const active=await pendingForm(env,userId);
 async function resumeMenu(env,userId,api,active,op,args){return render(env,userId,api,{title:'✍️ Есть незавершённая запись',lines:[active.p.values.amount?money(active.p.values.amount,active.p.values.currency||'RUB'):'Можно продолжить с последнего поля.'],actions:[{label:'▶️ Продолжить запись',special:'resumeForm',args:{id:active.row.id}},{label:'Начать заново',special:'restartForm',args:{op,args}},view('Главная','home')]});}
 async function start(env,userId,api,op,args={}){
  const active=await pendingForm(env,userId);if(active&&!args.forceNew)return resumeMenu(env,userId,api,active,op,args);
- await cancelBotFlow(env,userId);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...(op==='tx'&&!args.id?quickDefaults(s.data,args):{}),...initialValues(s.data,op,args),...args.prefill},step:0,status:'form',revision:s.revision};
+ await cancelBotFlow(env,userId);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...(op==='tx'&&!args.id?quickDefaults(s.data,args):{}),...initialValues(s.data,op,args),...args.prefill},step:args.quickInput?1:0,status:'form',revision:s.revision};
  if(args.ownLunch){p.values.note='Обед за свои';p.values.cat='food';p.values.tags=['обед-за-свои'];}
  const id=await create(env,userId,p,'bf_');if(args.review)return preview(env,userId,api,id,p);if(op==='restore')await api.sendFile(env,userId,s.data,'byurdzhet-before-restore.json');return prompt(env,userId,api,id,p);
 }
@@ -195,4 +198,13 @@ export async function botChat(update,env,userId,api){
  if(f.type==='choice'){await prompt(env,userId,api,row.id,p);return true;}
  if(message.document&&f.type!=='document')throw Error('Сейчас нужен ответ на поле, а не файл');
  const value=message.document?await api.readDocument(env,message.document,f.max):text;const parsed=parseField(f,value);const next={...p,values:{...p.values,[f.key]:parsed},step:p.editing?fieldsFor(s.data,p.op,p.args,{...p.values,[f.key]:parsed}).length:p.step+1,editing:false,lastUpdate:update.update_id};await replace(env,userId,row,next);await prompt(env,userId,api,row.id,next);return true;
+}
+
+export async function openQuickEntry(env,userId,api,text){
+ const state=await api.readState(env,userId),data=state.data,today=todayMoscow(data.settings.timeZone),transfer=parseOwnTransfer(text,data.accounts,today);
+ if(transfer)return start(env,userId,api,'transfer',{prefill:transfer,review:true,returnTo:{name:'accounts',args:{}}});
+ const defaults=data.settings.rememberEntryChoices===false?{}:entryDefaults(data,entryType(text),today,CATEGORIES.concat(data.customCats||[]));
+ const draft=parseEntry(text,data.accounts,CATEGORIES.concat(data.customCats||[]),today,{...defaults,allowMissingAccount:true,companyLunchEnabled:moduleEnabled(data,'lunch')});
+ if(draft.accountId){const account=data.accounts.find(a=>a.id===draft.accountId);if(draft.currency!==(account.currency||'RUB'))throw Error('Для валютной покупки выбери форму записи и укажи фактическое списание со счёта');}
+ return start(env,userId,api,'tx',{type:draft.type,prefill:draft,quickInput:true,review:draft.type==='lunch'||!!draft.accountId||!data.accounts.length,returnTo:{name:'history',args:{}}});
 }

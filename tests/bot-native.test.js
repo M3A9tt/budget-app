@@ -155,3 +155,14 @@ test('Home and module controls persist per user through native confirmation and 
  const initial=f.snapshot();await f.update('/budget');await f.press('⚙️ Моя главная');await f.press('Минимум');assert.equal(f.snapshot().settings.homeLayout,undefined);await f.press('✅ Подтвердить');assert.deepEqual(f.snapshot().settings.homeLayout.hidden.includes('wishes'),true);assert.equal(f.snapshot('222').settings.homeLayout,undefined);
  await f.update('/settings');await f.press('🧩 Модули');await f.press('✓ Цели накоплений');await f.press('✅ Подтвердить');assert.equal(f.snapshot().settings.modules.goals,false);assert.deepEqual(f.snapshot().accounts,initial.accounts);assert.deepEqual(f.snapshot().transactions,initial.transactions);assert.equal(f.snapshot('222').settings.modules,undefined);
 }));
+
+test('Free text selects only missing account, edits shared review, credits income and transfers once without creating an expense',()=>{
+ const d=seed();d.settings.modules={lunch:false};d.accounts[1].name='Копилка';d.accounts.push({id:'alpha',name:'Альфа',balance:2000,currency:'RUB'});
+ return run(async f=>{
+  await f.update('вчера такси 450');assert.match(f.last().text,/Откуда оплатили/);assert.equal(f.snapshot().transactions.length,0);await f.press(/Банк/);assert.match(f.last().text,/такси/);assert.match(f.last().text,/450/);await f.press('💬 Комментарий');await f.update('Такси домой');const confirm=f.button('✅ Подтвердить');await f.update('',confirm);assert.equal(f.snapshot().accounts[0].balance,9550);assert.equal(f.snapshot().transactions[0].cat,'transport');assert.equal(f.snapshot().transactions[0].note,'Такси домой');assert.equal(f.snapshot().transactions[0].date,new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10));await f.update('',confirm);assert.equal(f.snapshot().transactions.length,1);
+  await f.update('+3000 подработка Альфа');assert.match(f.last().text,/Доход/);assert.equal(f.snapshot().accounts[2].balance,2000);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[2].balance,5000);
+  await f.update('перевод 1000 Банк → Копилка');const transfer=f.button('✅ Подтвердить');assert.equal(f.snapshot().transfers.length,0);await f.update('',transfer);assert.equal(f.snapshot().transfers.length,1);assert.equal(f.snapshot().accounts[0].balance,8550);assert.equal(f.snapshot().accounts[1].balance,3000);assert.equal(f.snapshot().transactions.length,2);assert.match(f.last().text,/Банк/);assert.match(f.last().text,/Копилка/);await f.update('',transfer);assert.equal(f.snapshot().transfers.length,1);
+  await f.update('2 кофе 180');assert.match(f.last().text,/несколько чисел/);assert.equal(f.snapshot().transactions.length,2);
+  await f.update('обед 300');assert.match(f.last().text,/Еда/);await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,3);assert.equal(f.snapshot().transactions[0].type,'expense');assert.equal(f.snapshot().accounts[0].balance,8250);
+ },d);
+});
