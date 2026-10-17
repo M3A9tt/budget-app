@@ -20,3 +20,30 @@ test('Ambiguous amounts, dates and accounts never become a financial draft; own 
  const t=parseOwnTransfer('перевод 500 Сбер → Копилка вчера',accounts,today);assert.equal(t.date,'2026-10-16');const next=transferMoney({...structuredClone(EMPTY),accounts},t);assert.equal(next.accounts[2].balance,500);assert.equal(next.accounts[3].balance,2500);assert.equal(next.transactions.length,0);assert.equal(next.transfers.length,1);
  assert.equal(parseOwnTransfer('перевёл маме 500',accounts,today),null);assert.throws(()=>parseOwnTransfer('перевод 500 Сбер → Сбер',accounts,today));
 });
+
+test('An explicit debit and named account make a personal lunch, with or without ruble suffix',()=>{
+ for(const text of [
+  '-1039,97 р. обед в Бургер Кинге Альфа',
+  '-1039,97 обед в Бургер Кинге Альфа',
+  '−1039,97 обед в Бургер Кинге Альфа',
+  '1039,97 обед в Бургер Кинге Альфа',
+  'обед в Бургер Кинге 1039,97 Альфа'
+ ]){
+  const t=parse(text,{companyLunchEnabled:true});
+  assert.equal(t.type,'expense',text);
+  assert.equal(t.cat,'food',text);
+  assert.equal(t.accountId,'a',text);
+  assert.equal(t.amount,1039.97,text);
+  assert.deepEqual(t.tags,['обед-за-свои'],text);
+  const next=putTransaction({...structuredClone(EMPTY),accounts},t);
+  assert.equal(next.accounts[0].balance,3960.03,text);
+ }
+});
+test('Unmarked corporate lunch shortcut stays available, but named personal accounts do not become company money',()=>{
+ for(const text of ['обед 379','Обед компании 379','обед за счёт компании 379']){
+  const tx=parse(text,{companyLunchEnabled:true});
+  assert.equal(tx.type,'lunch',text);assert.equal(tx.amount,379,text);assert.equal(tx.accountId,undefined,text);
+ }
+ const personal=parse('обед 379 Альфа');
+ assert.equal(personal.type,'expense');assert.equal(personal.accountId,'a');assert.equal(personal.amount,379);
+});
