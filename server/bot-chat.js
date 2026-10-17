@@ -1,3 +1,4 @@
+import {duePayments} from '../src/due-payments.js';
 import {quickDefaults,compactTransaction,actionOutcome,actionDestination} from './bot-dialog.js';
 import {repeatEntry} from '../src/entry-assist.js';
 import {CATEGORIES} from '../src/mini-model.js';
@@ -143,6 +144,14 @@ export async function botChat(update,env,userId,api){
  const callback=update.callback_query,message=update.message;
  if(callback?.data?.startsWith('b:')){
   await api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});const [,action,id,arg,extra]=callback.data.split(':');
+  if(action==='n'){
+   const state=await api.readState(env,userId),today=todayMoscow(state.data.settings.timeZone);
+   const item=duePayments(state.data,today).find(x=>x.id===arg&&(id==='p'?x.kind==='plan'&&x.period===extra:id==='i'?x.kind==='installment':id==='d'&&x.kind==='debt'));
+   if(!item){await send(api,env,userId,'Этот платёж уже закрыт или изменён. Показываю актуальный список.');await showBotView(env,userId,api,'due');return true;}
+   await pauseForm(env,userId);
+   const returnTo={name:'due',args:{}};
+   await start(env,userId,api,item.kind==='plan'?'confirmPlan':item.kind==='installment'?'payInstallment':'repay',{...(item.kind==='plan'?{id:item.id,period:item.period}:item.kind==='installment'?{id:item.planId,paymentId:item.id}:{id:item.id}),returnTo});return true;
+  }
   if(action==='v'&&id==='app'){await api.command('/app');return true;}
   if(action==='v'){await pauseForm(env,userId);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   let loaded;try{loaded=await load(env,userId,id);}catch{const receipt=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,'bot:'+id).first();return render(env,userId,api,{title:receipt?'✅ Это действие уже выполнено':'Эта карточка уже закрыта',lines:[receipt?'Повторной записи не будет. Открой историю, чтобы посмотреть результат.':'Открой актуальный раздел.'],actions:[view('✍️ Записать','add'),view('История','history'),view('Главная','home')]});}const {p}=loaded;

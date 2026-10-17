@@ -1,7 +1,8 @@
+import {duePayments,paymentCallback} from '../src/due-payments.js';
+import {money} from '../src/mini-model.js';
 import {lunchDayRatio,lunchCalendarVerified} from '../src/lunch-budget.js';
 import {clockAt,settingTime,timeMinutes,DEFAULT_ZONE} from '../src/time-settings.js';
 import {moduleEnabled} from '../src/modules.js';
-import {plannedOccurrences,planType} from '../src/planned-model.js';
 import {reminderText} from '../src/reminder-settings.js';
 export const moscowClock=now=>clockAt(now);
 export function checkSchedule(data,today){
@@ -25,7 +26,7 @@ export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
  if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&due(timeMinutes(settingTime(s,'lunchAsk',11)))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&lunchDayRatio(data,today)>0&&!hasLunch&&!lunch?.status){
   const reminder=lunchReminder(today);if(!lunchCalendarVerified(data,today))reminder.text+='\n⚠️ Календарь года ещё не проверен: рабочий день и лимит предварительные.';reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,...reminder});
  }
- if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&due(timeMinutes(settingTime(s,'plannedReminder',18)))){const due=plannedOccurrences(data,today,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,...plannedReminder(due)});}
+ if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&due(timeMinutes(settingTime(s,'plannedReminder',18)))){const due=duePayments(data,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,...paymentReminder(due)});}
  if(!due(timeMinutes(settingTime(s,'report',21))))return reports;
  if(s.dailyReport!==false)reports.push({id:'day:'+today,from:today,to:today,title:'Итог дня'});
  if(s.weeklyReport!==false&&local.getUTCDay()===0){const from=new Date(local);from.setUTCDate(from.getUTCDate()-6);reports.push({id:'week:'+today,from:from.toISOString().slice(0,10),to:today,title:'Итог недели'});}
@@ -35,4 +36,6 @@ export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
 
 export function expenseReminder(data,today,attempt=0){const s=data.settings||{};return {text:'Проверим расходы\n'+reminderText(s,today,attempt),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},{text:'Сегодня без трат',callback_data:'check:'+today+':none'}],[{text:'Ещё не всё',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}};}
 export function lunchReminder(today){return {text:'Обед сегодня?\nЗа компанию или за свои — выбери ниже.',reply_markup:{inline_keyboard:[[{text:'Заказал · за счёт компании',callback_data:'lunch:'+today+':company'}],[{text:'Купил за свои',callback_data:'lunch:'+today+':own'},{text:'Не заказал',callback_data:'lunch:'+today+':skip'}],[{text:'Отключить вопросы',callback_data:'lunch:'+today+':off'}]]}};}
-export function plannedReminder(due){return {text:'Планы на сегодня\n'+due.slice(0,5).map(i=>(planType(i.rule)==='income'?'Доход: ':'Расход: ')+i.rule.name+' · '+i.date).join('\n')+(due.length>5?'\nЕщё '+(due.length-5)+' в приложении':'')+'\nПроверь сумму и подтверди, когда операция состоялась.'};}
+
+
+export function paymentReminder(items){return {text:'📅 Платежи на сегодня\n'+items.slice(0,5).map(x=>`${x.income?'＋':'−'} ${x.name} · ${x.amount===null?'уточнить сумму':money(x.amount,x.currency)}${x.date?' · '+x.date:''}`).join('\n')+(items.length>5?'\nЕщё '+(items.length-5)+' в списке':'')+'\nПодтверди, когда деньги действительно переданы.',reply_markup:{inline_keyboard:[...items.slice(0,5).map(x=>[{text:(x.income?'＋ Получил · ':'✓ Оплатил · ')+x.name.slice(0,35),callback_data:paymentCallback(x)}]),[{text:'Все платежи',callback_data:'b:v:due'}]]}};}
