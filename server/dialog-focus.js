@@ -16,6 +16,6 @@ export function correctionBelongsToDraft(message,field,promptId){
 }
 export function userSwitchedDialog(update){
  const text=navigationCommand(String(update?.message?.text||'').trim());
- if(update?.callback_query?.data?.startsWith('b:'))return true;
+ if(['b:','nav:','notify:'].some(prefix=>update?.callback_query?.data?.startsWith(prefix)))return true;
  return Object.hasOwn(BOT_SECTIONS,text)||['/start','/menu','/add','/import','/app','/summary','/cancel','Отмена'].includes(text);
 }

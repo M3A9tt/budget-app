@@ -130,6 +130,7 @@ async function handleTelegram(update,env) {
       else await pauseBotForm(env,userId,botApi);
       return;
     }
+    if(update.message&&['/cancel','Отмена'].includes((update.message.text||'').trim())&&await habitAmount(env,userId,update.message,habitApi)){await cancelBotFlow(env,userId,botApi);return;}
     if(await botChat(update,env,userId,botApi)){
       return;
     }
@@ -138,7 +139,7 @@ async function handleTelegram(update,env) {
       if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await showBotView(env,userId,botApi,'more');else if(action==='updates')await send(releaseText());else if(action==='help')await showBotView(env,userId,botApi,'help');else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
       if(await lunchChatCallback(env,userId,callback,lunchChatApi)){await pauseBotForm(env,userId,botApi);return;}
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
-      if(await habitCallback(env,userId,callback,{...habitApi,openExpense:async day=>{await pauseLunchEdit(env,userId);await pauseHabitInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});}}))return;
+      if(await habitCallback(env,userId,callback,{...habitApi,openExpense:async day=>{await pauseLunchEdit(env,userId);await pauseHabitInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});}})){if(callback.data?.startsWith('lunch:')){await pauseBotForm(env,userId,botApi);await pauseLunchEdit(env,userId);}return;}
       if(data.startsWith('notify:')){
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки в чате'});
         await showBotView(env,userId,botApi,'settingGroup',{group:'reminders'});return;

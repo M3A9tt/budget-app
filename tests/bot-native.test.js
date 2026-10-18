@@ -287,3 +287,14 @@ test('Completing a day while its form opens cannot be overwritten by the delayed
  assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='expense'").get(today).status,'done');
  assert.equal(f.snapshot().transactions.length,0);
 }));
+
+test('Lunch reminder pauses another active form; text cancellation releases both input owners',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');
+ await f.update('/accounts');await f.press(/Банк/);await f.press('Переименовать');
+ await setDayCheck(f.env,'111',today,'lunch','open');await f.update('','lunch:'+today+':company');
+ const draft=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload);assert.equal(draft.paused,true);
+ await f.update('379');assert.match(f.last().text,/Обед за счёт компании/);assert.equal(f.snapshot().accounts[0].name,'Банк');
+ await f.update('/cancel');assert.equal(f.sqlite.prepare("SELECT count(*) n FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().n,0);
+ assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='lunch'").get(today).status,'open');
+ assert.equal(f.snapshot().transactions.length,0);
+}));
