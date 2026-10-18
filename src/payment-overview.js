@@ -1,11 +1,11 @@
-import {plannedOccurrences,planType} from './planned-model.js';
+import {budgetWindow,scheduledEvents} from './finance-events.js';
 import {paidInstallment,installmentRemaining,installmentRemainders} from './finance-tools.js';
 import {debtRemaining} from './debt-state.js';
 export {debtRemaining} from './debt-state.js';
 export function paymentOverview(data,today){
- const date=new Date(today+'T12:00:00Z');date.setUTCDate(date.getUTCDate()+30);const until=data.settings.nextIncomeDate>today?data.settings.nextIncomeDate:date.toISOString().slice(0,10);
+ const window=budgetWindow(data,today),until=window.until;
  const rub=(amount,currency)=>amount*(data.rates[currency||'RUB']||1);
- const plans=plannedOccurrences(data,today,until).filter(({rule})=>planType(rule)==='expense');
+ const plans=scheduledEvents(data,today,until).filter(e=>e.source==='plan'&&e.type==='expense'&&(!window.exclusive||e.date<until)).map(e=>({rule:data.recurring.find(r=>r.id===e.sourceId),date:e.date,period:e.period,overdue:e.overdue}));
  const installmentIndex=installmentRemainders(data);
  const installments=(data.installments||[]).map(plan=>({...plan,unpaid:plan.payments.filter(p=>!paidInstallment(data,p,installmentIndex))})).filter(p=>p.unpaid.length);
  const debts=(data.debts||[]).map(d=>({...d,remaining:debtRemaining(d,data)})).filter(d=>d.remaining>0);

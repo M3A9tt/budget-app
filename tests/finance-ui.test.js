@@ -5,10 +5,10 @@ import {createRequire} from 'node:module';
 import {buildSync} from 'esbuild';
 import React from 'react';
 import TestRenderer,{act} from 'react-test-renderer';
-import {EMPTY,CATEGORIES,dashboard} from '../src/mini-model.js';
+import {EMPTY,CATEGORIES,dashboard,todayMoscow,money} from '../src/mini-model.js';
 import {orderedAccounts,accountTotals} from '../src/account-balances.js';
 import {putTransaction} from '../src/ledger.js';
-const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';",resolveDir:new URL('..',import.meta.url).pathname,loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
+const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';",resolveDir:new URL('..',import.meta.url).pathname,loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
 const ctx={module:{exports:{}},exports:{},require,Intl,Date,console,structuredClone,window:{scrollTo:()=>{}},crypto:globalThis.crypto};ctx.exports=ctx.module.exports;vm.runInNewContext(bundle,ctx);const ui=ctx.module.exports;
 const state=()=>({...structuredClone(EMPTY),accounts:[{id:'zero',name:'Пустой счёт',balance:0,currency:'RUB'},{id:'small',name:'Малый счёт',balance:100,currency:'RUB'},{id:'fx',name:'Доллары',balance:20,currency:'USD'},{id:'large',name:'Большой счёт',balance:1000,currency:'RUB'},{id:'reserve',name:'Резервный счёт',balance:3000,currency:'RUB',savingsKind:'deposit'}]});
 const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.children?text(x.children):'';
@@ -39,4 +39,19 @@ test('Entry account picker orders all regular accounts, makes zero destinations 
 });
 test('Transfer/reconcile options share ordering and keep zero-balance destinations',()=>{
  const v=mount('AccountTools',{data:state(),action:'transfer',mutate:()=>{}}),selects=v.root.findAllByType('select');for(const select of selects.slice(0,2))assert.deepEqual(select.findAllByType('option').map(x=>x.props.value).filter(Boolean),['reserve','fx','large','small','zero']);v.unmount();
+});
+
+test('Readable analytics drills into exact income/category periods and keeps charts secondary',()=>{
+ const today=todayMoscow(),data=state();data.transactions=[{id:'food',type:'expense',cat:'food',amount:150,date:today,note:'Продукты'},{id:'salary',type:'income',cat:'income',amount:500,date:today}];let filter,edited;
+ const v=mount('AnalyticsPage',{data,onInspect:x=>filter=x,onEdit:x=>edited=x});assert.ok(text(v.toJSON()).includes('Ты потратил'));assert.equal(v.root.findAllByProps({className:'ins-bars'}).length,0);
+ click(v,x=>x.props['aria-label']?.startsWith('Расходы '));assert.equal(filter.type,'expense');assert.equal(filter.from,today.slice(0,7)+'-01');assert.equal(filter.to,today);
+ const incoming=v.root.findByProps({className:'report-income-row'}).findByType('button');act(()=>incoming.props.onClick());assert.equal(filter.type,'income');
+ click(v,x=>labelText(x)==='7 дней');click(v,x=>x.props.className==='report-category');assert.equal(filter.cat,'food');assert.equal(filter.type,'expense');assert.equal(filter.from,new Date(Date.parse(today+'T12:00:00Z')-6*86400000).toISOString().slice(0,10));
+ click(v,x=>x.props.className==='report-purchase');assert.equal(edited.id,'food');v.unmount();
+});
+test('Calendar review changes no balance before the common form and expected income is an explicit scenario',()=>{
+ const today=todayMoscow(),data=state();data.settings.nextIncomeDate='';data.recurring=[{id:'due',name:'Свет',active:true,frequency:'once',type:'expense',startDate:today,amount:100,accountId:'large',currency:'RUB',cat:'housing'},{id:'salary',name:'Доход',active:true,frequency:'once',type:'income',startDate:today,amount:500,accountId:'large',currency:'RUB'}];const before=structuredClone(data);let draft;
+ const v=mount('MoneyCalendar',{data,onPrepare:x=>draft=x});const amount=()=>text(v.root.findByProps({className:'money-forecast-total'}).findByType('strong').toJSON?.()||{children:v.root.findByProps({className:'money-forecast-total'}).findByType('strong').children});assert.equal(amount(),money(2840));
+ const toggle=v.root.findByType('input');act(()=>toggle.props.onChange({target:{checked:true}}));assert.equal(amount(),money(3340));
+ click(v,x=>x.props.className==='money-event'&&text(x).includes('Свет'));assert.deepEqual(data,before);click(v,x=>labelText(x)==='Сумма другая');assert.equal(draft.amount,'');assert.equal(draft.recurringId,'due');assert.equal(draft.date,today);assert.deepEqual(data,before);v.unmount();
 });

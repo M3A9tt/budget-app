@@ -73,3 +73,18 @@ test('Bot deletion and Mini App undo share linked lunch records, balances, recei
  const {undoTransaction}=await import('../src/ledger.js'),restored=undoTransaction(deleted.data,deleted.data.history[0]);assert.equal((await call('state','PUT',{expectedRevision:deleted.revision,data:restored},{'Idempotency-Key':'undo-linked-delete'})).status,200);const after=await read();assert.equal(after.data.transactions.length,2);assert.equal(after.data.accounts[0].balance,9950);
  }finally{sqlite.close();}
 });
+
+test('Recognized source, shared form receipt, financial fact and day answer commit atomically; competing form cannot repeat it',async()=>{
+ const {call,data,sqlite,env}=fixture();try{
+ await call('state','PUT',{expectedRevision:0,data});
+ sqlite.exec("CREATE TABLE lunch_chat_drafts(id TEXT PRIMARY KEY,user_id TEXT,payload TEXT,status TEXT,field TEXT DEFAULT '',expires_at INTEGER,lease_until INTEGER DEFAULT 0)");
+ sqlite.prepare("INSERT INTO lunch_chat_drafts(id,user_id,payload,status,expires_at) VALUES('source','111','{}','open',?)").run(Date.now()+60000);
+ const read=async()=>await(await call('state')).json(),state=await read(),values={amount:350,date:'2026-10-01',currency:'RUB',cat:'lunch',note:'Суп'},p={kind:'bot-form',op:'tx',args:{type:'lunch',recognizedLunch:{sourceId:'source'}},values,revision:state.revision};
+ const add=(id,p)=>sqlite.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').run(id,'111',JSON.stringify(p),Date.now()+60000);
+ add('recognized-1',p);add('recognized-2',p);
+ sqlite.exec("CREATE TRIGGER fail_recognition BEFORE UPDATE ON lunch_chat_drafts WHEN NEW.status='saved' BEGIN SELECT RAISE(ABORT,'source failure'); END");
+ await assert.rejects(commitBotAction(env,'111','recognized-1',p,read));assert.equal((await read()).data.transactions.length,0);assert.equal(sqlite.prepare("SELECT consumed FROM telegram_drafts WHERE id='recognized-1'").get().consumed,0);assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM user_idempotency WHERE id='bot:recognized-1'").get().n,0);assert.equal(sqlite.prepare("SELECT status FROM lunch_chat_drafts WHERE id='source'").get().status,'open');
+ sqlite.exec('DROP TRIGGER fail_recognition');await commitBotAction(env,'111','recognized-1',p,read);await commitBotAction(env,'111','recognized-1',p,read);let current=await read();assert.equal(current.data.transactions.length,1);assert.equal(current.data.accounts[0].balance,10000);assert.equal(sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day='2026-10-01' AND kind='lunch'").get().status,'recorded');assert.equal(sqlite.prepare("SELECT status FROM lunch_chat_drafts WHERE id='source'").get().status,'saved');
+ const second={...p,revision:current.revision};sqlite.prepare("UPDATE telegram_drafts SET payload=? WHERE id='recognized-2'").run(JSON.stringify(second));await assert.rejects(commitBotAction(env,'111','recognized-2',second,read),/заказ уже закрыт/);assert.equal((await read()).data.transactions.length,1);
+ }finally{sqlite.close();}
+});

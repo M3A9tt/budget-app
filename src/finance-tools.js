@@ -1,8 +1,6 @@
+import {cashTimeline} from './finance-events.js';
 import {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
 export {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
-import {debtDues} from './debt-state.js';
-import {accountTotals,isSavingAccount} from './account-balances.js';
-import {plannedOccurrences,planType} from './planned-model.js';
 import {parseMoney,roundMoney,putTransaction,transferMoney} from './ledger.js';
 const id=()=>crypto.randomUUID();
 export function validDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;}
@@ -38,23 +36,10 @@ export function payInstallment(data,{planId,paymentId,date}){
 }
 export function forecast(data,today,days=30){
  if(!Number.isInteger(days)||days<1||days>366)throw Error('Прогноз — от 1 до 366 дней');
- const installmentIndex=installmentRemainders(data);
  const past=new Date(today+'T12:00:00Z');past.setUTCDate(past.getUTCDate()-29);const from=past.toISOString().slice(0,10);
- const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&!t.debtId&&t.date>=from&&t.date<=today);
- const daily=rows.reduce((n,t)=>n+(t.amountRub??t.amount*(data.rates[t.currency||'RUB']||1)),0)/30;
- let balance=accountTotals(data).spendable,unknown=0;
- const limit=new Date(today+'T12:00:00Z');limit.setUTCDate(limit.getUTCDate()+days);const plansByDate=new Map();for(const item of plannedOccurrences(data,today,limit.toISOString().slice(0,10))){if(isSavingAccount(data.accounts.find(a=>a.id===item.rule.accountId)))continue;if(!plansByDate.has(item.date))plansByDate.set(item.date,[]);plansByDate.get(item.date).push(item.rule);}
- const points=[];let expectedBalance=balance,plannedIncome=0,plannedExpense=0,overdue=0;
- for(const item of plannedOccurrences(data,today,today))if(planType(item.rule)==='expense'&&!item.rule.variable&&!isSavingAccount(data.accounts.find(a=>a.id===item.rule.accountId)))overdue+=item.rule.amount*(data.rates[item.rule.currency||'RUB']||1);
- for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const pay of p.payments)if(pay.date<=today&&!paidInstallment(data,pay,installmentIndex))overdue+=installmentRemaining(data,pay,installmentIndex)*(data.rates[p.currency]||1);
- for(const debt of debtDues(data))if(debt.date<=today)overdue+=debt.amount*(data.rates[debt.currency]||1);
- balance=roundMoney(balance-overdue);expectedBalance=balance;
- for(let i=1;i<=days;i++){const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+i);const date=d.toISOString().slice(0,10);let due=0,income=0;
- for(const r of plansByDate.get(date)||[]){if(r.variable)unknown++;else if(planType(r)==='income')income+=r.amount*(data.rates[r.currency||'RUB']||1);else due+=r.amount*(data.rates[r.currency||'RUB']||1);}
- for(const p of data.installments||[])if(!isSavingAccount(data.accounts.find(a=>a.id===p.accountId)))for(const pay of p.payments)if(pay.date===date&&!paidInstallment(data,pay,installmentIndex))due+=installmentRemaining(data,pay,installmentIndex)*(data.rates[p.currency]||1);
- for(const debt of debtDues(data))if(debt.date===date)due+=debt.amount*(data.rates[debt.currency]||1);
- balance=roundMoney(balance-daily-due);expectedBalance=roundMoney(expectedBalance-daily-due+income);plannedIncome=roundMoney(plannedIncome+income);plannedExpense=roundMoney(plannedExpense+due);points.push({date,balance,expectedBalance,income,due});}
- return {actualBalance:roundMoney(accountTotals(data).spendable),plannedIncome,plannedExpense,overdue:roundMoney(overdue),daily:roundMoney(daily),points,unknown,activeDays:new Set(rows.map(t=>t.date)).size,firstNegative:points.find(p=>p.balance<0)?.date};
+ const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&!t.debtId&&t.date>=from&&t.date<=today),daily=rows.reduce((n,t)=>n+(t.amountRub??t.amount*(data.rates[t.currency||'RUB']||1)),0)/30;
+ const timeline=cashTimeline(data,today,days,daily),overdue=timeline.points[0].due;
+ return {...timeline,points:timeline.points.slice(1),plannedIncome:timeline.plannedIncome,plannedExpense:roundMoney(timeline.points.slice(1).reduce((n,p)=>n+p.due,0)),overdue,daily:roundMoney(daily),activeDays:new Set(rows.map(t=>t.date)).size};
 }
 // RFC-style quoted CSV, semicolon/tab/comma delimiters; no evaluation of formulas.
 export function csvRows(text){

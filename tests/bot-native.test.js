@@ -90,7 +90,7 @@ test('Opening a section sends the image with its real actions immediately; text 
   const before=f.sent.length;await showBotView(f.env,'111',api,name);const messages=f.sent.slice(before).filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia'].includes(x.method));assert.equal(messages.length,1);assert.equal(messages[0].method,'sendPhoto');assert.ok(f.last().reply_markup.inline_keyboard[0][0].web_app);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='📄 Скачать PNG'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='🖼 Показать картинкой'));
  }
  assert.equal(captures,4); // savings and goals reuse the same current snapshot.
- await showBotView(f.env,'111',api,'analytics',{chart:'categories',days:7});assert.match(f.last().text,/Последние 7 дней/);const beforeText=captures;await showBotView(f.env,'111',api,'analytics',{textOnly:true});assert.equal(f.sent.at(-1).method,'sendMessage');assert.equal(captures,beforeText);
+ await showBotView(f.env,'111',api,'analytics',{chart:'categories',days:7});assert.match(f.last().text,/Разобраться в деньгах · 7 дней/);const beforeText=captures;await showBotView(f.env,'111',api,'analytics',{textOnly:true});assert.equal(f.sent.at(-1).method,'sendMessage');assert.equal(captures,beforeText);
  await showBotView(f.env,'111',api,'home');await f.press('✍️ Записать');assert.match(f.last().text,/Что записать/);assert.equal(f.snapshot().transactions.length,0);
 }));
 test('Savings and goals page buttons match six items in the image',()=>{
@@ -409,3 +409,22 @@ test('Remembered foreign spending cannot preselect a foreign account for a ruble
   await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9800);assert.equal(f.snapshot().accounts[2].balance,100);
  },d);
 });
+
+test('Forwarded orders use the common form, allow two genuine orders and deduplicate the same Telegram message',()=>run(async f=>{
+ const extra={message_id:700,forward_origin:{type:'hidden_user',date:Math.floor(Date.now()/1000),sender_user_name:'Sender'}},text='Сотрудник (9001)\nСуп 100р\nГорячее 250р';
+ await f.update(text,undefined,111,extra);assert.match(f.last().text,/Оплачивает компания/);let save=f.button('✅ Подтвердить');assert.ok(save.startsWith('b:c:'));const p=f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE owner='111' AND consumed=0 AND id GLOB 'bf_*'").get();assert.ok(JSON.parse(p.payload).args.recognizedLunch);await f.update('',save);await f.update('',save);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,10000);
+ await f.update(text,undefined,111,extra);assert.match(f.last().text,/уже записан/);assert.equal(f.snapshot().transactions.length,1);
+ await f.update(text,undefined,111,{...extra,message_id:701});await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,2);assert.notEqual(f.snapshot().transactions[0].id,f.snapshot().transactions[1].id);assert.equal(f.sqlite.prepare("SELECT COUNT(*) n FROM user_idempotency WHERE id GLOB 'lunch-chat:*'").get().n,0);
+}));
+test('Legacy lc save opens the common review and an old successful receipt cannot save again',()=>run(async f=>{
+ await f.update('/menu');
+ f.sqlite.exec("CREATE TABLE IF NOT EXISTS lunch_chat_drafts(id TEXT PRIMARY KEY,user_id TEXT,payload TEXT,status TEXT,field TEXT DEFAULT '',expires_at INTEGER,lease_until INTEGER DEFAULT 0)");
+ const payload={tx:{type:'lunch',cat:'lunch',currency:'RUB',date:today,amount:350,note:'Суп'},parsed:{amount:350,note:'Суп',warning:[]}};
+ f.sqlite.prepare("INSERT INTO lunch_chat_drafts(id,user_id,payload,status,expires_at) VALUES('old','111',?,'open',?)").run(JSON.stringify(payload),Date.now()+60000);
+ await f.update('','lc:save:old');assert.equal(f.snapshot().transactions.length,0);assert.ok(f.button('✅ Подтвердить').startsWith('b:c:'));await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,1);await f.update('','lc:save:old');assert.equal(f.snapshot().transactions.length,1);
+ f.sqlite.prepare("INSERT INTO lunch_chat_drafts(id,user_id,payload,status,expires_at) VALUES('saved-before','111',?,'open',?)").run(JSON.stringify(payload),Date.now()+60000);f.sqlite.prepare("INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) VALUES('111','lunch-chat:saved-before','x','{}',?)").run(Date.now());await f.update('','lc:save:saved-before');assert.equal(f.snapshot().transactions.length,1);
+}));
+test('Recognized correction uses common fields, keeps source day and applies learning only with consent',()=>run(async f=>{
+ await f.update('Сотрудник (9001)\nСуп 100р\nВторое 300р',undefined,111,{message_id:850,forward_date:Math.floor(Date.now()/1000)});const stale=f.button('✅ Подтвердить');await f.press('✏️ Изменить поля');await f.press(/Стоимость обеда/);await f.update('300');await f.update('',stale);assert.equal(f.snapshot().transactions.length,0);
+ await f.update('/add');await f.press('▶️ Продолжить запись');await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions[0].amount,300);assert.equal(f.snapshot().transactions[0].date,today);assert.equal(f.sqlite.prepare("SELECT COUNT(*) n FROM lunch_learning WHERE status='pending'").get().n,1);assert.equal(f.snapshot().accounts[0].balance,10000);
+}));

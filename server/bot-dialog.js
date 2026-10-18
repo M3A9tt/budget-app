@@ -1,3 +1,4 @@
+import {lunchBudget} from '../src/lunch-budget.js';
 import {CATEGORIES,money,todayMoscow} from '../src/mini-model.js';
 import {entryDefaults} from '../src/entry-assist.js';
 import {debtRemaining} from '../src/debt-state.js';
@@ -9,9 +10,10 @@ export function quickDefaults(data,args){
 }
 export function compactTransaction(data,p){
  const v=p.values,type=p.values.type||p.args.type||'expense',account=data.accounts.find(a=>a.id===v.accountId),cat=CATEGORIES.concat(data.customCats||[]).find(c=>c.id===v.cat);
+ const extra=[];if(type==='lunch'&&p.args.recognizedLunch){const day=lunchBudget(data,v.date.slice(0,7),todayMoscow(data.settings.timeZone)).days.find(d=>d.date===v.date);extra.push(...(p.args.recognizedLunch.parsed?.warning||[]));if(day)extra.push(`Остаток лимита дня после записи: ${money(day.limit-day.company-Number(v.amount||0))}`);}
  return [`${type==='income'?'+':type==='expense'?'−':''}${money(v.amount,v.currency||'RUB')} · ${type==='lunch'?'Обед компании':type==='income'?'Доход':cat?.name||'Другое'}`,
   type==='lunch'?'Оплачивает компания':account?`${account.name} · ${money(account.balance,account.currency)}`:'Без счёта — остатки счетов не изменятся',
-  v.note||'',`${v.date===todayMoscow(data.settings.timeZone)?'Сегодня':v.date}${v.paymentMethod==='sbp'?' · СБП':''}`].filter(Boolean);
+  v.note||'',...extra,`${v.date===todayMoscow(data.settings.timeZone)?'Сегодня':v.date}${v.paymentMethod==='sbp'?' · СБП':''}`].filter(Boolean);
 }
 export function actionDestination(p){if(p.op==='homeLayout')return {name:'homeLayout',args:{}};if(p.op==='module')return {name:'modules',args:{}};
  const id=p.args.id;
