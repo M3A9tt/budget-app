@@ -1,5 +1,5 @@
 import {initialProfile} from '../src/home-layout.js';
-import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence} from './state-persistence.js';
+import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence,readReceipt} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
 import {botChat,showBotView,openQuickEntry,startBotForm,pauseBotForm,cancelBotFlow} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
@@ -66,8 +66,8 @@ async function writeTransaction(env,userId,input,key) {
   if(!key||key.length>160)throw new Error('Нужен уникальный Idempotency-Key');
   const state=await readState(env,userId);
   const requestHash=await hashRequest(input);
-  const prior=await env.DB.prepare('SELECT result,request_hash FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,key).first();
-  if(prior){if(prior.request_hash!==requestHash)throw new Error('Ключ уже использован для другой операции');return JSON.parse(prior.result);}
+  const stored=async()=>{const prior=await readReceipt(env,userId,key);if(!prior)return null;if(prior.requestHash!==requestHash)throw Error('Ключ уже использован для другой операции');return prior.result;};
+  const prior=await stored();if(prior)return prior;
   const next=migrateData(putTransaction(state.data,input),EMPTY),tx=next.history[0].after;
   const result={transaction:tx,revision:state.revision+1};
   // SQLite transaction: INSERT result succeeds only for the matching snapshot.
@@ -77,7 +77,7 @@ async function writeTransaction(env,userId,input,key) {
     env.DB.prepare("UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND EXISTS(SELECT 1 FROM user_idempotency WHERE user_id=? AND id=?)").bind(encodeState(next),new Date().toISOString(),userId,state.revision,userId,key),
     trimBackups(env,userId)
   ]);
-  if(rows[2].meta.changes!==1)throw new Error('Конфликт обновления. Повторите с тем же ключом');
+  if(rows[2].meta.changes!==1){const completed=await stored();if(completed)return completed;throw new Error('Конфликт обновления. Повторите с тем же ключом');}
   return result;
 }
 async function telegram(env,method,body) {
@@ -236,9 +236,10 @@ export default {
         const input=JSON.parse(text),key=request.headers.get('Idempotency-Key');
         if(key&&(!/^[a-zA-Z0-9:_-]{1,160}$/.test(key)))return json({error:'Неверный ключ сохранения'},400);
         const receipt=key?'state:'+key:null,hash=receipt?await hashRequest(input):null;
-        if(receipt){const prior=await env.DB.prepare('SELECT request_hash,result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,receipt).first();if(prior)return prior.request_hash===hash?json(JSON.parse(prior.result)):json({error:'Ключ сохранения уже использован'},409);}
+        const stored=async()=>{const prior=await readReceipt(env,userId,receipt);return prior?(prior.requestHash===hash?json(prior.result):json({error:'Ключ сохранения уже использован'},409)):null;};
+        const prior=await stored();if(prior)return prior;
         const data=migrateData(input.data,EMPTY),current=await readState(env,userId);
-        if(current.revision!==input.expectedRevision)return json({error:'Revision conflict'},409);
+        if(current.revision!==input.expectedRevision)return await stored()||json({error:'Revision conflict'},409);
         validateStateChange(current.data,data);delete data._pinHash;const result={revision:input.expectedRevision+1};
         const rows=await env.DB.batch([
           backupBefore(env,userId,input.expectedRevision),
@@ -246,7 +247,7 @@ export default {
           ...(receipt?[env.DB.prepare('INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) SELECT ?,?,?,?,? WHERE changes()=1').bind(userId,receipt,hash,JSON.stringify(result),Date.now())]:[]),
           trimBackups(env,userId)
         ]);
-        if(rows[1].meta.changes!==1)return json({error:'Revision conflict'},409);
+        if(rows[1].meta.changes!==1)return await stored()||json({error:'Revision conflict'},409);
         return json(result);
       }
       if(request.method==='POST'&&url.pathname==='/api/v1/transactions')return json(await writeTransaction(env,userId,await request.json(),request.headers.get('Idempotency-Key')),201);

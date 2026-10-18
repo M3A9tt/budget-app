@@ -51,8 +51,9 @@ function prepare(data, tx) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(tx.date) || Number.isNaN(Date.parse(tx.date+'T00:00:00Z')) || new Date(tx.date + 'T00:00:00Z').toISOString().slice(0,10) !== tx.date) throw new Error('Неверная дата');
   const currency = tx.currency || 'RUB';
   const old=data.transactions.find(t=>t.id===tx.id);
-  const unchanged=old&&old.amount===amount&&(old.currency||'RUB')===currency&&old.accountId===tx.accountId;
-  const amountRub = unchanged&&Number.isFinite(old.amountRub)?old.amountRub:roundMoney(amount * rate(data, currency));
+  const sameAmount=old&&old.amount===amount&&(old.currency||'RUB')===currency;
+  const unchanged=sameAmount&&old.accountId===tx.accountId;
+  const amountRub = sameAmount&&Number.isFinite(old.amountRub)?old.amountRub:roundMoney(amount * rate(data, currency));
   if(tx.paymentMethod&&!['card','sbp','cash','bank','unknown'].includes(tx.paymentMethod))throw new Error('Неверный способ оплаты');
   if(tx.balanceEffect&&!['normal','history-only'].includes(tx.balanceEffect))throw new Error('Неверный режим остатка');
   if(!Number.isFinite(amountRub)||amountRub<0||amountRub>1e14)throw Error('Слишком большая сумма после пересчёта валюты');
@@ -61,7 +62,7 @@ function prepare(data, tx) {
   const lunch = tx.type === 'lunch' || tx.cat === 'lunch';
   return {...tx, id: tx.id || newId(), amount, currency, amountRub,
     accountId: lunch ? undefined : tx.accountId,
-    accountAmount: lunch || !account ? 0 : unchanged&&Number.isFinite(old.accountAmount)?old.accountAmount:roundMoney(amountRub / rate(data, account.currency)),
+    accountAmount: lunch || !account ? 0 : unchanged&&Number.isFinite(old.accountAmount)?old.accountAmount:currency===(account.currency||'RUB')?amount:roundMoney(amountRub / rate(data, account.currency)),
     revision: (tx.revision || 0) + 1, updatedAt: new Date().toISOString()};
 }
 function log(data, entry) {
@@ -103,6 +104,9 @@ export function deleteTransaction(data, id) {
   return log(reconcileRecurring({...next,transactions:next.transactions.filter(t => t.id !== id)},tx.recurringId), {type:'delete_tx',before:tx});
 }
 export function undoTransaction(data, entry) {
+  // Only a still-available journal event can be reversed. Never trust cached fields.
+  entry=(data.history||[]).find(h=>h.id===entry?.id);
+  if(!entry||!['add_tx','edit_tx','delete_tx'].includes(entry.type))throw Error('Это изменение уже отменено или отсутствует в истории. Обновите данные');
   let next = data;
   const current = entry.after && data.transactions.find(t => t.id === entry.after.id);
   if (entry.type === 'delete_tx') {
