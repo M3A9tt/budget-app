@@ -2,7 +2,8 @@ import {createServer} from 'vite';
 const server=await createServer({root:process.cwd(),server:{host:'127.0.0.1',port:0}});await server.listen();
 const origin='http://127.0.0.1:'+server.httpServer.address().port;
 import {chromium} from 'playwright-core';
-import {EMPTY,todayMoscow} from '../src/mini-model.js';
+import {build} from 'esbuild';
+import {EMPTY,demoData,todayMoscow} from '../src/mini-model.js';
 import {putTransaction} from '../src/ledger.js';
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const screenshotDir=process.env.BROWSER_SCREENSHOT_DIR||'/tmp/burget-browser-qa';
@@ -46,5 +47,15 @@ for(const width of [320,360,430,768,1280]){
  await page.setViewportSize({width,height:900});await checkOverflow('calendar '+width);await page.screenshot({path:screenshotDir+'/calendar-'+width+'.png',fullPage:true});
  await page.getByRole('button',{name:'Куда ушли',exact:true}).click();await checkOverflow('report '+width);await page.screenshot({path:screenshotDir+'/analytics-'+width+'.png',fullPage:true});await page.getByRole('button',{name:/Что впереди/}).click();
 }
-assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; no page errors.');
+// Summary images use the same exact-period model as their full text.
+const reportBundle=await build({entryPoints:['server/report-html.jsx'],bundle:true,write:false,format:'esm',platform:'browser',loader:{'.css':'text'}});
+const {renderReportHtml}=await import('data:text/javascript;base64,'+Buffer.from(reportBundle.outputFiles[0].contents).toString('base64'));
+await page.setViewportSize({width:640,height:1600});
+for(const [name,source,from] of [['day',demoData(today),today],['week',demoData(today),past(-6)],['empty',structuredClone(EMPTY),today]]){
+ await page.setContent(renderReportHtml(source,{kind:'summary',from,to:today,title:name==='week'?'Итог недели':'Итог дня'}));
+ await page.locator('.summary-hero').waitFor();
+ const bounds=await page.locator('#report-card').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth,height:e.clientHeight}));assert.equal(bounds.width,640);assert.ok(bounds.scroll<=641);assert.ok(bounds.height<2000);
+ await page.locator('#report-card').screenshot({path:screenshotDir+'/summary-'+name+'.png'});
+}
+assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; day/week/empty summary cards; no page errors.');
 }finally{await browser?.close();await server.close();}

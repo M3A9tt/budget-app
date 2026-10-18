@@ -4,6 +4,8 @@ import {renderToStaticMarkup} from 'react-dom/server.browser';
 import {BudgetHero,SpendChart,CategoryChart,ForecastChart,GoalsChart} from '../src/Insights.jsx';
 import {SavingsWidget} from '../src/HomeWidgets.jsx';
 import LunchPage from '../src/LunchPage.jsx';
+import {periodSummaryData} from './period-summary.js';
+import {money} from '../src/mini-model.js';
 import {todayMoscow} from '../src/mini-model.js';
 import mini from '../src/mini.css';
 import insights from '../src/insights.css';
@@ -23,10 +25,20 @@ html,body{margin:0;background:#10131d;color:#f2f3f5;width:640px;overflow:visible
 #report-card .lunch-table-scroll{overflow:visible}#report-card .lunch-table{width:100%;min-width:0;font-size:14px}#report-card .lunch-table th,#report-card .lunch-table td{padding:9px 7px}#report-card .lunch-metrics strong{font-size:21px}#report-card .lunch-metrics small{font-size:12px}#report-card .lunch-caption{font-size:12px}
 #report-card .home-savings-widget{margin:0}#report-card .home-savings-total{font-size:36px}#report-card .home-saving-purpose-list button{min-height:68px}#report-card .home-saving-purpose-list small{font-size:12px}
 #report-card .ins-forecast{height:auto;max-height:280px}#report-card input[type=date]{border:0;background:transparent;color:inherit;padding:0;margin:0 0 10px 8px;font-size:13px}
+
+.summary-hero{padding:28px;border:1px solid #3b5147;border-radius:24px;background:linear-gradient(125deg,#233d31,#1b2630)}
+.summary-label{font-size:18px;color:#becbc4}.summary-total{font-size:58px;line-height:1.2;font-weight:750;margin:10px 0 20px;letter-spacing:-2px;overflow-wrap:anywhere}
+.summary-stats{display:grid;grid-template-columns:1fr 1fr;gap:18px}.summary-stats strong{display:block;font-size:27px;margin-top:7px}.summary-stats span{font-size:16px;color:#bac4c6}
+.summary-section{padding:24px;border-radius:22px;background:#1b202b}.summary-section h2{font-size:22px;margin:0 0 20px}.summary-row{display:flex;justify-content:space-between;gap:20px;margin:16px 0 8px;font-size:19px}.summary-row span{overflow-wrap:anywhere;min-width:0}.summary-row strong{flex-shrink:0}.summary-bar{height:7px;background:#303844;border-radius:7px;overflow:hidden}.summary-bar i{display:block;height:100%;background:#b4ec8b}.summary-note{font-size:16px;line-height:1.5;color:#acb9bd;margin:18px 0 0}
 `;
+function SummaryCard({data,params}){
+ const r=periodSummaryData(data,params.from,params.to,params.title);
+ return <><section className="summary-hero"><span className="summary-label">Записанные личные расходы</span><div className="summary-total">{money(r.expense)}</div><div className="summary-stats"><div><span>Поступило</span><strong>{money(r.income)}</strong></div><div><span>Доходы − расходы</span><strong>{money(r.income-r.expense)}</strong></div></div><p className="summary-note">Учтено операций: {r.count}. Переводы между своими счетами и обеды компании не входят в расходы.</p></section><section className="summary-section"><h2>На что ушли деньги</h2>{r.categories.length?r.categories.map(c=><div key={c.id}><div className="summary-row"><span>{c.name}</span><strong>{money(c.value)}</strong></div><div className="summary-bar"><i style={{width:c.value/r.expense*100+'%'}}/></div></div>):<p className="summary-note">Личных расходов за эти даты не записано.</p>}{r.lunch>0&&<p className="summary-note">Обеды за счёт компании · {money(r.lunch)}</p>}</section><section className="summary-section"><div className="summary-label">Доступно сейчас после известных платежей</div><div className="summary-total" style={{fontSize:42}}>{money(r.free)}</div><p className="summary-note">На повседневных счетах {money(r.actual)}. Накопления отдельно. Это текущие остатки, а не итог выбранного периода.</p></section></>;
+}
 export function ReportCard({data,params,createdAt}){
- const today=todayMoscow(data.settings.timeZone),titles={budget:'Твой бюджет',analytics:`Расходы · ${params.days} дней`,categories:`На что уходят деньги · ${params.days} дней`,forecast:'Прогноз остатка',lunch:'Обеды · '+params.month,savings:'Накопления и цели'};
- return <article id="report-card" className={"report-"+params.kind} data-render-ready="true"><header className="report-brand"><strong>Бюрджет</strong><span>{today} · снимок миниаппы</span></header><h1 className="report-heading">{titles[params.kind]}</h1><div className="report-body">
+ const today=todayMoscow(data.settings.timeZone),titles={budget:'Твой бюджет',analytics:`Расходы · ${params.days} дней`,categories:`На что уходят деньги · ${params.days} дней`,forecast:'Прогноз остатка',lunch:'Обеды · '+params.month,savings:'Накопления и цели',summary:params.title};
+ return <article id="report-card" className={"report-"+params.kind} data-render-ready="true"><header className="report-brand"><strong>Бюрджет</strong><span>{params.kind==='summary'?(params.from===params.to?params.from:params.from+' — '+params.to):today+' · снимок миниаппы'}</span></header><h1 className="report-heading">{titles[params.kind]}</h1><div className="report-body">
+ {params.kind==='summary'&&<SummaryCard data={data} params={params}/>}
  {params.kind==='budget'&&<BudgetHero data={data}/>}
  {params.kind==='analytics'&&<SpendChart data={data} days={params.days} onInspect={noop}/>}
  {params.kind==='categories'&&<CategoryChart data={data} days={params.days} onInspect={noop}/>}
