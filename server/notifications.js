@@ -5,6 +5,7 @@ import {clockAt,settingTime,timeMinutes,DEFAULT_ZONE} from '../src/time-settings
 import {moduleEnabled} from '../src/modules.js';
 import {reminderText} from '../src/reminder-settings.js';
 export const moscowClock=now=>clockAt(now);
+export const expenseCheckStopped=status=>['done','none','off','editing'].includes(status);
 export function checkSchedule(data,today){
  const s=data.settings||{},start=timeMinutes(settingTime(s,'check',20))/60,interval=s.checkInterval??1;
  let repeats=s.checkRepeats??0;
@@ -17,10 +18,20 @@ export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
  const{date:today,minutes}=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE),s=data.settings||{},reports=[],local=new Date(today+'T12:00:00Z');
  const due=slot=>minutes===slot||(catchUp&&minutes>slot&&minutes-slot<=15);
  const answered=kind=>responses.find(r=>r.day===today&&r.kind===kind),expense=answered('expense'),lunch=answered('lunch');
- const slots=checkSchedule(data,today).map(h=>Math.round(h*60)),payload=expense?.payload?JSON.parse(expense.payload):{},nextMinute=payload.nextMinute??(payload.nextHour!==undefined?payload.nextHour*60:null);
- const eligible=[...slots,...(nextMinute===null?[]:[nextMinute])].filter(slot=>due(slot)&&(nextMinute===null||slot>=nextMinute)),slot=eligible.length?Math.max(...eligible):null;
- if(s.expenseCheckEnabled===true&&!['done','none','off'].includes(expense?.status)&&(nextMinute===null||minutes>=nextMinute)&&slot!==null){
-  reports.push({id:'check:'+today+':'+slot,kind:'expense',day:today,...expenseReminder(data,today,slots.indexOf(slot))});
+ const slots=checkSchedule(data,today).map(h=>Math.round(h*60)),payload=expense?.payload?JSON.parse(expense.payload):{};
+ const legacyMinute=payload.nextMinute??(payload.nextHour!==undefined?payload.nextHour*60:null);
+ const eligible=(legacyMinute===null?slots:[legacyMinute]).filter(due),slot=eligible.length?Math.max(...eligible):null;
+ if(s.expenseCheckEnabled===true){
+  if(!expenseCheckStopped(expense?.status)&&!payload.nextAt&&slot!==null){
+   reports.push({id:'check:'+today+':'+slot,kind:'expense',day:today,...expenseReminder(data,today,slots.indexOf(slot))});
+  }
+  // A chosen delay is an instant, while the question retains its original day.
+  for(const response of responses.filter(r=>r.kind==='expense'&&!expenseCheckStopped(r.status))){
+   const {nextAt}=JSON.parse(response.payload||'{}'),lag=now.getTime()-nextAt;
+   if(Number.isFinite(nextAt)&&lag>=0&&lag<(catchUp?16:1)*60000){
+    reports.push({id:'check:'+response.day+':snooze-'+nextAt,kind:'expense',day:response.day,snoozeAt:nextAt,...expenseReminder(data,response.day)});
+   }
+  }
  }
  const hasLunch=data.transactions.some(t=>t.date===today&&(t.type==='lunch'||t.cat==='lunch'));
  if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&due(timeMinutes(settingTime(s,'lunchAsk',11)))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&lunchDayRatio(data,today)>0&&!hasLunch&&!lunch?.status){
@@ -34,7 +45,7 @@ export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
  return reports;
 }
 
-export function expenseReminder(data,today,attempt=0){const s=data.settings||{};return {text:'Проверим расходы\n'+reminderText(s,today,attempt),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},{text:'Сегодня без трат',callback_data:'check:'+today+':none'}],[{text:'Ещё не всё',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}};}
+export function expenseReminder(data,today,attempt=0){const s=data.settings||{};return {text:'Проверим расходы\nЗа '+today+'\n'+reminderText(s,today,attempt),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},{text:'Сегодня без трат',callback_data:'check:'+today+':none'}],[{text:'Ещё не всё',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}};}
 export function lunchReminder(today){return {text:'Обед сегодня?\nЗа компанию или за свои — выбери ниже.',reply_markup:{inline_keyboard:[[{text:'Заказал · за счёт компании',callback_data:'lunch:'+today+':company'}],[{text:'Купил за свои',callback_data:'lunch:'+today+':own'},{text:'Не заказал',callback_data:'lunch:'+today+':skip'}],[{text:'Отключить вопросы',callback_data:'lunch:'+today+':off'}]]}};}
 
 
