@@ -60,7 +60,7 @@ function prepare(data, tx) {
   const account = tx.accountId ? data.accounts.find(a => a.id === tx.accountId) : null;
   if (tx.accountId && !account) throw new Error('Счёт не найден');
   const lunch = tx.type === 'lunch' || tx.cat === 'lunch';
-  return {...tx, id: tx.id || newId(), amount, currency, amountRub,
+  return {...tx, ...(tx._lunchCheckDay?{_lunchCheckDay:tx.date}:{}), id: tx.id || newId(), amount, currency, amountRub,
     accountId: lunch ? undefined : tx.accountId,
     accountAmount: lunch || !account ? 0 : unchanged&&Number.isFinite(old.accountAmount)?old.accountAmount:currency===(account.currency||'RUB')?amount:roundMoney(amountRub / rate(data, account.currency)),
     revision: (tx.revision || 0) + 1, updatedAt: new Date().toISOString()};

@@ -1,3 +1,5 @@
+import {lunchEntryArgs} from './lunch-entry.js';
+import {legacyLunchInput,legacySaveCallback} from './legacy-lunch.js';
 import {initialProfile} from '../src/home-layout.js';
 import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence,readReceipt} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
@@ -16,7 +18,7 @@ import {sendFeedback} from './feedback.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {broadcastRelease} from './releases.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
-import {dayChecks,notificationChecks,setDayCheck,pauseHabitInput,habitCallback,habitAmount} from './habits.js';
+import {notificationChecks,setDayCheck,pauseLegacyLunchInput,habitCallback} from './habits.js';
 import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invitedUsers,setMemberAccess} from './users.js';
 import {dashboard,EMPTY,CATEGORIES,demoData,money} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
@@ -120,8 +122,9 @@ async function handleTelegram(update,env) {
   const showHome=text=>telegram(env,'sendMessage',{chat_id:userId,text,reply_markup:botKeyboard(env.MINI_APP_URL)});
   const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);await send(periodSummary(state.data,from,today,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period]));};
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
+  const formApi={...botApi,openForm:(op,args)=>startBotForm(env,userId,botApi,op,args),openLunch:async(day,type,prefill={},review=false)=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{...lunchEntryArgs(day,type,prefill),review});}};
   try {
-    if(userSwitchedDialog(update)&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim()))){await pauseLunchEdit(env,userId);await pauseHabitInput(env,userId);}
+    if(userSwitchedDialog(update)&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim()))){await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);}
     // One dispatcher arbitrates typed messages before individual dialog handlers.
     // Explicit meal replies and forwarded orders own their messages; the previous
     // bot form is suspended instead of silently consuming another form's answer.
@@ -130,7 +133,7 @@ async function handleTelegram(update,env) {
       else await pauseBotForm(env,userId,botApi);
       return;
     }
-    if(update.message&&['/cancel','Отмена'].includes((update.message.text||'').trim())&&await habitAmount(env,userId,update.message,habitApi)){await cancelBotFlow(env,userId,botApi);return;}
+    if(update.message&&await legacyLunchInput(env,userId,update.message,formApi)){if(['/cancel','Отмена'].includes((update.message.text||'').trim()))await cancelBotFlow(env,userId,botApi);return;}
     if(await botChat(update,env,userId,botApi)){
       return;
     }
@@ -139,7 +142,7 @@ async function handleTelegram(update,env) {
       if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await showBotView(env,userId,botApi,'more');else if(action==='updates')await send(releaseText());else if(action==='help')await showBotView(env,userId,botApi,'help');else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
       if(await lunchChatCallback(env,userId,callback,lunchChatApi)){await pauseBotForm(env,userId,botApi);return;}
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
-      if(await habitCallback(env,userId,callback,{...habitApi,openExpense:async day=>{await pauseLunchEdit(env,userId);await pauseHabitInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});}})){if(callback.data?.startsWith('lunch:')){await pauseBotForm(env,userId,botApi);await pauseLunchEdit(env,userId);}return;}
+      if(await habitCallback(env,userId,callback,{...habitApi,openLunch:formApi.openLunch,openExpense:async day=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});}}))return;
       if(data.startsWith('notify:')){
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки в чате'});
         await showBotView(env,userId,botApi,'settingGroup',{group:'reminders'});return;
@@ -152,17 +155,7 @@ async function handleTelegram(update,env) {
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:enabled?'Доступ восстановлен':'Доступ закрыт'});
         await send(enabled?'Доступ восстановлен. Бюджет сохранён.':'Доступ закрыт. Данные сохранены.');return;
       }
-      if(data.startsWith('save:')) {
-        const id=data.slice(5),draft=await env.DB.prepare('SELECT * FROM telegram_drafts WHERE id=? AND owner=?').bind(id,userId).first();
-        if(!draft||draft.expires_at<Date.now())throw new Error('Карточка устарела — отправьте покупку заново');
-        const payload=JSON.parse(draft.payload);
-        if(payload._lunchCheckDay){const check=(await dayChecks(env,userId,payload._lunchCheckDay)).find(r=>r.kind==='lunch');if(check?.status==='skipped')throw Error('Обед отмечен как пропущенный. Измени ответ в мини-аппе.');const current=await readState(env,userId);if(payload.type==='lunch'&&current.data.transactions.some(t=>t.date===payload.date&&(t.type==='lunch'||t.cat==='lunch')&&!t._lunchCheckDay))throw Error('Обед за этот день уже записан в приложении.');}
-        const result=await writeTransaction(env,userId,payload,payload._lunchCheckDay?'lunch-day:'+payload._lunchCheckDay:'tg-draft:'+id);
-        if(payload._lunchCheckDay)await setDayCheck(env,userId,payload._lunchCheckDay,'lunch','recorded');
-        await env.DB.prepare('UPDATE telegram_drafts SET consumed=1 WHERE id=? AND owner=?').bind(id,userId).run();
-        await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Записано'});
-        await telegram(env,'editMessageText',{chat_id:chat.id,message_id:callback.message.message_id,text:`✅ Записано: ${result.transaction.note||'Операция'} · ${money(result.transaction.amount,result.transaction.currency)}`,reply_markup:{inline_keyboard:[]}});
-      }
+      if(await legacySaveCallback(env,userId,callback,formApi))return;
       return;
     }
     const text=navigationCommand((update.message.text||'').trim());
@@ -193,9 +186,8 @@ async function handleTelegram(update,env) {
     if(text==='/web'){const code=await issueWebCode(env,userId);await send('Одноразовый код входа в веб-версию (5 минут):\n'+code+'\nОткройте адрес приложения в браузере и вставьте код. Не передавайте его другим.');return;}
     if(['/today','/week','/month'].includes(text)){await showSummary({'/today':'day','/week':'week','/month':'month'}[text]);return;}
     if(update.message.document){await showBotView(env,userId,botApi,'backup');await send('Для выписки выбери «Ещё → Импорт», для полного бэкапа — «Восстановить из файла», затем отправь файл.');return;}
-    if(await habitAmount(env,userId,update.message,habitApi)){await pauseLunchEdit(env,userId);return;}
     await openQuickEntry(env,userId,botApi,text);
-    await pauseHabitInput(env,userId);
+    await pauseLegacyLunchInput(env,userId);
     await pauseLunchEdit(env,userId);
   } catch(e){await send(e.message);}
 }

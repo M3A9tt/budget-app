@@ -262,7 +262,7 @@ test('Cancelling a dated expense keeps completion and snooze controls; unrelated
 test('A previous-day lunch amount keeps the reminder date and never debits personal accounts',()=>run(async f=>{
  const {setDayCheck}=await import('../server/habits.js'),day=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
  await setDayCheck(f.env,'111',day,'lunch','open');await f.update('','lunch:'+day+':company');
- assert.match(f.last().text,new RegExp(day));const {promptId}=JSON.parse(f.sqlite.prepare("SELECT payload FROM user_day_checks WHERE day=? AND kind='lunch'").get(day).payload);
+ assert.match(f.last().text,new RegExp(day));const {promptId}=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload);
  await f.update('379,50',undefined,111,{reply_to_message:{message_id:promptId}});
  const save=f.last().reply_markup.inline_keyboard[0][0].callback_data;await f.update('',save);
  assert.equal(f.snapshot().transactions[0].date,day);assert.equal(f.snapshot().accounts[0].balance,10000);
@@ -271,7 +271,7 @@ test('A previous-day lunch amount keeps the reminder date and never debits perso
 test('An unfinished meal question cannot capture unrelated purchases or revive after navigation',()=>run(async f=>{
  const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
  await f.update('','lunch:'+today+':company');await f.update('кофе 180 Банк');
- assert.match(f.last().text,/Запись операции/);await f.press('✅ Подтвердить');
+ assert.match(f.last().text,/незавершённая/);await f.press('Начать заново');assert.match(f.last().text,/Запись операции/);await f.press('✅ Подтвердить');
  assert.equal(f.snapshot().transactions[0].type,'expense');assert.equal(f.snapshot().accounts[0].balance,9820);
  assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND kind='lunch' AND day=?").get(today).status,'open');
  assert.equal(f.snapshot().transactions.length,1);
@@ -293,7 +293,7 @@ test('Lunch reminder pauses another active form; text cancellation releases both
  await f.update('/accounts');await f.press(/Банк/);await f.press('Переименовать');
  await setDayCheck(f.env,'111',today,'lunch','open');await f.update('','lunch:'+today+':company');
  const draft=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload);assert.equal(draft.paused,true);
- await f.update('379');assert.match(f.last().text,/Обед за счёт компании/);assert.equal(f.snapshot().accounts[0].name,'Банк');
+ assert.match(f.last().text,/незавершённая/);await f.press('Начать заново');await f.update('379');assert.match(f.last().text,/Обед за счёт компании/);assert.equal(f.snapshot().accounts[0].name,'Банк');
  await f.update('/cancel');assert.equal(f.sqlite.prepare("SELECT count(*) n FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().n,0);
  assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='lunch'").get(today).status,'open');
  assert.equal(f.snapshot().transactions.length,0);
@@ -309,5 +309,103 @@ test('Bot account reassignment and undo share historical FX valuation with the M
   assert.equal(f.snapshot().transactions[0].amountRub,920);assert.equal(f.snapshot().accounts[0].balance,10000);assert.equal(f.snapshot().accounts[2].balance,90);
   await f.press('↩️ Отменить изменение');await f.press('✅ Подтвердить');
   assert.equal(f.snapshot().accounts[0].balance,9080);assert.equal(f.snapshot().accounts[2].balance,100);assert.equal(f.snapshot().transactions[0].amountRub,920);
+ },d);
+});
+
+test('Meal reminders create only shared forms and atomically save both transaction and day answer',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ await f.update('','lunch:'+today+':company');
+ assert.equal(f.sqlite.prepare("SELECT count(*) n FROM telegram_drafts WHERE id NOT GLOB 'bf_*' AND id NOT GLOB 'bv_*'").get().n,0);
+ assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='lunch'").get(today).status,'open');
+ await f.update('379');const confirm=f.button('✅ Подтвердить');
+ f.sqlite.exec("CREATE TRIGGER reject_lunch_mark BEFORE UPDATE ON user_day_checks WHEN NEW.status='recorded' BEGIN SELECT RAISE(ABORT,'test failure'); END;");
+ await f.update('',confirm);assert.equal(f.snapshot().transactions.length,0);assert.equal(f.snapshot().accounts[0].balance,10000);
+ assert.equal(f.sqlite.prepare("SELECT count(*) n FROM user_idempotency WHERE user_id='111'").get().n,0);
+ assert.equal(f.sqlite.prepare("SELECT count(*) n FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().n,1);
+ f.sqlite.exec('DROP TRIGGER reject_lunch_mark');await f.update('',confirm);await f.update('',confirm);
+ assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0]._lunchCheckDay,today);assert.equal(f.snapshot().accounts[0].balance,10000);
+ assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='lunch'").get(today).status,'recorded');
+ assert.equal(f.sqlite.prepare("SELECT count(*) n FROM user_idempotency WHERE id LIKE 'lunch-day:%'").get().n,0);
+}));
+
+test('Own meal shares account editing, exact debit, personal lunch tags and day completion',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ await f.update('','lunch:'+today+':own');await f.update('250');await f.press('💳 Счёт');await f.press(/Наличный резерв/);await f.press('✅ Подтвердить');
+ const d=f.snapshot();assert.equal(d.accounts[0].balance,10000);assert.equal(d.accounts[1].balance,1750);assert.equal(d.transactions.length,1);assert.equal(d.transactions[0].type,'expense');assert.ok(d.transactions[0].tags.includes('обед-за-свои'));
+ const sent=f.sent.filter(x=>x.method==='sendMessage').length;await f.update('','lunch:'+today+':company');assert.equal(f.sent.filter(x=>x.method==='sendMessage').length,sent);
+}));
+
+test('Legacy amount prompts become shared previews with the original day and selected account',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js'),day=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
+ await setDayCheck(f.env,'111',day,'lunch','amount',{type:'own',accountId:'reserve',promptId:77});
+ await f.update('120',undefined,111,{reply_to_message:{message_id:77}});
+ const draft=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload);
+ assert.equal(draft.args.lunchCheckDay,day);assert.equal(draft.values.accountId,'reserve');assert.equal(draft.values.date,day);assert.equal(f.snapshot().transactions.length,0);
+ await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[1].balance,1880);assert.equal(f.snapshot().transactions[0].date,day);
+}));
+
+test('Legacy save buttons convert once and require current shared review without direct financial writes',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ const id='old-meal',tx={type:'lunch',cat:'lunch',amount:379,date:today,currency:'RUB',note:'Старый обед',_lunchCheckDay:today};
+ f.sqlite.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').run(id,'111',JSON.stringify(tx),Date.now()+60000);
+ await f.update('','save:'+id,222);assert.equal(f.snapshot().transactions.length,0);
+ await f.update('','save:'+id);const confirm=f.button('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,0);assert.equal(f.snapshot().accounts[0].balance,10000);
+ await f.update('','save:'+id);assert.equal(f.sqlite.prepare("SELECT count(*) n FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().n,1);
+ await f.update('',confirm);await f.update('','save:'+id);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0].note,'Старый обед');
+}));
+
+test('A previously saved legacy receipt cannot be converted into another meal',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','recorded');
+ f.sqlite.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').run('paid-old','111',JSON.stringify({type:'lunch',amount:379,currency:'RUB',date:today,_lunchCheckDay:today}),Date.now()+60000);
+ f.sqlite.prepare('INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) VALUES(?,?,?,?,?)').run('111','lunch-day:'+today,'old-hash',JSON.stringify({revision:1}),Date.now());
+ await f.update('','save:paid-old');assert.equal(f.sqlite.prepare("SELECT count(*) n FROM telegram_drafts WHERE id GLOB 'bf_*'").get().n,0);assert.equal(f.snapshot().transactions.length,0);
+}));
+
+test('Old account-choice buttons preserve their original index when opening the shared meal form',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','account',{choices:['reserve','bank']});
+ await f.update('','lunch:'+today+':account:0');await f.update('50');await f.press('✅ Подтвердить');
+ assert.equal(f.snapshot().accounts[0].balance,10000);assert.equal(f.snapshot().accounts[1].balance,1950);
+}));
+
+test('A competing company meal prevents the shared reminder from recording a duplicate',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ await f.update('','lunch:'+today+':company');await f.update('379');const stale=f.button('✅ Подтвердить');
+ const d=f.snapshot();d.transactions.push({id:'from-miniapp',type:'lunch',cat:'lunch',currency:'RUB',date:today,amount:300});
+ f.sqlite.prepare("UPDATE user_finance_state SET data=?,revision=revision+1 WHERE user_id='111'").run(JSON.stringify(d));
+ await f.update('',stale);assert.match(f.last().text,/уже записан/);assert.equal(f.snapshot().transactions.length,1);
+ assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,10000);
+}));
+
+test('Deleting a reminder meal allows a fresh answer; old form confirmation remains idempotent',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ await f.update('','lunch:'+today+':own');await f.update('200');const old=f.button('✅ Подтвердить');await f.update('',old);
+ await f.press('↩️ Отменить изменение');await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions.length,0);assert.equal(f.snapshot().accounts[0].balance,10000);
+ await f.update('',old);assert.equal(f.snapshot().transactions.length,0);
+ await f.update('','lunch:'+today+':own');await f.update('220');await f.press('✅ Подтвердить');
+ assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,9780);
+}));
+
+test('A skipped day cannot be saved by an already open reminder form',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ await f.update('','lunch:'+today+':own');await f.update('200');const confirm=f.button('✅ Подтвердить');
+ await setDayCheck(f.env,'111',today,'lunch','skipped');await f.update('',confirm);
+ assert.match(f.last().text,/уже сохранён или изменён/);assert.equal(f.snapshot().transactions.length,0);assert.equal(f.snapshot().accounts[0].balance,10000);
+}));
+
+test('A reminder date cannot silently mark another day; ordinary date editing moves its source marker with the fact',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js'),{putTransaction}=await import('../src/ledger.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ await f.update('','lunch:'+today+':own');await f.update('200');await f.press('✏️ Изменить поля');await f.press('Дата');
+ const day=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);await f.update(day);
+ assert.match(f.last().text,/Этот вопрос относится/);assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(b=>b.text==='✅ Подтвердить'));assert.equal(f.snapshot().transactions.length,0);
+ let d=putTransaction(f.snapshot(),{type:'expense',cat:'food',currency:'RUB',amount:100,date:today,accountId:'bank',_lunchCheckDay:today});d=putTransaction(d,{...d.transactions[0],date:day});
+ assert.equal(d.transactions[0]._lunchCheckDay,day);assert.equal(d.accounts[0].balance,9900);
+}));
+
+test('Remembered foreign spending cannot preselect a foreign account for a ruble meal reminder',()=>{
+ const d=seed();d.accounts.push({id:'usd',name:'Доллар',currency:'USD',balance:100});d.transactions=[{id:'foreign',type:'expense',cat:'food',amount:10,currency:'USD',date:today,accountId:'usd',accountAmount:10,amountRub:920}];
+ return run(async f=>{
+  const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');await f.update('','lunch:'+today+':own');await f.update('200');
+  const form=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload);assert.equal(form.values.accountId,'bank');assert.equal(form.values.currency,'RUB');
+  await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9800);assert.equal(f.snapshot().accounts[2].balance,100);
  },d);
 });
