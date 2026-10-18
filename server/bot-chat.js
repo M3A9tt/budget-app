@@ -1,3 +1,4 @@
+import {accountMentions} from '../src/input-intent.js';
 import {load,create,replace,pendingForm} from './bot-drafts.js';
 import {moduleEnabled} from '../src/modules.js';
 import {parseEntry,parseOwnTransfer,entryType} from '../src/quick-entry.js';
@@ -67,7 +68,7 @@ async function resumeMenu(env,userId,api,active,op,args){return render(env,userI
 async function start(env,userId,api,op,args={}){
  const active=await pendingForm(env,userId);if(active&&!args.forceNew)return resumeMenu(env,userId,api,active,op,args);
  await cancelBotFlow(env,userId,api);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...(op==='tx'&&!args.id?quickDefaults(s.data,args):{}),...initialValues(s.data,op,args),...args.prefill},step:args.quickInput?1:0,status:'form',revision:s.revision};
- if(args.ownLunch){p.values.note='Обед за свои';p.values.cat='food';p.values.tags=['обед-за-свои'];}
+ if(args.ownLunch){p.values.note=p.values.note||'Обед за свои';p.values.cat='food';p.values.tags=['обед-за-свои'];}
  const id=await create(env,userId,p,'bf_');if(args.review)return preview(env,userId,api,id,p);if(op==='restore')await api.sendFile(env,userId,s.data,'byurdzhet-before-restore.json');return prompt(env,userId,api,id,p);
 }
 async function prompt(env,userId,api,id,p,page=0){
@@ -81,7 +82,7 @@ async function prompt(env,userId,api,id,p,page=0){
  const current=Object.hasOwn(p.values,f.key)?p.values[f.key]:f.default;
  if(f.optional||(current!==undefined&&current!==''&&(f.type!=='choice'||items.some(([v])=>String(v)===String(current)))))rows.push([{text:f.optional&&current===''?'Пропустить':`Оставить: ${short(items.find(([v])=>String(v)===String(current))?.[1]??(current===''?'пусто':f.type==='document'?'выбранный файл':current),35)}`,callback_data:`b:k:${id}:${p.step}`}]);
  if(p.step>0)rows.push([{text:'← Назад',callback_data:'b:b:'+id}]);rows.push([{text:'✕ Отмена',callback_data:'b:x:'+id}]);
- const message=await formCard(env,userId,api,id,`✍️ ${f.label}\n\n${f.type==='choice'?(items.length?'Выбери вариант кнопкой.':'Подходящих записей нет. Создай их в соответствующем разделе.'):f.type==='document'?'Отправь файл или вставь содержимое.':'Напиши ответ сообщением.'}`,{inline_keyboard:rows},p.values);
+ const message=await formCard(env,userId,api,id,`✍️ ${f.label}\n${p.args.lunchCheckDay?'Обед за '+p.args.lunchCheckDay+'\n':''}\n${f.type==='choice'?(items.length?'Выбери вариант кнопкой.':'Подходящих записей нет. Создай их в соответствующем разделе.'):f.type==='document'?'Отправь файл или вставь содержимое.':'Напиши ответ сообщением.'}`,{inline_keyboard:rows},p.values);
  // A reply to an old prompt must never become the answer to a later field.
  const loaded=await load(env,userId,id);if(loaded.p.step===p.step&&loaded.p.status==='form')await replace(env,userId,loaded.row,{...loaded.p,promptId:message?.message_id});
 }
@@ -198,6 +199,7 @@ export async function botChat(update,env,userId,api){
  if(update.update_id!==undefined&&p.lastUpdate!==undefined&&update.update_id<=p.lastUpdate)return true;
  if(message.reply_to_message&&p.promptId&&message.reply_to_message.message_id!==p.promptId){await send(api,env,userId,'Это ответ на старый шаг. Ответь на последнее сообщение или /cancel.');return true;}
  const s=await api.readState(env,userId),f=fieldsFor(s.data,p.op,p.args,p.values)[p.step];if(message.reply_to_message?.text&&f&&!message.reply_to_message.text.split('\n')[0].includes(f.label)){await send(api,env,userId,'Это ответ на старый шаг. Ответь на последнее сообщение или /cancel.');return true;}if(!f){await preview(env,userId,api,row.id,p);return true;}
+ if(f.key==='amount'&&!message.reply_to_message&&accountMentions(text,s.data.accounts).length){let intent;try{intent=parseEntry(text,s.data.accounts,CATEGORIES.concat(s.data.customCats||[]),todayMoscow(s.data.settings.timeZone),{allowMissingAccount:true,companyLunchEnabled:moduleEnabled(s.data,'lunch')});}catch{}if(intent){await pauseBotForm(env,userId,api);await openQuickEntry(env,userId,api,text);return true;}}
  if(f.type==='choice'){await prompt(env,userId,api,row.id,p);return true;}
  if(message.document&&f.type!=='document')throw Error('Сейчас нужен ответ на поле, а не файл');
  const value=message.document?await api.readDocument(env,message.document,f.max):text;const parsed=parseField(f,value);const next={...p,values:{...p.values,[f.key]:parsed},step:p.editing?fieldsFor(s.data,p.op,p.args,{...p.values,[f.key]:parsed}).length:p.step+1,editing:false,lastUpdate:update.update_id};await replace(env,userId,row,next);await prompt(env,userId,api,row.id,next);return true;

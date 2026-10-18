@@ -4,7 +4,8 @@ import {debtRemaining} from '../src/debt-state.js';
 import {goalSaved,installmentRemaining} from '../src/finance-tools.js';
 export function quickDefaults(data,args){
  const type=args.type||'expense';
- return entryDefaults(data,type,todayMoscow(data.settings.timeZone),CATEGORIES.concat(data.customCats||[]));
+ const source=args.accountCurrency?{...data,accounts:data.accounts.filter(a=>(a.currency||'RUB')===args.accountCurrency)}:data;
+ return entryDefaults(source,type,todayMoscow(data.settings.timeZone),CATEGORIES.concat(data.customCats||[]));
 }
 export function compactTransaction(data,p){
  const v=p.values,type=p.values.type||p.args.type||'expense',account=data.accounts.find(a=>a.id===v.accountId),cat=CATEGORIES.concat(data.customCats||[]).find(c=>c.id===v.cat);
