@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {EMPTY} from '../src/mini-model.js';import {spendingReport,matchesInsight} from '../src/analytics-report.js';
+const today='2026-10-18',base=()=>({...structuredClone(EMPTY),transactions:[{id:'old',type:'expense',cat:'food',amount:100,date:'2026-09-30'},{id:'now',type:'expense',cat:'food',amount:10,currency:'USD',amountRub:900,date:'2026-10-01',note:'Продукты'},{id:'rent',type:'expense',cat:'housing',amount:200,date:'2026-10-02',recurringId:'rent'},{id:'salary',type:'income',amount:2000,date:'2026-10-03'},{id:'company',type:'lunch',cat:'lunch',amount:400,date:'2026-10-02'},{id:'future',type:'expense',cat:'food',amount:99999,date:'2026-10-19'}]});
+test('Readable report totals reconcile to the exact drilldown records using historical rates',()=>{
+ const d=base(),r=spendingReport(d,today,'month');assert.equal(r.days,18);assert.equal(r.from,'2026-10-01');assert.equal(r.previousFrom,'2026-09-13');assert.equal(r.previousTo,'2026-09-30');assert.equal(r.total,1100);assert.equal(r.previous,100);assert.equal(r.income,2000);assert.equal(r.net,900);assert.equal(r.count,2);assert.equal(r.largest[0].id,'now');assert.equal(r.categories[0].previous,100);assert.equal(r.changes[0].change,800);assert.equal(r.recordedDays,3);
+ const matches=d.transactions.filter(t=>matchesInsight(t,{...r.filter,type:'expense'}));assert.deepEqual(matches.map(t=>t.id),['now','rent']);assert.equal(r.fixed,200);assert.deepEqual(matches.filter(t=>matchesInsight(t,{fixed:true})).map(t=>t.id),['rent']);assert.deepEqual(d.transactions.filter(t=>matchesInsight(t,{...r.filter,type:'income'})).map(t=>t.id),['salary']);
+});
+test('A disappeared category still explains a decrease and points to its previous operations',()=>{
+ const d=base();d.transactions.push({id:'oldTransport',type:'expense',cat:'transport',amount:3000,date:'2026-09-29'});const r=spendingReport(d,today);assert.equal(r.changes[0].id,'transport');assert.equal(r.changes[0].value,0);assert.equal(r.changes[0].change,-3000);
+});
+test('Empty and partial history has finite values and never fabricates a savings result',()=>{
+ const r=spendingReport(structuredClone(EMPTY),today,'7');assert.equal(r.total,0);assert.equal(r.count,0);assert.equal(r.previousCount,0);assert.equal(r.recordedDays,0);assert.deepEqual(r.categories,[]);assert.throws(()=>spendingReport(base(),today,'90'));
+ const d=base();d.transactions=[{id:'d',type:'expense',cat:'deleted',amount:10,date:today,debtId:'debt'}];const partial=spendingReport(d,today,'30');assert.equal(partial.fixed,10);assert.equal(partial.categories[0].name,'Без категории');assert.equal(partial.previousRecordedDays,0);
+});

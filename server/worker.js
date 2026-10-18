@@ -98,7 +98,7 @@ async function mutateState(env,userId,change){
  if(rows[1].meta.changes!==1)throw Error('Данные изменились. Повтори действие.');
 }
 const habitApi={readState,mutateState,telegram};
-const lunchChatApi={readState,writeTransaction,telegram,setDayCheck};
+const lunchChatApi={readState,telegram};
 async function handleTelegram(update,env) {
   const source=update.callback_query?.from||update.message?.from;
   const chat=update.callback_query?.message?.chat||update.message?.chat;
@@ -123,14 +123,14 @@ async function handleTelegram(update,env) {
   const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);await send(periodSummary(state.data,from,today,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period]));};
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
   const formApi={...botApi,openForm:(op,args)=>startBotForm(env,userId,botApi,op,args),openLunch:async(day,type,prefill={},review=false)=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{...lunchEntryArgs(day,type,prefill),review});}};
+  const recognizedApi={...lunchChatApi,openRecognized:async(sourceId,payload)=>{await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{type:'lunch',prefill:payload.tx,review:!!payload.tx.amount,recognizedLunch:{sourceId,parsed:payload.parsed},returnTo:{name:'lunch',args:{month:payload.tx.date.slice(0,7)}}});}};
   try {
     if(userSwitchedDialog(update)&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim()))){await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);}
     // One dispatcher arbitrates typed messages before individual dialog handlers.
     // Explicit meal replies and forwarded orders own their messages; the previous
     // bot form is suspended instead of silently consuming another form's answer.
-    if(update.message&&await lunchChatMessage(env,userId,update.message,lunchChatApi)){
+    if(update.message&&await lunchChatMessage(env,userId,update.message,recognizedApi)){
       if(['/cancel','Отмена'].includes((update.message.text||'').trim()))await cancelBotFlow(env,userId,botApi);
-      else await pauseBotForm(env,userId,botApi);
       return;
     }
     if(update.message&&await legacyLunchInput(env,userId,update.message,formApi)){if(['/cancel','Отмена'].includes((update.message.text||'').trim()))await cancelBotFlow(env,userId,botApi);return;}
@@ -140,7 +140,7 @@ async function handleTelegram(update,env) {
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
       if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await showBotView(env,userId,botApi,'more');else if(action==='updates')await send(releaseText());else if(action==='help')await showBotView(env,userId,botApi,'help');else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
-      if(await lunchChatCallback(env,userId,callback,lunchChatApi)){await pauseBotForm(env,userId,botApi);return;}
+      if(await lunchChatCallback(env,userId,callback,recognizedApi))return;
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
       if(await habitCallback(env,userId,callback,{...habitApi,openLunch:formApi.openLunch,openExpense:async day=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});}}))return;
       if(data.startsWith('notify:')){
