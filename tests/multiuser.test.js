@@ -109,14 +109,14 @@ test('Failed test delivery can retry the same key; successful delivery deduplica
  const {call}=fixture();const input={id:crypto.randomUUID(),type:'expense'},original=globalThis.fetch;let fail=true,sent=0;globalThis.fetch=async()=>{if(fail)return Response.json({ok:false},{status:503});sent++;return Response.json({ok:true,result:{}});};try{assert.equal((await call('222','notifications/test','POST',input)).status,400);fail=false;assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal(sent,1);assert.equal((await call('222','notifications/test','POST',{...input,type:'day'})).status,400);for(let i=0;i<11;i++)assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,200);assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,400);assert.equal((await call('111','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,200);}finally{globalThis.fetch=original;}
 });
 
-test('Compact keyboard, summary navigation and rare actions never create financial drafts or consume pending lunch answers',async()=>{
+test('Navigation releases pending lunch input without creating financial drafts or changing money',async()=>{
  const {call,data,env,db}=fixture();env.MINI_APP_URL='https://budget.test';await call('222','state','PUT',{expectedRevision:0,data:data(4321)});await setDayCheck(env,'222',moscowDate(),'lunch','amount',{type:'company'});const before=await(await call('222')).json();
  await botTest(async messages=>{await webhook(env,222,'/menu');let body=messages.find(m=>m.body.reply_markup?.keyboard).body;assert.equal(body.chat_id,'222');assert.equal(body.reply_markup.keyboard.flat().length,7);assert.equal(body.reply_markup.resize_keyboard,true);assert.equal(body.reply_markup.is_persistent,false);assert.equal(body.reply_markup.keyboard.flat().some(b=>b.web_app),false);await webhook(env,222,'💼 Открыть Бюрджет');assert.equal(messages.at(-1).body.reply_markup.inline_keyboard[0][0].web_app.url,env.MINI_APP_URL);
  await webhook(env,222,'📊 Сводки');body=messages.at(-1).body;assert.equal(body.reply_markup.inline_keyboard[0].length,3);assert.ok(body.reply_markup.inline_keyboard[1][0].callback_data==='nav:more');
  for(const period of ['day','week','month']){await webhook(env,222,'','nav:'+period);assert.ok(messages.at(-1).body.text.includes('4 321 ₽'));assert.equal(messages.at(-1).body.chat_id,222);}
  await webhook(env,222,'','nav:more');assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().every((b,i)=>i===0?!!b.web_app:b.callback_data?.startsWith('b:')));await webhook(env,222,'','nav:home');assert.equal(messages.at(-1).body.reply_markup.keyboard.flat().length,7);
  await webhook(env,222,'🍽 Обеды');assert.match(messages.at(-1).body.text,/Лимит месяца/);assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().every((b,i)=>i===0?!!b.web_app:!!b.callback_data));await webhook(env,222,'🔔 Напоминания');assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().every((b,i)=>i===0?!!b.web_app:b.callback_data?.startsWith('b:')));
- });assert.deepEqual(await(await call('222')).json(),before);assert.equal(db.prepare("SELECT COUNT(*) n FROM telegram_drafts WHERE id NOT LIKE 'bv_%'").get().n,0);assert.equal((await dayChecks(env,'222',moscowDate()))[0].status,'amount');
+ });assert.deepEqual(await(await call('222')).json(),before);assert.equal(db.prepare("SELECT COUNT(*) n FROM telegram_drafts WHERE id NOT LIKE 'bv_%'").get().n,0);assert.equal((await dayChecks(env,'222',moscowDate()))[0].status,'open');
 });
 test('Release broadcast installs seven-button keyboard only for allowed profiles; existing slash commands still work',async()=>{
  const {env,call}=fixture();env.MINI_APP_URL='https://budget.test';env.RELEASE_DEPLOY_TOKEN='release-secret';await call('222');await botTest(async messages=>{const {latestRelease}=await import('../src/release-notes.js');await worker.fetch(new Request('https://budget.test/api/v1/releases/announce',{method:'POST',headers:{'X-Budget-Release-Key':'release-secret','Content-Type':'application/json'},body:JSON.stringify({releaseId:latestRelease.id})}),env);assert.equal(messages.length,1);assert.equal(messages[0].body.chat_id,'222');assert.equal(messages[0].body.reply_markup.keyboard.flat().length,7);await webhook(env,222,'/today');assert.ok(messages.at(-1).body.text.includes('Итог дня'));await webhook(env,333,'📊 Сводки');assert.ok(messages.every(m=>String(m.body.chat_id||'222')!=='333'));});
@@ -268,4 +268,34 @@ test('A reply to the active correction prompt updates only the meal draft',async
   assert.equal(JSON.parse(next.payload).tx.amount,340);
   assert.equal((await(await call('222')).json()).data.transactions.length,0);
  });
+});
+
+test('A real snooze survives midnight, sends once for the original day, and repeated completion stays quiet',async t=>{
+ const start=Date.parse('2026-10-17T20:45:00Z'),nextAt=start+3600000,day='2026-10-17';
+ t.mock.timers.enable({apis:['Date'],now:start});
+ const {env,call,data,db}=fixture(),d=data(1000);d.settings={...d.settings,expenseCheckEnabled:true,checkTime:'22:00',checkRepeats:1,dailyReport:false,weeklyReport:false,monthlyReport:false};
+ await call('222','state','PUT',{expectedRevision:0,data:d});await setDayCheck(env,'222',day,'expense','open');
+ await botTest(async messages=>{
+  await webhook(env,222,'','check:'+day+':later');const row=db.prepare("SELECT payload FROM user_day_checks WHERE user_id='222' AND day=?").get(day);assert.equal(JSON.parse(row.payload).nextAt,nextAt);
+  await webhook(env,222,'','check:'+day+':later');assert.equal(db.prepare("SELECT payload FROM user_day_checks WHERE user_id='222' AND day=?").get(day).payload,row.payload);
+  t.mock.timers.setTime(nextAt);
+  const run=async()=>{const tasks=[];await worker.scheduled({scheduledTime:nextAt},env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);};
+  await run();await run();const reminders=messages.filter(m=>m.url.endsWith('/sendMessage')&&m.body.reply_markup?.inline_keyboard?.flat().some(b=>b.callback_data?.startsWith('check:')));
+  assert.equal(reminders.length,1);assert.match(reminders[0].body.text,/2026-10-17/);assert.ok(reminders[0].body.reply_markup.inline_keyboard.flat().every(b=>b.callback_data.startsWith('check:'+day+':')));
+  assert.equal(db.prepare("SELECT count(*) n FROM user_reports_sent WHERE user_id='222' AND id=?").get('check:'+day+':snooze-'+nextAt).n,1);
+  await webhook(env,222,'','check:'+day+':done');const sends=messages.filter(m=>m.url.endsWith('/sendMessage')).length;
+  await webhook(env,222,'','check:'+day+':done');await run();assert.equal(messages.filter(m=>m.url.endsWith('/sendMessage')).length,sends);
+  assert.equal((await(await call('222')).json()).data.accounts[0].balance,1000);
+ });
+});
+
+test('Old queued checks are discarded after editing, completion, disable or rescheduling',async()=>{
+ const {ensureNotificationOutbox,deliverNotifications}=await import('../server/notification-outbox.js');
+ const day='2026-10-17',now=Date.parse(day+'T18:00:00Z');
+ for(const status of ['editing','done','off','pending']){
+  const {env,data,db}=fixture(),d=data(1000);d.settings.expenseCheckEnabled=true;await ensureNotificationOutbox(env);
+  db.prepare('INSERT INTO user_notification_outbox VALUES(?,?,?,?,0)').run('222','check:'+day+':1200',day,JSON.stringify({kind:'expense',body:{text:'old'}}));
+  const sent=[];await deliverNotifications(env,'222',day,d,[],[{day,kind:'expense',status,payload:JSON.stringify(status==='pending'?{nextAt:now+3600000}:{})}],async(...args)=>sent.push(args),()=>'',setDayCheck,{now});
+  assert.equal(sent.length,0,status);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0,status);
+ }
 });

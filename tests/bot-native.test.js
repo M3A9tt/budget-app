@@ -229,3 +229,61 @@ test('Text cancellation closes both forms without saving or leaving an active me
  assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().n,0);
  assert.equal(f.snapshot().transactions.length,0);assert.equal(f.snapshot().accounts[0].balance,10000);
 }));
+
+test('Previous-day check opens shared expense form, preserves day on repeats and completes without duplicate messages',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');
+ const day=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
+ await setDayCheck(f.env,'111',day,'expense','open');
+ await f.update('','check:'+day+':pending');
+ assert.match(f.last().text,/Сумма/);assert.equal(f.snapshot().transactions.length,0);
+ let draft=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload);
+ assert.equal(draft.values.date,day);assert.equal(draft.args.checkDay,day);
+ await f.update('180');const save=f.button('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,10000);
+ await f.update('',save);await f.update('',save);assert.equal(f.snapshot().accounts[0].balance,9820);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0].date,day);
+ await f.update('/add'); // Existing outcome remains available; open the day's overview again.
+ await f.update('','check:'+day+':pending');await f.update('20');await f.press('✅ Подтвердить');
+ assert.equal(f.snapshot().transactions.length,2);assert.ok(f.snapshot().transactions.every(t=>t.date===day));
+ const done=f.button('✅ Всё записал за '+day);await f.update('',done);
+ const sends=f.sent.filter(x=>x.method==='sendMessage').length;await f.update('',done);await f.update('','check:'+day+':pending');
+ assert.equal(f.sent.filter(x=>x.method==='sendMessage').length,sends);
+ assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='expense'").get(day).status,'done');
+ assert.equal(f.snapshot().accounts[0].balance,9800);
+}));
+
+test('Cancelling a dated expense keeps completion and snooze controls; unrelated forms are preserved',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'expense','open');
+ await f.update('/accounts');await f.press(/Банк/);await f.press('Переименовать');
+ await f.update('','check:'+today+':pending');assert.match(f.last().text,/незавершённая/);
+ const active=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get().payload);assert.equal(active.op,'rename');
+ await f.press('Начать заново');await f.update('/cancel');assert.match(f.last().text,/Расходы за/);f.button('✅ Всё записал');f.button('Напомнить через час');
+ assert.equal(f.snapshot().transactions.length,0);assert.equal(f.snapshot().accounts[0].name,'Банк');
+}));
+
+test('A previous-day lunch amount keeps the reminder date and never debits personal accounts',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js'),day=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
+ await setDayCheck(f.env,'111',day,'lunch','open');await f.update('','lunch:'+day+':company');
+ assert.match(f.last().text,new RegExp(day));const {promptId}=JSON.parse(f.sqlite.prepare("SELECT payload FROM user_day_checks WHERE day=? AND kind='lunch'").get(day).payload);
+ await f.update('379,50',undefined,111,{reply_to_message:{message_id:promptId}});
+ const save=f.last().reply_markup.inline_keyboard[0][0].callback_data;await f.update('',save);
+ assert.equal(f.snapshot().transactions[0].date,day);assert.equal(f.snapshot().accounts[0].balance,10000);
+}));
+
+test('An unfinished meal question cannot capture unrelated purchases or revive after navigation',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'lunch','open');
+ await f.update('','lunch:'+today+':company');await f.update('кофе 180 Банк');
+ assert.match(f.last().text,/Запись операции/);await f.press('✅ Подтвердить');
+ assert.equal(f.snapshot().transactions[0].type,'expense');assert.equal(f.snapshot().accounts[0].balance,9820);
+ assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND kind='lunch' AND day=?").get(today).status,'open');
+ assert.equal(f.snapshot().transactions.length,1);
+}));
+
+test('Completing a day while its form opens cannot be overwritten by the delayed pending handler',()=>run(async f=>{
+ const {habitCallback,setDayCheck}=await import('../server/habits.js');await setDayCheck(f.env,'111',today,'expense','open');
+ let release,entered;const waiting=new Promise(r=>release=r),opened=new Promise(r=>entered=r);
+ const api={readState:async()=>({data:f.snapshot()}),telegram:async()=>({}),openExpense:async()=>{entered();await waiting;}};
+ const cb=action=>({id:action,data:'check:'+today+':'+action,message:{message_id:1}});
+ const pending=habitCallback(f.env,'111',cb('pending'),api);await opened;
+ await habitCallback(f.env,'111',cb('done'),api);release();await pending;
+ assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='expense'").get(today).status,'done');
+ assert.equal(f.snapshot().transactions.length,0);
+}));
