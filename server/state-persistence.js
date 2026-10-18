@@ -23,3 +23,10 @@ export async function checkPersistence(env,releaseId){
   if(rows.n!==2)throw Error('Storage receipt smoke check failed');return true;
  }finally{await clear();}
 }
+
+// All write paths resolve a lost race through the same durable receipt table.
+export async function readReceipt(env,userId,key){
+ if(!key)return null;
+ const row=await env.DB.prepare('SELECT result,request_hash FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,key).first();
+ return row?{requestHash:row.request_hash,result:JSON.parse(row.result)}:null;
+}

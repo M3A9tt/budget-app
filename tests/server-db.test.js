@@ -33,3 +33,28 @@ test('State receipts survive lost replies; API and bot share bounded, recoverabl
  assert.equal((await(await call('state','PUT',body,headers)).json()).revision,1);assert.equal((await read()).revision,state.revision);
  sqlite.close();
 });
+
+function interleaveOnce(env,sqlToIntercept,winner){
+ const prepare=env.DB.prepare.bind(env.DB);let ran=false;
+ env.DB.prepare=sql=>{const stmt=prepare(sql);if(sql===sqlToIntercept){const first=stmt.first.bind(stmt);stmt.first=async()=>{const row=await first();if(!ran){ran=true;await winner();}return row;};}return stmt;};
+}
+test('A bot confirmation that loses the write race returns the winning receipt without a second debit',async()=>{
+ const {call,data,sqlite,env}=fixture();await call('state','PUT',{expectedRevision:0,data});const read=async()=>await(await call('state')).json(),state=await read();
+ const p={kind:'bot-form',op:'tx',args:{type:'expense'},values:{amount:100,currency:'RUB',accountId:'rub',cat:'food',date:'2026-10-12'},revision:state.revision},id='bf_race';
+ sqlite.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').run(id,'111',JSON.stringify(p),Date.now()+60000);
+ const result=await commitBotAction(env,'111',id,p,async()=>{await commitBotAction(env,'111',id,p,read);return state;});
+ assert.equal(result.duplicate,true);assert.equal(result.revision,2);assert.equal((await read()).data.accounts[0].balance,9900);assert.equal((await read()).data.transactions.length,1);sqlite.close();
+});
+test('Concurrent whole-state retries with the same key return the stored success rather than a false conflict',async()=>{
+ const {call,data,sqlite,env}=fixture();await call('state','PUT',{expectedRevision:0,data});
+ const d=(await(await call('state')).json()).data;d.settings.budget=3000;const body={expectedRevision:1,data:d},headers={'Idempotency-Key':'raced-state'};
+ interleaveOnce(env,'SELECT revision,data FROM user_finance_state WHERE user_id=?',async()=>assert.equal((await call('state','PUT',body,headers)).status,200));
+ const response=await call('state','PUT',body,headers);assert.equal(response.status,200);assert.equal((await response.json()).revision,2);assert.equal((await(await call('state')).json()).revision,2);sqlite.close();
+});
+test('Concurrent transaction retries reuse the winner receipt and still reject a changed request',async()=>{
+ const {call,data,sqlite,env}=fixture();await call('state','PUT',{expectedRevision:0,data});
+ const input={type:'expense',cat:'food',amount:100,currency:'RUB',date:'2026-10-12',accountId:'rub'},headers={'Idempotency-Key':'raced-tx'};
+ interleaveOnce(env,'SELECT result,request_hash FROM user_idempotency WHERE user_id=? AND id=?',async()=>assert.equal((await call('transactions','POST',input,headers)).status,201));
+ const result=await call('transactions','POST',input,headers);assert.equal(result.status,201);assert.equal((await(await call('state')).json()).data.accounts[0].balance,9900);
+ assert.equal((await call('transactions','POST',{...input,amount:200},headers)).status,400);sqlite.close();
+});

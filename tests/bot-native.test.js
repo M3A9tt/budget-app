@@ -298,3 +298,16 @@ test('Lunch reminder pauses another active form; text cancellation releases both
  assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=? AND kind='lunch'").get(today).status,'open');
  assert.equal(f.snapshot().transactions.length,0);
 }));
+
+test('Bot account reassignment and undo share historical FX valuation with the Mini App ledger',async()=>{
+ const {putTransaction}=await import('../src/ledger.js');
+ const initial=seed();initial.accounts.push({id:'usd',name:'Доллар',currency:'USD',balance:100});initial.rates.USD=92;
+ const d=putTransaction(initial,{type:'expense',cat:'food',amount:10,currency:'USD',accountId:'bank',date:today,note:'Валютная покупка'});d.rates.USD=120;
+ await run(async f=>{
+  await f.update('/history');await f.press(/Валютная покупка/);await f.press('✏️ Изменить');await f.update('10');await f.press('💳 Счёт');await f.press(/Доллар/);
+  assert.equal(f.snapshot().accounts[0].balance,9080);await f.press('✅ Подтвердить');
+  assert.equal(f.snapshot().transactions[0].amountRub,920);assert.equal(f.snapshot().accounts[0].balance,10000);assert.equal(f.snapshot().accounts[2].balance,90);
+  await f.press('↩️ Отменить изменение');await f.press('✅ Подтвердить');
+  assert.equal(f.snapshot().accounts[0].balance,9080);assert.equal(f.snapshot().accounts[2].balance,100);assert.equal(f.snapshot().transactions[0].amountRub,920);
+ },d);
+});

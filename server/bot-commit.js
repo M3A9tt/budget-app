@@ -1,11 +1,13 @@
-import {backupBefore,trimBackups,encodeState} from './state-persistence.js';
+import {backupBefore,trimBackups,encodeState,readReceipt} from './state-persistence.js';
 import {migrateData,validateStateChange} from '../src/ledger.js';
 import {EMPTY} from '../src/mini-model.js';
 import {applyBotAction} from './bot-catalog.js';
 // Session receipt, state CAS, pre-change backup and consumed marker commit atomically.
 export async function commitBotAction(env,userId,id,p,readState){
- const key='bot:'+id,prior=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,key).first();if(prior)return {...JSON.parse(prior.result),duplicate:true};
- const state=await readState(env,userId);if(state.revision!==p.revision)throw Error('Данные изменились. Открой свежий предпросмотр.');
+ const key='bot:'+id;
+ const stored=async()=>{const prior=await readReceipt(env,userId,key);return prior?{...prior.result,duplicate:true}:null;};
+ const prior=await stored();if(prior)return prior;
+ const state=await readState(env,userId);if(state.revision!==p.revision){const completed=await stored();if(completed)return completed;throw Error('Данные изменились. Открой свежий предпросмотр.');}
  const next=migrateData(applyBotAction(structuredClone(state.data),p.op,p.args,p.values),EMPTY),result={revision:state.revision+1,...(p.op!=='undo'&&next.history?.[0]?.id!==state.data.history?.[0]?.id?{historyId:next.history?.[0]?.id}:{})},now=Date.now(),payload=JSON.stringify(p);
  validateStateChange(state.data,next);
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload)))).map(n=>n.toString(16).padStart(2,'0')).join('');
@@ -16,5 +18,5 @@ export async function commitBotAction(env,userId,id,p,readState){
   env.DB.prepare('UPDATE telegram_drafts SET consumed=1 WHERE id=? AND owner=? AND EXISTS(SELECT 1 FROM user_idempotency WHERE user_id=? AND id=?)').bind(id,userId,userId,key),
   trimBackups(env,userId)
  ]);
- if(rows[2].meta.changes!==1)throw Error('Карточка изменилась или уже выполнена. Открой раздел заново.');return result;
+ if(rows[2].meta.changes!==1){const completed=await stored();if(completed)return completed;throw Error('Карточка изменилась или уже выполнена. Открой раздел заново.');}return result;
 }
