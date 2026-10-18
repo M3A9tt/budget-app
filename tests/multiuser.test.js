@@ -3,7 +3,7 @@ import {moscowDate} from '../server/worker.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {DatabaseSync} from 'node:sqlite';import {createHmac} from 'node:crypto';
 import worker from '../server/worker.js';import {issueWebCode,hashToken} from '../server/web-auth.js';import {EMPTY} from '../src/mini-model.js';
 function fixture(){const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
- const DB={prepare(sql){let args=[];const s={bind(...v){args=v;return s;},async first(){return db.prepare(sql).get(...args)||null;},async all(){return{results:db.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}};return s;},async batch(ss){db.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());db.exec('COMMIT');return out;}catch(e){db.exec('ROLLBACK');throw e;}}};
+ const DB={prepare(sql){let args=[];const s={bind(...v){args=v.map(x=>x instanceof ArrayBuffer?new Uint8Array(x):x);return s;},async first(){return db.prepare(sql).get(...args)||null;},async all(){return{results:db.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}};return s;},async batch(ss){db.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());db.exec('COMMIT');return out;}catch(e){db.exec('ROLLBACK');throw e;}}};
  const env={DB,TELEGRAM_OWNER_ID:'111',TELEGRAM_ALLOWED_IDS:'222',TELEGRAM_BOT_TOKEN:'test-bot',TELEGRAM_WEBHOOK_SECRET:'test-webhook',API_TOKEN:'owner-api'};
  function signed(id){const p=new URLSearchParams({auth_date:String(Math.floor(Date.now()/1000)),user:JSON.stringify({id:Number(id),first_name:'Test'})});const secret=createHmac('sha256','WebAppData').update(env.TELEGRAM_BOT_TOKEN).digest(),check=[...p.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}=${v}`).join('\n');p.set('hash',createHmac('sha256',secret).update(check).digest('hex'));return p.toString();}
  const call=(id,path='state',method='GET',body,headers={})=>worker.fetch(new Request('https://budget.test/api/v1/'+path,{method,headers:{Authorization:'tma '+signed(id),'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)}),env);
@@ -306,4 +306,24 @@ test('Old queued checks are discarded after editing, completion, disable or resc
   const sent=[];await deliverNotifications(env,'222',day,d,[],[{day,kind:'expense',status,payload:JSON.stringify(status==='pending'?{nextAt:now+3600000}:{})}],async(...args)=>sent.push(args),()=>'',setDayCheck,{now});
   assert.equal(sent.length,0,status);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0,status);
  }
+});
+
+test('Scheduled visual summary checkpoints photo and retries only full text without mutating finances',async()=>{
+ const {env,call,data,db}=fixture(),day=moscowDate(),d=data(1000);await call('222','state','PUT',{expectedRevision:0,data:d});
+ const {deliverNotifications}=await import('../server/notification-outbox.js');const {periodSummary}=await import('../server/period-summary.js');
+ const bytes=new Uint8Array(24);bytes.set([137,80,78,71,13,10,26,10]);const view=new DataView(bytes.buffer);view.setUint32(16,640);view.setUint32(20,1000);
+ let renders=0,photos=0,texts=0,fail=true;env.BROWSER={};
+ const {sendSummary}=await import('../server/summary-delivery.js'),{getPicture}=await import('../server/bot-pictures.js');
+ const delivery={deliverSummary:(env,userId,data,report,send,options)=>sendSummary(env,userId,data,report,send,{...options,picture:(env,userId,state,params)=>getPicture(env,userId,state,params,async()=>{renders++;return bytes;})})};
+ const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{assert.ok(options.body instanceof FormData);photos++;return Response.json({ok:true,result:{photo:[{file_id:'report-photo'}]}});};
+ const send=async(e,method,body)=>{texts++;assert.match(body.text,/Итог дня/);if(fail)throw Error('text failed');};
+ const before=JSON.parse(db.prepare("SELECT data FROM user_finance_state WHERE user_id='222'").get().data);
+ try{
+  await deliverNotifications(env,'222',day,d,[{id:'day:'+day,from:day,to:day,title:'Итог дня'}],[],send,periodSummary,async()=>{},delivery);
+  const queued=JSON.parse(db.prepare("SELECT payload FROM user_notification_outbox WHERE user_id='222'").get().payload);assert.equal(queued.progress.photoSent,true);assert.equal(photos,1);
+  db.prepare('UPDATE user_notification_outbox SET lease_until=0').run();fail=false;
+  await deliverNotifications(env,'222',day,d,[],[],send,periodSummary,async()=>{},delivery);
+  assert.equal(photos,1);assert.equal(renders,1);assert.equal(texts,2);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM user_reports_sent').get().n,1);
+  assert.deepEqual(JSON.parse(db.prepare("SELECT data FROM user_finance_state WHERE user_id='222'").get().data),before);
+ }finally{globalThis.fetch=original;}
 });

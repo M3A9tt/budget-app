@@ -12,10 +12,11 @@ export async function ensurePictures(env){
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_lock(id INTEGER PRIMARY KEY,lease_until INTEGER NOT NULL)').run();ready.add(env.DB);
 }
 export function pictureParams(input={},data){
- const kind=['budget','analytics','categories','forecast','lunch','savings'].includes(input.kind)?input.kind:null;if(!kind)throw Error('Неизвестная картинка');
+ const kind=['budget','analytics','categories','forecast','lunch','savings','summary'].includes(input.kind)?input.kind:null;if(!kind)throw Error('Неизвестная картинка');
  const today=todayMoscow(data.settings.timeZone),month=input.month||today.slice(0,7);
  if(kind==='lunch'&&(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month<'2000-01'||month>today.slice(0,7)))throw Error('Выбери прошедший или текущий месяц');
  const page=Number(input.page||0);if(kind==='savings'&&(!Number.isInteger(page)||page<0||page>Math.max(0,Math.ceil(Math.max(data.accounts.filter(isSavings).length,data.goals.length)/6)-1)))throw Error('Страница отсутствует');
+ if(kind==='summary'){const valid=d=>/^\d{4}-(0[1-9]|1[0-2])-([012]\d|3[01])$/.test(d||'')&&new Date(d+'T12:00:00Z').toISOString().slice(0,10)===d;if(!valid(input.from)||!valid(input.to)||input.from>input.to||input.to>today||Date.parse(input.to)-Date.parse(input.from)>31*86400000)throw Error('Неверный период сводки');return {kind,from:input.from,to:input.to,title:String(input.title||'Итоги').slice(0,80)};}
  return {kind,...(['analytics','categories'].includes(kind)?{days:input.days===7?7:30}:{}),...(kind==='lunch'?{month}:{}),...(kind==='savings'?{page}:{})};
 }
 export function pngInfo(bytes){
@@ -34,6 +35,7 @@ export async function capturePicture(env,data,params){
  const bytes=new Uint8Array(total);let pos=0;for(const p of parts){bytes.set(p,pos);pos+=p.length;}pngInfo(bytes);return bytes;
 }
 function pictureData(data,params){
+ if(params.kind==='summary')return {accounts:data.accounts,transactions:data.transactions,recurring:data.recurring,installments:data.installments,debts:data.debts,rates:data.rates,customCats:data.customCats,settings:data.settings};
  const settings={timeZone:data.settings.timeZone||'Europe/Moscow'};
  if(params.kind==='savings')return {accounts:data.accounts.filter(isSavings),goals:data.goals,wishes:data.wishes,rates:data.rates,settings:{...settings,modules:{goals:data.settings.modules?.goals}}};
  if(params.kind==='lunch')return {transactions:data.transactions.filter(t=>t.date.startsWith(params.month)&&(t.type==='lunch'||t.cat==='lunch'||t.tags?.includes('обед-за-свои')||t._lunchCheckDay||/обед.*(?:сво|доплат)/i.test(t.note||''))),lunchDayOff:data.lunchDayOff,lunchDayMod:data.lunchDayMod,lunchAnswers:data.lunchAnswers,settings:{...settings,lunchDaily:data.settings.lunchDaily,lunchCalendar:data.settings.lunchCalendar,lunchWorkDays:data.settings.lunchWorkDays}};

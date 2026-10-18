@@ -1,3 +1,6 @@
+import {periodSummary} from './period-summary.js';
+export {periodSummary} from './period-summary.js';
+import {sendSummary} from './summary-delivery.js';
 import {lunchEntryArgs} from './lunch-entry.js';
 import {legacyLunchInput,legacySaveCallback} from './legacy-lunch.js';
 import {initialProfile} from '../src/home-layout.js';
@@ -20,12 +23,12 @@ import {broadcastRelease} from './releases.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
 import {notificationChecks,setDayCheck,pauseLegacyLunchInput,habitCallback} from './habits.js';
 import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invitedUsers,setMemberAccess} from './users.js';
-import {dashboard,EMPTY,CATEGORIES,demoData,money} from '../src/mini-model.js';
+import {EMPTY,demoData,money} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
 // Separate new D1 database. This Worker never writes to legacy Supabase.
-import {putTransaction,migrateData,historicalRub,validateStateChange} from '../src/ledger.js';
+import {putTransaction,migrateData,validateStateChange} from '../src/ledger.js';
 
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 async function equalSecret(a,b) {
@@ -35,21 +38,6 @@ async function equalSecret(a,b) {
   for(let i=0;i<aa.length;i++)mismatch|=aa[i]^bb[i];return mismatch===0;
 }
 export function moscowDate(date=new Date()) {return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(date);}
-export function periodSummary(data,from,to,title) {
-  const txs=data.transactions.filter(t=>t.date>=from&&t.date<=to);
-  const rub=t=>historicalRub(t,(amount,currency)=>amount*(data.rates[currency]||1));
-  const sum=type=>txs.filter(t=>t.type===type&&(type!=='expense'||t.cat!=='lunch')).reduce((n,t)=>n+rub(t),0);
-  const fmt=n=>n.toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽';
-  const expense=sum('expense'),income=sum('income'),lunch=txs.filter(t=>t.type==='lunch'||t.cat==='lunch').reduce((n,t)=>n+rub(t),0);
-  const actual=data.accounts.filter(a=>(a.accType||'regular')!=='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0);
-  const groups={};txs.filter(t=>t.type==='expense'&&t.cat!=='lunch').forEach(t=>{groups[t.cat]=(groups[t.cat]||0)+rub(t);});
-  const top=Object.entries(groups).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([cat,n])=>`${data.customCats?.find(c=>c.id===cat)?.name||({food:'Еда',transport:'Транспорт',health:'Здоровье',housing:'ЖКХ',other:'Другое'}[cat]||cat)}: ${fmt(n)}`);
-  const start=new Date(from+'T12:00:00Z'),end=new Date(to+'T12:00:00Z');
-  const days=Math.round((end-start)/86400000)+1;start.setUTCDate(start.getUTCDate()-days);end.setUTCDate(end.getUTCDate()-days);
-  const previous=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&t.date>=start.toISOString().slice(0,10)&&t.date<=end.toISOString().slice(0,10)).reduce((n,t)=>n+rub(t),0);
-  const planning=dashboard({...EMPTY,...data,settings:{...EMPTY.settings,...data.settings}},clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date),savings=data.accounts.filter(a=>a.accType==='savings').reduce((n,a)=>n+a.balance*(data.rates[a.currency||'RUB']||1),0);
-  return [title,from===to?from:`${from} — ${to}`,'',`Расходы: ${fmt(expense)}`,income?`Доходы: ${fmt(income)}`:null,lunch?`Обеды за счёт компании: ${fmt(lunch)}`:null,'',`На обычных счетах: ${fmt(actual)}`,`Свободно после резерва и платежей: ${fmt(planning.free)}`,savings?`В копилках: ${fmt(savings)}`:null,...(top.length?['','Больше всего',...top.map(line=>'• '+line)]:[]),previous?`\nК прошлому периоду: ${expense-previous>0?'+':''}${fmt(expense-previous)}`:null,`\nУчтено операций: ${txs.length}.`].filter(line=>line!==null).join('\n');
-}
 async function readState(env,userId) {
   if(!await hasAccess(env,userId))throw new Error('Нет доступа');
   // One-time copy, only for the configured owner; old tables stay untouched.
@@ -120,7 +108,7 @@ async function handleTelegram(update,env) {
   const userId=String(source.id);
   const send=text=>telegram(env,'sendMessage',{chat_id:chat.id,text});
   const showHome=text=>telegram(env,'sendMessage',{chat_id:userId,text,reply_markup:botKeyboard(env.MINI_APP_URL)});
-  const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);await send(periodSummary(state.data,from,today,{day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period]));};
+  const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);const title={day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period];await sendSummary(env,chat.id,state.data,{from,to:today,title,text:periodSummary(state.data,from,today,title),visual:period!=='month'},telegram);};
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
   const formApi={...botApi,openForm:(op,args)=>startBotForm(env,userId,botApi,op,args),openLunch:async(day,type,prefill={},review=false)=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{...lunchEntryArgs(day,type,prefill),review});}};
   const recognizedApi={...lunchChatApi,openRecognized:async(sourceId,payload)=>{await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{type:'lunch',prefill:payload.tx,review:!!payload.tx.amount,recognizedLunch:{sourceId,parsed:payload.parsed},returnTo:{name:'lunch',args:{month:payload.tx.date.slice(0,7)}}});}};
