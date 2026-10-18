@@ -1,3 +1,5 @@
+import {companyLunch,personalLunch} from './lunch-records.js';
+export {companyLunch,personalLunch} from './lunch-records.js';
 import {parseMoney,roundMoney} from './ledger.js';
 
 export const CALENDAR_SOURCE='https://www.consultant.ru/law/ref/calendar/proizvodstvennye/2026/';
@@ -15,8 +17,6 @@ export function lunchDayRatio(data,date){
  return (data.settings?.lunchWorkDays||[1,2,3,4,5]).includes(weekday)?1:0;
 }
 export const lunchCalendarVerified=(data,date)=>lunchCalendar(data.settings)!=='ru-production'||date.startsWith('2026-');
-export const companyLunch=t=>t.type==='lunch'||t.cat==='lunch';
-export const personalLunch=t=>t.type==='expense'&&!companyLunch(t)&&((t.tags||[]).includes('обед-за-свои')||t._lunchCheckDay||/обед.*(?:сво|доплат)/i.test(t.note||''));
 export function lunchBudget(data,month,today){
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||Number(month.slice(0,4))<2000||Number(month.slice(0,4))>2100)throw Error('Выберите месяц');
  const [year,m]=month.split('-').map(Number),daily=data.settings?.lunchDaily??400;
@@ -25,7 +25,7 @@ export function lunchBudget(data,month,today){
  for(let day=1;day<=new Date(Date.UTC(year,m,0)).getUTCDate();day++){
   const date=month+'-'+String(day).padStart(2,'0'),ratio=lunchDayRatio(data,date),txs=monthRows.filter(t=>t.date===date),company=roundMoney(txs.filter(companyLunch).reduce((n,t)=>n+rub(t),0));
   const own=roundMoney(txs.filter(personalLunch).reduce((n,t)=>n+rub(t),0)),limit=roundMoney(daily*ratio),past=date<=today;
-  const confirmed=past&&(txs.some(companyLunch)||data.lunchAnswers?.[date]?.status==='skipped');
+  const confirmed=past&&(txs.some(t=>companyLunch(t)||personalLunch(t))||data.lunchAnswers?.[date]?.status==='skipped');
   days.push({date,ratio,limit,company,own,past,confirmed,difference:roundMoney(limit-company)});
  }
  let cumulative=0;

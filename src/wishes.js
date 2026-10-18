@@ -1,3 +1,4 @@
+import {orderedAccounts} from './account-balances.js';
 import {parseMoney} from './ledger.js';
 export const savingAccount=a=>a?.accType==='savings'||a?.savingsKind==='deposit';
 export function validateWishes(data){
@@ -17,5 +18,5 @@ export function saveWish(data,{id,name,note='',priority='main',target='',currenc
  const next={...data,wishes:old?data.wishes.map(w=>w.id===id?row:w):[...(data.wishes||[]),row]};validateWishes(next);return next;
 }
 export function completeWish(data,id,done){const old=(data.wishes||[]).find(w=>w.id===id);if(!old)throw Error('Заметка больше не существует');return saveWish(data,{...old,done});}
-export function savingsPurposes(data){return data.accounts.filter(savingAccount).map(a=>{const wish=(data.wishes||[]).find(w=>!w.done&&w.accountId===a.id),goal=data.goals.find(g=>g.accountId===a.id);return {...a,purpose:wish?.name||goal?.name||'',target:wish?.target||goal?.target||0};});}
-export function availableWishAccounts(data,id=''){return data.accounts.filter(a=>savingAccount(a)&&!data.goals.some(g=>g.accountId===a.id)&&!(data.wishes||[]).some(w=>w.id!==id&&!w.done&&w.accountId===a.id));}
+export function savingsPurposes(data){return orderedAccounts(data).filter(savingAccount).map(a=>{const wish=(data.wishes||[]).find(w=>!w.done&&w.accountId===a.id),goal=data.goals.find(g=>g.accountId===a.id);return {...a,purpose:wish?.name||goal?.name||'',target:wish?.target||goal?.target||0};});}
+export function availableWishAccounts(data,id=''){return orderedAccounts(data).filter(a=>savingAccount(a)&&!data.goals.some(g=>g.accountId===a.id)&&!(data.wishes||[]).some(w=>w.id!==id&&!w.done&&w.accountId===a.id));}
