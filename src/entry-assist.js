@@ -1,6 +1,7 @@
+import {isSavingAccount} from './account-balances.js';
 export const sortedEntries=transactions=>[...transactions].sort((a,b)=>b.date.localeCompare(a.date)||(b.updatedAt||b.id||'').localeCompare(a.updatedAt||a.id||''));
 export function entryDefaults(data,type,today,categories){
- const regular=data.accounts.filter(a=>a.accType!=='savings'),validCat=id=>categories.some(c=>c.id===id);
+ const regular=data.accounts.filter(a=>!isSavingAccount(a)),validCat=id=>categories.some(c=>c.id===id);
  const prior=data.settings?.rememberEntryChoices===false?undefined:sortedEntries(data.transactions).find(t=>t.type===type&&t.date<=today&&!t.recurringId&&!t.installmentPaymentId&&!t.debtId&&t.balanceEffect!=='history-only'&&regular.some(a=>a.id===t.accountId));
  const account=regular.find(a=>a.id===prior?.accountId)||(regular.length===1?regular[0]:undefined);
  return {type,cat:type==='lunch'?'lunch':type==='income'?'income':validCat(prior?.cat)?prior.cat:'food',amount:'',note:'',currency:type==='lunch'?'RUB':account?.currency||'RUB',date:today,accountId:type==='lunch'?undefined:account?.id||'',paymentMethod:type==='lunch'?'unknown':prior?.paymentMethod||'unknown',tags:[]};

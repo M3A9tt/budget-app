@@ -58,3 +58,18 @@ test('Concurrent transaction retries reuse the winner receipt and still reject a
  const result=await call('transactions','POST',input,headers);assert.equal(result.status,201);assert.equal((await(await call('state')).json()).data.accounts[0].balance,9900);
  assert.equal((await call('transactions','POST',{...input,amount:200},headers)).status,400);sqlite.close();
 });
+
+test('Bot deletion and Mini App undo share linked lunch records, balances, receipts and independent backups',async()=>{
+ const {call,data,sqlite,env}=fixture();try{
+ await call('state','PUT',{expectedRevision:0,data});
+ const parent=await(await call('transactions','POST',{type:'lunch',cat:'lunch',amount:350,currency:'RUB',date:'2026-10-01',note:'Обед'},{'Idempotency-Key':'linked-meal'})).json();
+ assert.ok(parent.transaction?.id);
+ assert.equal((await call('transactions','POST',{type:'expense',cat:'food',amount:50,currency:'RUB',accountId:'rub',date:'2026-10-01',lunchId:parent.transaction.id,note:'Доплата за обед'},{'Idempotency-Key':'linked-topup'})).status,201);
+ const read=async()=>await(await call('state')).json(),before=await read();assert.equal(before.data.accounts[0].balance,9950);
+ const p={kind:'bot-form',op:'deleteTx',args:{id:parent.transaction.id},values:{},revision:before.revision};sqlite.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').run('linked-delete','111',JSON.stringify(p),Date.now()+60000);
+ await commitBotAction(env,'111','linked-delete',p,read);await commitBotAction(env,'111','linked-delete',p,read);
+ const deleted=await read();assert.equal(deleted.revision,before.revision+1);assert.equal(deleted.data.transactions.length,0);assert.equal(deleted.data.accounts[0].balance,10000);
+ const backup=JSON.parse(sqlite.prepare('SELECT data FROM user_state_backups WHERE user_id=? AND revision=?').get('111',before.revision).data);assert.equal(backup.transactions.length,2);assert.equal(backup.accounts[0].balance,9950);
+ const {undoTransaction}=await import('../src/ledger.js'),restored=undoTransaction(deleted.data,deleted.data.history[0]);assert.equal((await call('state','PUT',{expectedRevision:deleted.revision,data:restored},{'Idempotency-Key':'undo-linked-delete'})).status,200);const after=await read();assert.equal(after.data.transactions.length,2);assert.equal(after.data.accounts[0].balance,9950);
+ }finally{sqlite.close();}
+});

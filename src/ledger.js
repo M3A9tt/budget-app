@@ -1,3 +1,4 @@
+import {companyLunch,lunchDeletionRecords,validateLunchLinks} from './lunch-records.js';
 import {validateHome} from './home-layout.js';
 import {validateInstallmentLinks} from './installment-state.js';
 import {validateDebtLinks} from './debt-state.js';
@@ -90,18 +91,23 @@ export function putTransaction(data, input) {
   if(rule&&(input.type!==planType(rule)||!(rule.frequency==='once'?period==='once':['daily','weekly'].includes(rule.frequency)?/^\d{4}-\d{2}-\d{2}$/.test(period):/^\d{4}-(0[1-9]|1[0-2])$/.test(period))||(rule.skippedPeriods||[]).includes(period)))throw Error('Неверный или пропущенный период плана');
   if(rule&&plannedPaid({...data,transactions:data.transactions.filter(t=>t.id!==old?.id)}, {...rule,lastCreated:old?'':rule.lastCreated},period))throw Error('Этот период уже подтверждён');
   if(rule&&input.saveRecurringAmount&&(input.currency||'RUB')!==(rule.currency||'RUB'))throw Error('Чтобы обновить сумму плана, оставьте валюту плана или снимите флажок');
+  if(old?.lunchId&&input.lunchId!==old.lunchId)throw Error('Связь доплаты с обедом нельзя удалить при редактировании');
+  if(input.lunchId){const meal=data.transactions.find(t=>t.id===input.lunchId);if(!meal||!companyLunch(meal)||input.type!=='expense'||input.cat==='lunch'||input.date!==meal.date)throw Error('Доплата должна относиться к существующему обеду той же даты');}
   const {saveRecurringAmount,...fields}=input;
   const tx = prepare(next,{...fields,...(rule?{recurringPeriod:period}:{})});
   if(rule&&saveRecurringAmount)next={...next,recurring:next.recurring.map(r=>r.id===rule.id?{...r,amount:tx.amount,variable:false}:r)};
   next = apply(next, tx, 1);
   next = {...next, transactions: old ? next.transactions.map(t => t.id === tx.id ? tx : t) : [...next.transactions,tx]};
-  return log(validateInstallmentLinks(validateDebtLinks(reconcileRecurring(next,old?.recurringId,tx.recurringId))), {type:old?'edit_tx':'add_tx',before:old,after:tx});
+  const relatedBefore=old&&old.date!==tx.date?next.transactions.filter(t=>t.lunchId===tx.id):[];
+  if(relatedBefore.length)next={...next,transactions:next.transactions.map(t=>t.lunchId===tx.id?{...t,date:tx.date,...(t._lunchCheckDay?{_lunchCheckDay:tx.date}:{}),revision:(t.revision||0)+1,updatedAt:tx.updatedAt}:t)};
+  return log(validateLunchLinks(validateInstallmentLinks(validateDebtLinks(reconcileRecurring(next,old?.recurringId,tx.recurringId)))), {type:old?'edit_tx':'add_tx',before:old,after:tx,...(relatedBefore.length?{relatedBefore}:{} )});
 }
 export function deleteTransaction(data, id) {
   const tx = data.transactions.find(t => t.id === id);
   if (!tx) return data;
-  const next = apply(data,tx,-1);
-  return log(reconcileRecurring({...next,transactions:next.transactions.filter(t => t.id !== id)},tx.recurringId), {type:'delete_tx',before:tx});
+  const removed=lunchDeletionRecords(data,id),ids=new Set(removed.map(t=>t.id));
+  let next=data;for(const row of removed)next=apply(next,row,-1);
+  return log(validateLunchLinks(reconcileRecurring({...next,transactions:next.transactions.filter(t=>!ids.has(t.id))},...removed.map(t=>t.recurringId))),{type:'delete_tx',before:tx,relatedBefore:removed.filter(t=>t.id!==id)});
 }
 export function undoTransaction(data, entry) {
   // Only a still-available journal event can be reversed. Never trust cached fields.
@@ -110,19 +116,22 @@ export function undoTransaction(data, entry) {
   let next = data;
   const current = entry.after && data.transactions.find(t => t.id === entry.after.id);
   if (entry.type === 'delete_tx') {
-    if (data.transactions.some(t => t.id === entry.before.id)) throw new Error('Операция уже восстановлена');
-    next = apply(data,entry.before,1);
-    next = {...next, transactions:[...next.transactions,entry.before]};
+    const restored=[entry.before,...(entry.relatedBefore||[])];
+    if(restored.some(t=>data.transactions.some(x=>x.id===t.id)))throw new Error('Операция уже восстановлена');
+    for(const tx of restored)next=apply(next,tx,1);
+    next={...next,transactions:[...next.transactions,...restored]};
   } else {
     if (!current || current.revision !== entry.after.revision) throw new Error('После этого действия операция изменялась. Откат отменён');
-    next = apply(data,current,-1);
+    for(const before of entry.relatedBefore||[]){const now=next.transactions.find(t=>t.id===before.id);if(!now||now.revision!==(before.revision||0)+1)throw Error('Связанная доплата изменилась. Откат отменён');}
+    if(entry.relatedBefore?.length)next={...next,transactions:next.transactions.map(t=>entry.relatedBefore.find(b=>b.id===t.id)||t)};
+    next = apply(next,current,-1);
     next = {...next, transactions:next.transactions.filter(t => t.id !== current.id)};
     if (entry.before) {
       next = apply(next,entry.before,1);
       next = {...next, transactions:[...next.transactions,entry.before]};
     }
   }
-  return validateInstallmentLinks(validateDebtLinks(reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId))); 
+  return validateLunchLinks(validateInstallmentLinks(validateDebtLinks(reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId)))); 
 }
 export function transferMoney(data, {from,to,amount,fee=0,note='',date,externalId,balanceEffect='normal'}) {
   if(balanceEffect!=='history-only'&&date>clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date)throw Error('Будущий перевод пока не меняет остатки: запишите его после фактической передачи денег');
@@ -181,7 +190,7 @@ export function migrateData(input, defaults) {
   for (const k of ['transactions','accounts','debts','goals','recurring','installments','transfers']) if (new Set(data[k].map(x=>x.id)).size !== data[k].length) throw new Error('Повторяющиеся ID: '+k);
   data.migrationWarnings = data.transactions.filter(t=>t.accountId && !Number.isFinite(t.accountAmount) && (t.currency||'RUB') !== (data.accounts.find(a=>a.id===t.accountId)?.currency||'RUB')).map(t=>t.id);
   for(const d of data.debts){if(d.dueDate&&!dateValid(d.dueDate))throw Error('Неверный срок возврата долга');}
-  validateDebtLinks(data);validateInstallmentLinks(data);delete data._pinHash;
+  validateDebtLinks(data);validateInstallmentLinks(data);validateLunchLinks(data);delete data._pinHash;
   // Preserve supplied balances. Historical bank exchange rates cannot be reconstructed.
   return data;
 }

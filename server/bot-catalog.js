@@ -1,3 +1,4 @@
+import {orderedAccounts} from '../src/account-balances.js';
 import {validateLunchEntry} from './lunch-entry.js';
 import {customizeHome} from '../src/home-layout.js';
 import {repeatEntry} from '../src/entry-assist.js';
@@ -17,7 +18,7 @@ import {reminderSettingsFromDraft} from '../src/reminder-settings.js';
 import {MODULES,setModule} from '../src/modules.js';
 import {validZone} from '../src/time-settings.js';
 const text=(key,label,extra={})=>({key,label,type:'text',...extra}),num=(key,label,extra={})=>text(key,label,{type:'money',...extra}),date=(key,label,extra={})=>text(key,label,{type:'date',...extra}),choice=(key,label,choices,extra={})=>text(key,label,{type:'choice',choices,...extra});
-const yesno=[[true,'Да'],[false,'Нет']],currencies=d=>Object.keys(d.rates).map(x=>[x,x]),accounts=(d,filter=()=>true)=>d.accounts.filter(filter).map(a=>[a.id,a.name+' · '+a.currency]),cats=d=>CATEGORIES.concat(d.customCats||[]).map(c=>[c.id,c.name]);
+const yesno=[[true,'Да'],[false,'Нет']],currencies=d=>Object.keys(d.rates).map(x=>[x,x]),accounts=(d,filter=()=>true)=>orderedAccounts(d).filter(filter).map(a=>[a.id,a.name+' · '+a.currency]),cats=d=>CATEGORIES.concat(d.customCats||[]).map(c=>[c.id,c.name]);
 const source=(d,a,key,list)=>{const row=list.find(x=>x.id===a[key]);if(!row)throw Error('Запись больше не существует');return row;};
 export const SETTING_GROUPS={
  reminders:[['expenseCheckEnabled','Проверка расходов','bool'],['checkTime','Время проверки','time'],['checkRepeats','Повторы (0–3)','integer'],['checkInterval','Интервал в часах (1–4)','integer'],['checkEscalation','Усиление при пропусках','bool'],['checkEscalationDays','После скольких дней (1–7)','integer'],['reminderStyle','Стиль текста','style'],['reminderText','Свой текст','text'],['lunchAskEnabled','Вопрос об обеде','bool'],['lunchAskTime','Время вопроса об обеде','time'],['lunchAskDays','Дни вопроса: 1,2,3,4,5 (вс=0)','days'],['plannedReminders','Напоминания о платежах','bool'],['plannedReminderTime','Время напоминания о платежах','time'],['reportTime','Время сводок','time'],['dailyReport','Сводка дня','bool'],['weeklyReport','Сводка недели','bool'],['monthlyReport','Сводка месяца','bool'],['timeZone','Часовой пояс','zone']],

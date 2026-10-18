@@ -18,3 +18,16 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run worker:check
+      - name: Install browser for UI checks
+        run: npx --no-install playwright-core install --with-deps chromium
+      - name: Check financial UI in Chromium
+        run: npm run test:browser
+        env:
+          BROWSER_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa
+      - name: Save UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: financial-ui-screenshots
+          path: ${{ runner.temp }}/burget-browser-qa
+          if-no-files-found: ignore
