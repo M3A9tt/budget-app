@@ -36,7 +36,7 @@ export function parseEntry(text,accounts,categories,date,defaults={}){
 export function parseOwnTransfer(text,accounts,today){
  const dated=datePart(text,today);
  if(!/^\s*(?:перевод|перевести|перевёл|перевел)\s/iu.test(dated.value)||!/(?:→|->|между своими|со?\s.+\sна\s)/iu.test(text))return null;
- const hits=accountMentions(dated.value,accounts),unique=[...new Set(hits.map(x=>x.account.id))];if(unique.length!==2)throw Error('Для перевода укажи два своих счёта: перевод 1000 Сбер → Копилка');
+ const hits=accountMentions(dated.value,accounts);if(hits.some((a,i)=>hits.slice(i+1).some(b=>a.account.id!==b.account.id&&a.start<b.end&&b.start<a.end)))throw Error('Название счёта неоднозначно. Выбери счета в форме перевода или дай им разные названия');const unique=[...new Set(hits.map(x=>x.account.id))];if(unique.length!==2)throw Error('Для перевода укажи два своих счёта: перевод 1000 Сбер → Копилка');
  const first=hits.find(x=>x.account.id===unique[0]).account,second=hits.find(x=>x.account.id===unique[1]).account;
  if((first.currency||'RUB')!==(second.currency||'RUB'))throw Error('Перевод между разными валютами пока не поддерживается: сначала зафиксируй обмен и фактический курс');
  const amount=amountPart(without(dated.value,hits));if(amount.currency&&amount.currency!==(first.currency||'RUB'))throw Error('Валюта суммы должна совпадать с валютой счетов');
