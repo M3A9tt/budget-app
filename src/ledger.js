@@ -133,7 +133,7 @@ export function undoTransaction(data, entry) {
   }
   return validateLunchLinks(validateInstallmentLinks(validateDebtLinks(reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId)))); 
 }
-export function transferMoney(data, {from,to,amount,fee=0,note='',date,externalId,balanceEffect='normal'}) {
+export function transferMoney(data, {id,from,to,amount,fee=0,note='',date,externalId,balanceEffect='normal'}) {
   if(balanceEffect!=='history-only'&&date>clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date)throw Error('Будущий перевод пока не меняет остатки: запишите его после фактической передачи денег');
   const a = positive(amount), f = parseMoney(fee);
   if (!Number.isFinite(f) || f < 0) throw new Error('Неверная комиссия');
@@ -142,8 +142,11 @@ export function transferMoney(data, {from,to,amount,fee=0,note='',date,externalI
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date||'') || Number.isNaN(Date.parse(date+'T12:00:00Z')) || new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw new Error('Неверная дата перевода');
   if ((source.currency||'RUB') !== (target.currency||'RUB')) throw new Error('Переводы между разными валютами временно отключены: нужен фактический курс обмена');
   if(!['normal','history-only'].includes(balanceEffect))throw Error('Неверный режим перевода');
+  if(id!==undefined&&(typeof id!=='string'||!id||id.length>100))throw Error('Неверный идентификатор перевода');
+  const prior=id&&(data.transfers||[]).find(t=>t.id===id);
+  if(prior){if(prior.from===from&&prior.to===to&&prior.amount===a&&(prior.fee||0)===f&&(prior.note||'')===note&&prior.date===date&&(prior.balanceEffect||'normal')===balanceEffect&&prior.externalId===externalId&&(prior.currency||'RUB')===(source.currency||'RUB'))return data;throw Error('Этот перевод уже сохранён с другими данными. Проверь историю переводов');}
   let next = {...data, accounts:balanceEffect==='history-only'?data.accounts:data.accounts.map(x => x.id === from ? {...x,balance:roundMoney(x.balance-a)} : x.id === to ? {...x,balance:roundMoney(x.balance+a)} : x),
-    transfers:[...(data.transfers||[]),{id:newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,balanceEffect}]};
+    transfers:[...(data.transfers||[]),{id:id||newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,balanceEffect}]};
   if (f) next = putTransaction(next,{type:'expense',cat:'other',amount:f,currency:source.currency||'RUB',note:'Комиссия за перевод'+(note?' · '+note:''),date,tags:['комиссия'],accountId:from,balanceEffect});
   return next;
 }
