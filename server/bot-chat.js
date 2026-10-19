@@ -32,13 +32,28 @@ export async function cancelBotFlow(env,userId,api){
   await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:cardId,reply_markup:{inline_keyboard:[]}});
  }catch{/* Telegram may have deleted the old message; the draft is already closed. */}}
 }
+async function retireMenu(env,userId,api,message,result){
+ if(!message?.message_id||message.message_id===result?.message_id)return;
+ try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:message.message_id,reply_markup:{inline_keyboard:[]}});}catch{/* Deleted messages do not block the next screen. */}
+}
+export function compactMenuRows(buttons,routes,name){
+ if(!['home','add'].includes(name))return buttons;
+ const rows=[];
+ for(let i=0;i<buttons.length;i++){
+  const route=routes[i],last=rows.at(-1),previous=routes[i-1];
+  const short=route.command!=='/app'&&[...route.label].length<=22;
+  if(short&&last?.length===1&&previous?.command!=='/app'&&[...previous.label].length<=22&&[...route.label,...previous.label].length<=40)last.push(buttons[i][0]);
+  else rows.push([...buttons[i]]);
+ }
+ return rows;
+}
 async function menu(env,userId,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:x.special==='dayCheck'?`check:${x.args.day}:${x.args.action}`:`b:r:${id}:${i}`}]);if(screen.origin?.name==='transaction'&&buttons.length===5)return {inline_keyboard:[buttons[0],[...buttons[1],...buttons[2]],buttons[3],buttons[4]]};
  if(screen.origin?.name==='lunchMonths'&&buttons.length>=12)return {inline_keyboard:[buttons[0],...Array.from({length:6},(_,i)=>[buttons[i*2+1][0],buttons[i*2+2][0]]),...buttons.slice(13)]};
- return {inline_keyboard:buttons};}
+ return {inline_keyboard:compactMenuRows(buttons,routes,screen.origin?.name)};}
 async function render(env,userId,api,screen){
  const text=[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),reply_markup=await menu(env,userId,screen);
  if(api.viewMessage?.message_id&&!api.viewMessage.photo)try{return await api.telegram(env,'editMessageText',{chat_id:userId,message_id:api.viewMessage.message_id,text,reply_markup});}catch{/* Old or deleted cards remain navigable through a new message. */}
- return send(api,env,userId,text,reply_markup);
+ const result=await send(api,env,userId,text,reply_markup);await retireMenu(env,userId,api,api.viewMessage,result);return result;
 }
 export async function showBotView(env,userId,api,name='home',args={}){
  const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'savings',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
@@ -49,7 +64,7 @@ export async function showBotView(env,userId,api,name='home',args={}){
    try{await api.telegram(env,'sendChatAction',{chat_id:userId,action:'upload_photo'});}catch{}
    const picture=await getPicture(env,userId,s,screen.picture,api.capturePicture);
    const actions=[...screen.actions,{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...picture.params,key:picture.cache_key}},view('📝 Текстом',name,{...args,textOnly:true})];
-   return await uploadPicture(env,userId,picture,await menu(env,userId,{actions,origin:screen.origin}),false,[screen.title,'',...screen.lines].join('\n'),api.viewMessage?.photo?api.viewMessage.message_id:undefined);
+   const result=await uploadPicture(env,userId,picture,await menu(env,userId,{actions,origin:screen.origin}),false,[screen.title,'',...screen.lines].join('\n'),api.viewMessage?.photo?api.viewMessage.message_id:undefined);await retireMenu(env,userId,api,api.viewMessage,result);return result;
   }catch(error){console.warn('Picture fallback',pictureErrorCode(error));}
  }
  return render(env,userId,api,screen);
@@ -163,7 +178,7 @@ export async function botChat(update,env,userId,api){
   if(action==='v'&&id==='app'){await api.command('/app');return true;}
   if(action==='v'){await pauseBotForm(env,userId,api);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   let loaded;try{loaded=await load(env,userId,id);}catch{const receipt=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,'bot:'+id).first();return render(env,userId,api,{title:receipt?'✅ Это действие уже выполнено':'Эта карточка уже закрыта',lines:[receipt?'Повторной записи не будет. Открой историю, чтобы посмотреть результат.':'Открой актуальный раздел.'],actions:[view('✍️ Записать','add'),view('История','history'),view('Главная','home')]});}const {p}=loaded;
-  if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');let r=p.routes[Number(arg)];if(r.op)r={...r,args:{...r.args,returnTo:p.origin}};if(r.view==='transaction'&&p.origin?.name==='history')r={...r,args:{...r.args,backTo:p.origin}};await route(env,userId,r.view?{...api,viewMessage:callback.message}:api,r);return true;}
+  if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');let r=p.routes[Number(arg)];if(r.op)r={...r,args:{...r.args,returnTo:p.origin}};if(r.view==='transaction'&&p.origin?.name==='history')r={...r,args:{...r.args,backTo:p.origin}};const result=await route(env,userId,r.view?{...api,viewMessage:callback.message}:api,r);if(r.op)await retireMenu(env,userId,api,callback.message,result);return true;}
   if(p.kind!=='bot-form')throw Error('Карточка устарела');
   const generation=callback.data.split(':').at(-1);if(/^g\d+$/.test(generation)&&Number(generation.slice(1))!==p.cardVersion){await send(api,env,userId,'Используй кнопки последнего шага.');return true;}
   if(p.paused){await resumeMenu(env,userId,api,loaded,'tx',{type:'expense'});return true;}

@@ -1,4 +1,4 @@
-import {showBotView} from '../server/bot-chat.js';
+import {showBotView,compactMenuRows} from '../server/bot-chat.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -100,7 +100,7 @@ test('Savings and goals page buttons match six items in the image',()=>{
 test('Section navigation edits the current card, falls back for expired cards, and quick repeat still requires review',()=>run(async f=>{
  const api={readState:async()=>({revision:1,data:f.snapshot()}),telegram:async(_env,method,body)=>{f.sent.push({method,body});if(method==='editMessageText'&&body.message_id===404)throw Error('expired');return {message_id:body.message_id||100};}};
  await showBotView(f.env,'111',{...api,viewMessage:{message_id:123}},'accounts');assert.equal(f.sent.at(-1).method,'editMessageText');assert.equal(f.sent.at(-1).body.message_id,123);
- await showBotView(f.env,'111',{...api,viewMessage:{message_id:404}},'accounts');assert.equal(f.sent.at(-1).method,'sendMessage');
+ await showBotView(f.env,'111',{...api,viewMessage:{message_id:404}},'accounts');assert.equal(f.sent.filter(x=>['sendMessage','editMessageText'].includes(x.method)).at(-1).method,'sendMessage');
  const d=f.snapshot();d.transactions=[{id:'coffee',date:today,type:'expense',cat:'food',amount:180,currency:'RUB',accountId:'bank',note:'Кофе',paymentMethod:'card'}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
  await f.update('/add');await f.press(/↻ Кофе/);assert.match(f.last().text,/180/);assert.equal(f.snapshot().transactions.length,1);
  await f.press('✏️ Изменить поля');await f.press('Сумма');await f.update('190');assert.equal(f.snapshot().transactions.length,1);await f.press('✅ Подтвердить');const result=f.snapshot();assert.equal(result.transactions.length,2);assert.equal(result.transactions[1].amount,190);assert.equal(result.accounts[0].balance,9810);
@@ -428,3 +428,18 @@ test('Recognized correction uses common fields, keeps source day and applies lea
  await f.update('Сотрудник (9001)\nСуп 100р\nВторое 300р',undefined,111,{message_id:850,forward_date:Math.floor(Date.now()/1000)});const stale=f.button('✅ Подтвердить');await f.press('✏️ Изменить поля');await f.press(/Стоимость обеда/);await f.update('300');await f.update('',stale);assert.equal(f.snapshot().transactions.length,0);
  await f.update('/add');await f.press('▶️ Продолжить запись');await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions[0].amount,300);assert.equal(f.snapshot().transactions[0].date,today);assert.equal(f.sqlite.prepare("SELECT COUNT(*) n FROM lunch_learning WHERE status='pending'").get().n,1);assert.equal(f.snapshot().accounts[0].balance,10000);
 }));
+
+test('Lunch amount 380 succeeds with a hyphenated unrelated account and repeated confirm records once',()=>{
+ const d=seed();d.settings.modules={lunch:true};d.accounts.push({id:'beta',name:'Бета-счет',balance:500,currency:'RUB'});
+ return run(async f=>{
+  await f.update('/add');assert.ok(f.last().reply_markup.inline_keyboard.some(row=>row.length===2));await f.press(/Обед компании/);assert.match(f.last().text,/Стоимость обеда/);
+  assert.ok(f.sent.some(x=>x.method==='editMessageReplyMarkup'&&x.body.message_id&&x.body.reply_markup.inline_keyboard.length===0));
+  await f.update('380');assert.match(f.last().text,/380/);assert.equal(f.snapshot().transactions.length,0);
+  const token=f.button('✅ Подтвердить');await f.update('',token);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0].type,'lunch');assert.equal(f.snapshot().transactions[0].amount,380);assert.deepEqual(f.snapshot().accounts,d.accounts);
+  await f.update('',token);assert.equal(f.snapshot().transactions.length,1);
+ },d);
+});
+test('Compact navigation retains every callback and leaves long account and transaction names alone',()=>{
+ const routes=[{label:'Миниаппа',command:'/app'},...['Расход','Доход','Обед компании','Перевод своим','Очень длинное название операции которое не поместится рядом','Ещё'].map(label=>({label}))];
+ const buttons=routes.map((r,i)=>[{text:r.label,callback_data:String(i)}]);const rows=compactMenuRows(buttons,routes,'add');assert.deepEqual(rows.flat(),buttons.flat());assert.ok(rows.length<buttons.length);assert.equal(rows[0].length,1);assert.equal(rows.find(row=>row.some(b=>b.text.startsWith('Очень'))).length,1);assert.deepEqual(compactMenuRows(buttons,routes,'accounts'),buttons);
+});

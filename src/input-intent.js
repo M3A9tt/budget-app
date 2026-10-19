@@ -1,7 +1,9 @@
 // A pure, shared interpretation layer for the bot and Mini App.
 // Never writes balances or creates transactions.
 const boundary='[\\p{L}\\p{N}]';
-const escape=s=>s.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&');
+// Constructor patterns need only regexp syntax escaped. In Unicode mode,
+// identity escapes such as \- outside a character class are invalid.
+const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
 export function accountMentions(text,accounts=[]){
  const candidates=[];
