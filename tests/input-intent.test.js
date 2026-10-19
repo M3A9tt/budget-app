@@ -52,3 +52,11 @@ test('Router protects personal messages and accepts genuine forwarded company or
  ])assert.equal(classifyIncomingMessage({message,orders:lunchOrders(message.text),accounts}).route,'financial-entry');
  assert.equal(classifyIncomingMessage({message:{text:'Суп, гречка 380',forward_date:1760680800},orders:lunchOrders('Суп, гречка 380'),accounts}).route,'company-order');
 });
+
+test('Account punctuation is literal under Unicode matching, even when an unrelated account is present',()=>{
+ const names=['Бета-счет','Т-Банк','Карта [основная]','Счёт (₽)','C++','Карта.ру','Счёт?','Путь\\банк','Счёт/два','Карта $^|{}'];
+ const all=names.map((name,i)=>({id:'punct-'+i,name,currency:'RUB',balance:1000}));
+ for(const account of all){assert.deepEqual(accountMentions('Кофе 180 '+account.name,all).map(x=>x.account.id),[account.id]);assert.equal(parseEntry('Кофе 180 '+account.name,all,CATEGORIES,date).accountId,account.id);}
+ assert.equal(accountMentions('380',all).length,0);assert.equal(classifyIncomingMessage({message:{text:'380'},accounts:all}).route,'financial-entry');
+ assert.equal(accountMentions('КартаXру',all).length,0);
+});
