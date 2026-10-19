@@ -31,3 +31,10 @@ test('A new unsaved entry survives tab switching without saving or duplicating a
  assert.equal(composer.props.draft.amount,'287,50');assert.equal(composer.props.draft.note,'Не потерять');assert.equal(composer.props.data.transactions.length,initialCount);
  a.find(n=>n.type==='button'&&n.props['aria-label']==='Назад').props.onClick();a.render();assert.ok(a.find(n=>n.props['data-page']==='history'));
 });
+
+test('All operations from home clear stale history filters and search',()=>{
+ const a=app();a.button('История').props.onClick();a.render();a.button('Доходы').props.onClick();a.find(n=>n.props['aria-label']==='Поиск операций').props.onChange({target:{value:'никогда не найдёт'}});a.render();a.button('Главная').props.onClick();a.render();a.component('HomeOverview').props.recentContent.props.action.props.onClick();a.render();assert.equal(a.find(n=>n.props['aria-label']==='Поиск операций').props.value,'');assert.ok(a.component('Transactions').props.txs.some(t=>t.type==='expense'));
+});
+test('Transfer draft survives navigation and saves to transfer history without a personal expense',async()=>{
+ const a=app();a.button('Записать').props.onClick();a.render();a.button('Перевод').props.onClick();a.render();let form=a.component('TransferForm');const before=form.props.data.transactions.length,accounts=form.props.data.accounts;form.props.setDraft({...form.props.draft,from:accounts[0].id,to:accounts[1].id,amount:'250'});a.render();a.button('История').props.onClick();a.render();a.button('Записать').props.onClick();a.render();form=a.component('TransferForm');assert.equal(form.props.draft.amount,'250');await form.props.onSave({...form.props.draft,id:form.props.draft.transferId});a.render();a.button('Записать').props.onClick();a.render();const composer=a.component('EntryComposer');assert.equal(composer.props.data.transfers.length,1);assert.equal(composer.props.data.transactions.length,before);assert.equal(composer.props.data.accounts.find(x=>x.id===accounts[0].id).balance,accounts[0].balance-250);
+});

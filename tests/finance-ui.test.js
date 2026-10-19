@@ -8,7 +8,7 @@ import TestRenderer,{act} from 'react-test-renderer';
 import {EMPTY,CATEGORIES,dashboard,todayMoscow,money} from '../src/mini-model.js';
 import {orderedAccounts,accountTotals} from '../src/account-balances.js';
 import {putTransaction} from '../src/ledger.js';
-const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';",resolveDir:new URL('..',import.meta.url).pathname,loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
+const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:new URL('..',import.meta.url).pathname,loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
 const ctx={module:{exports:{}},exports:{},require,Intl,Date,console,structuredClone,window:{scrollTo:()=>{}},crypto:globalThis.crypto};ctx.exports=ctx.module.exports;vm.runInNewContext(bundle,ctx);const ui=ctx.module.exports;
 const state=()=>({...structuredClone(EMPTY),accounts:[{id:'zero',name:'Пустой счёт',balance:0,currency:'RUB'},{id:'small',name:'Малый счёт',balance:100,currency:'RUB'},{id:'fx',name:'Доллары',balance:20,currency:'USD'},{id:'large',name:'Большой счёт',balance:1000,currency:'RUB'},{id:'reserve',name:'Резервный счёт',balance:3000,currency:'RUB',savingsKind:'deposit'}]});
 const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.children?text(x.children):'';
@@ -54,4 +54,20 @@ test('Calendar review changes no balance before the common form and expected inc
  const v=mount('MoneyCalendar',{data,onPrepare:x=>draft=x});const amount=()=>text(v.root.findByProps({className:'money-forecast-total'}).findByType('strong').toJSON?.()||{children:v.root.findByProps({className:'money-forecast-total'}).findByType('strong').children});assert.equal(amount(),money(2840));
  const toggle=v.root.findByType('input');act(()=>toggle.props.onChange({target:{checked:true}}));assert.equal(amount(),money(3340));
  click(v,x=>x.props.className==='money-event'&&text(x).includes('Свет'));assert.deepEqual(data,before);click(v,x=>labelText(x)==='Сумма другая');assert.equal(draft.amount,'');assert.equal(draft.recurringId,'due');assert.equal(draft.date,today);assert.deepEqual(data,before);v.unmount();
+});
+
+test('Calendar restores horizon, income scenario and chosen date after leaving for a shared form',()=>{
+ const today=todayMoscow(),date=new Date(Date.parse(today+'T12:00:00Z')+10*86400000).toISOString().slice(0,10),data=state();data.settings.nextIncomeDate=new Date(Date.parse(today+'T12:00:00Z')+2*86400000).toISOString().slice(0,10);let saved;
+ let v=mount('MoneyCalendar',{data,onStateChange:x=>saved=x});click(v,x=>labelText(x)==='Месяц');act(()=>v.root.findByType('input').props.onChange({target:{checked:true}}));click(v,x=>x.props['aria-label']?.startsWith(date+' ·'));
+ assert.equal(saved.horizon,'30');assert.equal(saved.income,true);assert.equal(saved.date,date);v.unmount();
+ v=mount('MoneyCalendar',{data,initialState:saved});assert.equal(v.root.findByType('input').props.checked,true);assert.equal(v.root.findAllByType('button').find(x=>labelText(x)==='Месяц').props['aria-pressed'],true);assert.equal(v.root.findAllByType('button').find(x=>x.props['aria-label']?.startsWith(date+' ·')).props['aria-pressed'],true);v.unmount();
+});
+test('Installment review opens the shared draft with the remaining sum; paid rows open their actual transaction',()=>{
+ const today=todayMoscow(),data=state();data.installments=[{id:'i',name:'Сплит',accountId:'large',currency:'RUB',cat:'tech',payments:[{id:'p',amount:300,date:today}]}];data.transactions=[{id:'part',type:'expense',cat:'tech',amount:100,date:today,currency:'RUB',accountId:'large',installmentPaymentId:'p'}];let draft,edited;
+ const before=structuredClone(data),v=mount('InstallmentCards',{data,onPrepare:x=>draft=x,onEdit:x=>edited=x});click(v,x=>labelText(x)==='Проверить платёж');assert.equal(draft.amount,'200');assert.equal(draft.installmentPaymentId,'p');assert.deepEqual(data,before);click(v,x=>labelText(x).includes('открыть запись'));assert.equal(edited.id,'part');v.unmount();
+});
+
+test('Linked payment form keeps the source visible and does not offer unrelated quick repeats',()=>{
+ const data=state(),today=todayMoscow(),draft={type:'expense',cat:'tech',amount:'200',date:today,currency:'RUB',accountId:'large',note:'Сплит',installmentPaymentId:'p'};
+ const v=mount('EntryComposer',{data,draft,cats:CATEGORIES,busy:false,setDraft:()=>{},onSave:()=>{},suggestions:[{id:'coffee',note:'Кофе',amount:180,currency:'RUB'}]});assert.ok(text(v.toJSON()).includes('Платёж по графику'));assert.equal(v.root.findAllByProps({className:'entry-repeat'}).length,0);v.unmount();
 });
