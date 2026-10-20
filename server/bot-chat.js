@@ -61,8 +61,8 @@ async function rememberView(env,userId,id,messageId,photo=false){
 async function menu(env,userId,screen){
  const routes=screen.actions||[],id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});
  const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:x.special==='dayCheck'?`check:${x.args.day}:${x.args.action}`:`b:r:${id}:${i}`}]);
- if(screen.origin?.name==='transaction'&&buttons.length===5)return {id,reply_markup:{inline_keyboard:[buttons[0],[...buttons[1],...buttons[2]],buttons[3],buttons[4]]}};
- if(screen.origin?.name==='lunchMonths'&&buttons.length>=12)return {id,reply_markup:{inline_keyboard:[buttons[0],...Array.from({length:6},(_,i)=>[buttons[i*2+1][0],buttons[i*2+2][0]]),...buttons.slice(13)]}};
+ if(screen.origin?.name==='transaction'&&buttons.length===4)return {id,reply_markup:{inline_keyboard:[buttons[0],[...buttons[1],...buttons[2]],buttons[3]]}};
+ if(screen.origin?.name==='lunchMonths'&&buttons.length>=12)return {id,reply_markup:{inline_keyboard:[...Array.from({length:6},(_,i)=>[buttons[i*2][0],buttons[i*2+1][0]]),...buttons.slice(12)]}};
  return {id,reply_markup:{inline_keyboard:compactMenuRows(buttons,routes,screen.origin?.name)}};
 }
 async function render(env,userId,api,screen){
