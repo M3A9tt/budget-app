@@ -128,6 +128,15 @@ function mergeData(base, inc) {
 }
 
 const LOCAL_V2='finance-app-encrypted-v2';
+let localReadBlocked=false;
+function localRecoverySnapshot() {
+  const entries={};
+  for(const name of [LOCAL_V2,LOCAL_V2+'-previous','finance-app-data','finance-pin-hash']) {
+    const value=localStorage.getItem(name);
+    if(value!==null)entries[name]=value;
+  }
+  return {format:'burget-device-recovery',version:1,capturedAt:new Date().toISOString(),entries};
+}
 function loadLocal() {
   // Encrypted data is hydrated only after PIN entry. Never substitute an empty save.
   try {if(localStorage.getItem(LOCAL_V2)) return structuredClone(DEFAULT_DATA);
@@ -137,10 +146,12 @@ function loadLocal() {
 }
 let localSaveQueue=Promise.resolve();
 function saveLocal(d) {
+  if(localReadBlocked) return Promise.reject(new Error('Сохранение заблокировано: сначала восстановите чтение данных устройства'));
   const key=getEncKey();
   if(!key) return Promise.reject(new Error('Введите PIN для сохранения'));
   const snapshot=structuredClone(d);
   const task=localSaveQueue.catch(()=>{}).then(async()=>{
+    if(localReadBlocked)throw new Error('Сохранение заблокировано: данные устройства не прочитаны');
     const encrypted=await encryptData(snapshot,key);
     const previous=localStorage.getItem(LOCAL_V2);
     // An encrypted recovery copy, never a plaintext backup.
@@ -151,10 +162,17 @@ function saveLocal(d) {
   localSaveQueue=task;return task;
 }
 async function readLocalUnlocked() {
-  const encoded=localStorage.getItem(LOCAL_V2);
-  if(encoded){const envelope=JSON.parse(encoded);const decoded=await decryptData(envelope._enc);if(!decoded)throw new Error('Не удалось расшифровать локальные данные. Ничего не перезаписано');return migrateData(decoded,DEFAULT_DATA);}
-  const legacy=localStorage.getItem('finance-app-data');
-  return legacy?migrateData(JSON.parse(legacy),DEFAULT_DATA):null;
+  try {
+    const encoded=localStorage.getItem(LOCAL_V2);
+    let data;
+    if(encoded){const envelope=JSON.parse(encoded);const decoded=await decryptData(envelope._enc);if(!decoded)throw new Error('Не удалось расшифровать локальные данные. Ничего не перезаписано');data=migrateData(decoded,DEFAULT_DATA);}
+    else {const legacy=localStorage.getItem('finance-app-data');data=legacy?migrateData(JSON.parse(legacy),DEFAULT_DATA):null;}
+    localReadBlocked=false;
+    return data;
+  } catch(error) {
+    localReadBlocked=true;
+    throw error;
+  }
 }
 
 /* ═══════════════════ ENCRYPTION ═══════════════════ */
@@ -1040,7 +1058,7 @@ export default function App() {
     return <><style>{STYLE}</style><LockScreen onUnlock={handleUnlock} hasPin={pinExists} savePinHash={savePinHash}/></>;
   }
 
-  if(!storageReady) return <><style>{STYLE}</style><div style={{padding:24,color:'var(--text)',background:'var(--bg)',minHeight:'100vh'}}>{storageError||'Расшифровка и перенос данных…'}{storageError&&<><button onClick={()=>location.reload()}>Повторить</button><button onClick={()=>{const next={...structuredClone(DEFAULT_DATA),_pinHash:getStoredPinHash()};dataRef.current=next;setData(next);setStorageError('');setStorageReady(true);}}>Открыть пустую новую версию для импорта JSON</button></>}</div></>;
+  if(!storageReady) return <><style>{STYLE}</style><div style={{padding:24,color:'var(--text)',background:'var(--bg)',minHeight:'100vh'}}><p role={storageError?'alert':undefined}>{storageError||'Расшифровка и перенос данных…'}</p>{storageError&&<><p>Сохранение отключено, пока данные не прочитаны. Скачайте копию устройства перед восстановлением.</p><button onClick={()=>location.reload()}>Повторить вход</button><button onClick={()=>{try{const url=URL.createObjectURL(new Blob([JSON.stringify(localRecoverySnapshot(),null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='burget-device-recovery.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){setStorageError('Не удалось скачать копию: '+error.message);}}}>Скачать данные для восстановления</button></>}</div></>;
   return (<>
     <style>{STYLE}</style>
     <div style={{display:'flex',minHeight:'100vh',background:'var(--bg)',color:'var(--text)',fontFamily:'var(--sans)',width:'100%',overflowX:'hidden'}}>

@@ -1,3 +1,4 @@
+import {importIdentity} from './import-identity.js';
 import {cashTimeline} from './finance-events.js';
 import {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
 export {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
@@ -49,35 +50,33 @@ export function csvRows(text){
  for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===sep&&!quoted){row.push(cell);cell='';}else if(c==='\n'&&!quoted){row.push(cell.replace(/\r$/,''));if(row.some(x=>x.trim()))rows.push(row);row=[];cell='';}else cell+=c;}
  if(quoted)throw Error('Незакрытая кавычка CSV');row.push(cell.replace(/\r$/,''));if(row.some(x=>x.trim()))rows.push(row);return rows;
 }
-const transferKey=t=>JSON.stringify([t.date,roundMoney(t.amount),t.from,t.to]);
 const resolveAccount=(data,value)=>{const hits=data.accounts.filter(a=>a.id===value||a.name.toLocaleLowerCase('ru')===String(value).trim().toLocaleLowerCase('ru'));if(hits.length!==1)throw Error('Укажите точный ID или уникальное название второго счёта');return hits[0];};
-const fingerprint=t=>JSON.stringify([t.date,roundMoney(t.amount),t.type,t.currency||'RUB',t.accountId||'',(t.note||'').trim().toLowerCase()]);
 export function previewImport(data,text,accountId){
  const account=data.accounts.find(a=>a.id===accountId);if(!account)throw Error('Выберите счёт выписки');const rows=csvRows(text),header=rows.shift()?.map(s=>s.trim().toLowerCase());
  if(!header||!['date','amount','note'].every(k=>header.includes(k)))throw Error('Заголовки CSV: date;amount;note;type;paymentMethod;externalId. Расход — отрицательное amount или type=expense.');
- const transferFees=new Map();const seen=new Set(data.transactions.map(fingerprint)),external=new Set(data.transactions.filter(t=>t.externalId&&t.accountId===accountId).map(t=>t.externalId));
+ const identity=importIdentity(data);
  return rows.map((row,i)=>{try{const r=Object.fromEntries(header.map((k,j)=>[k,row[j]||'']));const amount=parseMoney(r.amount);if(!validDate(r.date)||!Number.isFinite(amount)||amount===0)throw Error('Неверная дата или сумма');
  if(r.type==='transfer'){
   const other=resolveAccount(data,amount<0?(r.toaccountid||r.toaccount):(r.fromaccountid||r.fromaccount));
   if(other.id===accountId||(other.currency||'RUB')!==(account.currency||'RUB'))throw Error('Для перевода нужны разные счета в одной валюте');
   const fee=r.fee?parseMoney(r.fee):0;if(!Number.isFinite(fee)||fee<0)throw Error('Неверная комиссия перевода');
-  const transfer={from:amount<0?accountId:other.id,to:amount<0?other.id:accountId,amount:Math.abs(amount),fee,date:r.date,note:r.note.trim(),externalId:r.externalid||undefined};
-  const key=transferKey(transfer),existing=(data.transfers||[]).find(t=>transferKey(t)===key);
-  if((existing&&(existing.fee||0)!==fee)||(transferFees.has(key)&&transferFees.get(key)!==fee))throw Error('Похожий перевод уже есть с другой комиссией. Сверьте его вручную');
-  const duplicate=!!existing||seen.has('transfer:'+key);seen.add('transfer:'+key);transferFees.set(key,fee);
-  return{line:i+2,transfer,duplicate,referenceDuplicate:false};
+  const transfer={from:amount<0?accountId:other.id,to:amount<0?other.id:accountId,amount:Math.abs(amount),fee,date:r.date,note:r.note.trim(),externalId:r.externalid||undefined,...(r.externalid?{externalAccountId:accountId}:{})};
+  return{line:i+2,transfer,...identity.transfer(transfer)};
  }
  if(r.type&&!['expense','income'].includes(r.type))throw Error('Тип должен быть expense, income или transfer');if(!r.type&&amount>0)throw Error('Для положительной суммы укажите type=income или expense');
  const t={date:r.date,type:r.type||'expense',amount:Math.abs(amount),note:r.note.trim(),cat:r.type==='income'?'income':'other',currency:account.currency||'RUB',accountId,paymentMethod:r.paymentmethod||'unknown',externalId:r.externalid||undefined,tags:['импорт']};if(!['card','sbp','cash','bank','unknown'].includes(t.paymentMethod))throw Error('Неизвестный способ оплаты');
- const key=fingerprint(t),referenceDuplicate=!!(t.externalId&&external.has(t.externalId)),duplicate=seen.has(key)||referenceDuplicate;seen.add(key);if(t.externalId)external.add(t.externalId);return{line:i+2,transaction:t,duplicate:!!duplicate,referenceDuplicate};
+ return{line:i+2,transaction:t,...identity.transaction(t)};
  }catch(e){return{line:i+2,error:e.message};}});
 }
 export function commitImport(data,rows,{affectBalances=false}={}){
  if(rows.some(r=>r.error))throw Error('Исправьте ошибки выписки до импорта');
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date());
  if(affectBalances&&rows.some(r=>(!r.duplicate||r.force)&&(r.transfer||r.transaction)?.date>today))throw Error('Будущие операции оставьте планами; они не должны менять текущие остатки');
- let next=data;
- for(const row of rows.filter(r=>!r.duplicate||r.force&&!r.referenceDuplicate)){if(row.transfer){if(!row.force&&(next.transfers||[]).some(t=>transferKey(t)===transferKey(row.transfer)))continue;next=transferMoney(next,{...row.transfer,balanceEffect:affectBalances?'normal':'history-only'});continue;}if(next.transactions.some(t=>!row.force&&fingerprint(t)===fingerprint(row.transaction)||(t.externalId&&t.externalId===row.transaction.externalId&&t.accountId===row.transaction.accountId)))continue;
- next=putTransaction(next,{...row.transaction,balanceEffect:affectBalances?'normal':'history-only'});}
+ let next=data;const identity=importIdentity(data);
+ for(const row of rows.filter(r=>!r.duplicate||r.force&&!r.referenceDuplicate)){
+  const fields=row.transfer||row.transaction,status=row.transfer?identity.transfer(fields):identity.transaction(fields);
+  if(status.referenceDuplicate||status.duplicate&&!row.force)continue;
+  next=row.transfer?transferMoney(next,{...fields,balanceEffect:affectBalances?'normal':'history-only'}):putTransaction(next,{...fields,balanceEffect:affectBalances?'normal':'history-only'});
+ }
  return next;
 }

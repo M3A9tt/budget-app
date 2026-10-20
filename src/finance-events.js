@@ -2,7 +2,7 @@ import {plannedOccurrences,planType} from './planned-model.js';
 import {installmentRemaining,installmentRemainders} from './installment-state.js';
 import {debtRemaining} from './debt-state.js';
 import {accountTotals,isSavingAccount} from './account-balances.js';
-const round=n=>Math.round((n+Number.EPSILON)*100)/100;
+import {roundMoney as round} from './ledger.js';
 export const moveDate=(date,days)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
 // One unpaid event list for the dashboard, calendar, projection and reminders.
 // Native amounts remain available for confirmation; RUB amounts are presentation.
@@ -29,7 +29,10 @@ export function cashTimeline(data,today,days=30,daily=0){
  let safe=actualBalance,expected=actualBalance,plannedIncome=0,plannedExpense=0;
  for(let i=0;i<=days;i++){
   const date=moveDate(today,i),rows=events.filter(e=>i===0?e.date<=today:e.date===date),due=round(rows.filter(e=>e.spendable&&e.type==='expense').reduce((n,e)=>n+(e.amountRub||0),0)),income=round(rows.filter(e=>e.spendable&&e.type==='income').reduce((n,e)=>n+(e.amountRub||0),0));
-  safe=round(safe-due-(i?daily:0));expected=round(expected-due+income-(i?daily:0));plannedIncome=round(plannedIncome+income);plannedExpense=round(plannedExpense+due);
+  // Allocate fractional-cent daily averages cumulatively, so 30 projected days
+  // cost exactly the rounded 30-day amount instead of 30 separately rounded days.
+  const dailyCharge=i?round(round(daily*i)-round(daily*(i-1))):0;
+  safe=round(safe-due-dailyCharge);expected=round(expected-due+income-dailyCharge);plannedIncome=round(plannedIncome+income);plannedExpense=round(plannedExpense+due);
   points.push({date,balance:safe,expectedBalance:expected,due,income,events:rows,unknown:rows.filter(e=>e.spendable&&e.amountRub===null).length});
  }
  return {today,until:moveDate(today,days),actualBalance,events,points,plannedIncome,plannedExpense,unknown:events.filter(e=>e.spendable&&e.amountRub===null).length,firstNegative:points.find(p=>p.balance<0)?.date,firstExpectedNegative:points.find(p=>p.expectedBalance<0)?.date,minimum:Math.min(actualBalance,...points.map(p=>p.expectedBalance)),endBalance:points.at(-1).expectedBalance};

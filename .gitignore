@@ -6,3 +6,6 @@ dist/
 .env.*
 server/wrangler.jsonc
 server/wrangler.staging.jsonc
+
+# Local Wrangler packaging checks
+worker-dry-run/

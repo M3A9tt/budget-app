@@ -1,4 +1,5 @@
 import {hasAccess} from './users.js';
+import {readRequestText,RequestError} from './request-errors.js';
 const cookieName='__Host-budget_session';
 const cookie=(value,age)=>`${cookieName}=${value}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${age}`;
 export const hashToken=async token=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)))).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -7,8 +8,8 @@ export async function webSession(request,env){const value=request.headers.get('C
 export async function webAuthRoute(request,env,path){
  const origin=request.headers.get('Origin');if(request.method!=='POST'||origin!==new URL(request.url).origin)return Response.json({error:'Недопустимый запрос'},{status:403});
  if(path.endsWith('/logout')){const value=request.headers.get('Cookie')?.split(';').map(x=>x.trim()).find(x=>x.startsWith(cookieName+'='))?.slice(cookieName.length+1);if(value)await env.DB.prepare('DELETE FROM user_web_sessions WHERE hash=?').bind(await hashToken(value)).run();return Response.json({ok:true},{headers:{'Set-Cookie':cookie('',0),'Cache-Control':'no-store'}});}
- let input;try{input=await request.json();}catch{return Response.json({error:'Неверный запрос'},{status:400});}
- if(typeof input.code!=='string'||input.code.length!==72)return Response.json({error:'Код недействителен'},{status:401});
+ let input;try{input=JSON.parse(await readRequestText(request,16000));}catch(error){return Response.json({error:'Неверный запрос'},{status:error instanceof RequestError?error.status:400,headers:{'Cache-Control':'no-store'}});}
+ if(!input||typeof input!=='object'||Array.isArray(input)||typeof input.code!=='string'||input.code.length!==72)return Response.json({error:'Код недействителен'},{status:401,headers:{'Cache-Control':'no-store'}});
  const hash=await hashToken(input.code),session=crypto.randomUUID()+crypto.randomUUID(),sessionHash=await hashToken(session),now=Date.now();
  const owner=await env.DB.prepare('SELECT user_id FROM user_web_codes WHERE hash=? AND expires_at>?').bind(hash,now).first();
  if(!owner||!await hasAccess(env,owner.user_id))return Response.json({error:'Код недействителен или доступ закрыт'},{status:401});

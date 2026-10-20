@@ -14,7 +14,7 @@ function fixture(){
 }
 test('D1 SQL import preserves account balance and rejects conflicting revision',async()=>{const {call,data}=fixture();assert.equal((await call('state','PUT',{expectedRevision:0,data})).status,200);const snapshot=await (await call('state')).json();assert.equal(snapshot.data.accounts[0].balance,10000);assert.equal(snapshot.revision,1);assert.equal((await call('state','PUT',{expectedRevision:0,data})).status,409);});
 test('D1 SQL idempotent purchase atomically changes balance once',async()=>{const {call,data}=fixture();await call('state','PUT',{expectedRevision:0,data});const tx={type:'expense',cat:'food',currency:'USD',amount:10,date:'2026-10-12',accountId:'rub'};const first=await (await call('transactions','POST',tx,{'Idempotency-Key':'same-request'})).json();const second=await (await call('transactions','POST',tx,{'Idempotency-Key':'same-request'})).json();assert.equal(first.transaction.id,second.transaction.id);const snapshot=await (await call('state')).json();assert.equal(snapshot.data.transactions.length,1);assert.equal(snapshot.data.accounts[0].balance,9080);assert.equal(snapshot.revision,2);});
-test('Idempotency key cannot be reused with different payload',async()=>{const {call,data}=fixture();await call('state','PUT',{expectedRevision:0,data});const tx={type:'expense',cat:'food',currency:'RUB',amount:10,date:'2026-10-12',accountId:'rub'};await call('transactions','POST',tx,{'Idempotency-Key':'key'});assert.equal((await call('transactions','POST',{...tx,amount:100},{'Idempotency-Key':'key'})).status,400);const snapshot=await (await call('state')).json();assert.equal(snapshot.data.accounts[0].balance,9990);});
+test('Idempotency key cannot be reused with different payload',async()=>{const {call,data}=fixture();await call('state','PUT',{expectedRevision:0,data});const tx={type:'expense',cat:'food',currency:'RUB',amount:10,date:'2026-10-12',accountId:'rub'};await call('transactions','POST',tx,{'Idempotency-Key':'key'});assert.equal((await call('transactions','POST',{...tx,amount:100},{'Idempotency-Key':'key'})).status,409);const snapshot=await (await call('state')).json();assert.equal(snapshot.data.accounts[0].balance,9990);});
 test('Invalid imports and invalid writes do not mutate stored snapshot',async()=>{const {call,data}=fixture();await call('state','PUT',{expectedRevision:0,data});assert.equal((await call('state','PUT',{expectedRevision:1,data:{transactions:null}})).status,400);assert.equal((await call('transactions','POST',{amount:-10},{'Idempotency-Key':'invalid'})).status,400);const snapshot=await (await call('state')).json();assert.equal(snapshot.revision,1);assert.equal(snapshot.data.accounts[0].balance,10000);});
 test('State receipts survive lost replies; API and bot share bounded, recoverable snapshots',async()=>{
  const {call,data,sqlite,env}=fixture(),body={expectedRevision:0,data},headers={'Idempotency-Key':'stable-state'};
@@ -38,6 +38,41 @@ function interleaveOnce(env,sqlToIntercept,winner){
  const prepare=env.DB.prepare.bind(env.DB);let ran=false;
  env.DB.prepare=sql=>{const stmt=prepare(sql);if(sql===sqlToIntercept){const first=stmt.first.bind(stmt);stmt.first=async()=>{const row=await first();if(!ran){ran=true;await winner();}return row;};}return stmt;};
 }
+
+test('Malformed write JSON and revision values leave the stored financial state intact',async()=>{
+ const {call,data,sqlite,env}=fixture();try{
+ await call('state','PUT',{expectedRevision:0,data});
+ for(const body of [null,[],true,42])for(const route of ['state','transactions'])assert.equal((await call(route,route==='state'?'PUT':'POST',body,{'Idempotency-Key':'invalid-object'})).status,400);
+ for(const revision of [undefined,-1,1.5,'1'])assert.equal((await call('state','PUT',{expectedRevision:revision,data})).status,400);
+ for(const route of ['state','transactions']){
+  const r=await worker.fetch(new Request('https://test.invalid/api/v1/'+route,{method:route==='state'?'PUT':'POST',headers:{Authorization:'Bearer test-only-secret'},body:'{'}),env);assert.equal(r.status,400);assert.match((await r.json()).error,/JSON/);
+ }
+ const current=await(await call('state')).json();assert.equal(current.revision,1);assert.equal(current.data.accounts[0].balance,10000);assert.equal(sqlite.prepare('SELECT count(*) n FROM user_idempotency').get().n,0);
+ }finally{sqlite.close();}
+});
+
+test('Failed backup insertion rolls back state and receipt and reports a retryable storage error',async t=>{
+ const {call,data,sqlite}=fixture();t.mock.method(console,'error',()=>{});try{
+ await call('state','PUT',{expectedRevision:0,data});
+ sqlite.exec("CREATE TRIGGER fail_backup BEFORE INSERT ON user_state_backups BEGIN SELECT RAISE(ABORT,'PRIVATE_FINANCIAL_DATA'); END");
+ const r=await call('transactions','POST',{type:'expense',cat:'food',amount:100,currency:'RUB',date:'2026-10-12',accountId:'rub'},{'Idempotency-Key':'failed-backup'});
+ assert.equal(r.status,503);assert.ok(!(await r.text()).includes('PRIVATE_FINANCIAL_DATA'));
+ const current=await(await call('state')).json();assert.equal(current.revision,1);assert.equal(current.data.accounts[0].balance,10000);assert.equal(current.data.transactions.length,0);assert.equal(sqlite.prepare('SELECT count(*) n FROM user_idempotency').get().n,0);
+ sqlite.exec('DROP TRIGGER fail_backup');
+ assert.equal((await call('transactions','POST',{type:'expense',cat:'food',amount:100,currency:'RUB',date:'2026-10-12',accountId:'rub'},{'Idempotency-Key':'failed-backup'})).status,201);
+ assert.equal((await(await call('state')).json()).data.accounts[0].balance,9900);
+ }finally{sqlite.close();}
+});
+
+test('Summary defaults to the profile time zone and rejects invalid or reversed dates',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-10-20T10:30:00Z')});
+ const {call,data,sqlite}=fixture();try{
+ await call('state','PUT',{expectedRevision:0,data:{...data,settings:{timeZone:'Pacific/Kiritimati'}}});
+ const r=await call('summary');assert.equal(r.status,200);assert.match((await r.json()).text,/2026-10-21/);
+ for(const query of ['from=2026-02-30','to=bad','from=2026-10-21&to=2026-10-20'])assert.equal((await call('summary?'+query)).status,400);
+ assert.equal((await(await call('state')).json()).revision,1);
+ }finally{sqlite.close();}
+});
 test('A bot confirmation that loses the write race returns the winning receipt without a second debit',async()=>{
  const {call,data,sqlite,env}=fixture();await call('state','PUT',{expectedRevision:0,data});const read=async()=>await(await call('state')).json(),state=await read();
  const p={kind:'bot-form',op:'tx',args:{type:'expense'},values:{amount:100,currency:'RUB',accountId:'rub',cat:'food',date:'2026-10-12'},revision:state.revision},id='bf_race';
@@ -56,7 +91,7 @@ test('Concurrent transaction retries reuse the winner receipt and still reject a
  const input={type:'expense',cat:'food',amount:100,currency:'RUB',date:'2026-10-12',accountId:'rub'},headers={'Idempotency-Key':'raced-tx'};
  interleaveOnce(env,'SELECT result,request_hash FROM user_idempotency WHERE user_id=? AND id=?',async()=>assert.equal((await call('transactions','POST',input,headers)).status,201));
  const result=await call('transactions','POST',input,headers);assert.equal(result.status,201);assert.equal((await(await call('state')).json()).data.accounts[0].balance,9900);
- assert.equal((await call('transactions','POST',{...input,amount:200},headers)).status,400);sqlite.close();
+ assert.equal((await call('transactions','POST',{...input,amount:200},headers)).status,409);sqlite.close();
 });
 
 test('Bot deletion and Mini App undo share linked lunch records, balances, receipts and independent backups',async()=>{

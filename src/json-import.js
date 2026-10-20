@@ -1,3 +1,4 @@
+import {importIdentity} from './import-identity.js';
 import {validDate} from './finance-tools.js';
 import {putTransaction,transferMoney,parseMoney,roundMoney} from './ledger.js';
 import {CATEGORIES} from './mini-model.js';
@@ -7,7 +8,6 @@ export const IMPORT_VERSION=1;
 export const IMPORT_EXAMPLE={format:IMPORT_FORMAT,version:1,operations:[{date:'2026-10-14',type:'expense',amount:180,currency:'RUB',account:'Основной счёт',category:'food',note:'Кофе',paymentMethod:'sbp'}]};
 const allowed=['date','type','amount','currency','account','category','note','paymentMethod','externalId','from','to','fee'];
 const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
-const sameMoney=(a,b)=>roundMoney(a)===roundMoney(b);
 const ownAccount=(data,value)=>{if(typeof value!=='string')throw Error('Выберите свой счёт');const hits=data.accounts.filter(a=>a.id===value||a.name.trim().toLocaleLowerCase('ru')===value.trim().toLocaleLowerCase('ru'));if(hits.length!==1)throw Error('Выберите счёт: название не найдено или неоднозначно');return hits[0];};
 function money(value){if(typeof value!=='number'||!Number.isFinite(value)||value<=0||value>1e12||Math.abs(value*100-Math.round(value*100))>0.001)throw Error('Сумма — положительное число с максимум двумя знаками');return roundMoney(value);}
 export function parseImportJson(text){if(typeof text!=='string'||text.length>2_000_000)throw Error('JSON — до 2 МБ');let doc;const clean=text.replace(/^\uFEFF/,'').trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i,'$1');try{doc=JSON.parse(clean);}catch{throw Error('Не удалось прочитать JSON. Загрузите сам .json файл или вставьте только JSON без пояснений.');}doc=normalizeLunchDocument(doc);validateDocument(doc);return doc;}
@@ -26,7 +26,7 @@ export function normalizeLunchDocument(doc){
 }
 function validateDocument(doc){if(!object(doc)||doc.format!==IMPORT_FORMAT||doc.version!==1||!Array.isArray(doc.operations)||doc.operations.length<1||doc.operations.length>2000||Object.keys(doc).some(k=>!['format','version','operations'].includes(k)))throw Error('Нужен burget-operations версии 1, от 1 до 2000 операций. Бэкап восстанавливается в отдельном разделе.');}
 export function previewJsonImport(data,doc,options={}){
- validateDocument(doc);const categories=new Set(CATEGORIES.concat(data.customCats||[]).map(c=>c.id)),transactions=[...data.transactions],transfers=[...(data.transfers||[])];
+ validateDocument(doc);const categories=new Set(CATEGORIES.concat(data.customCats||[]).map(c=>c.id)),identity=importIdentity(data);
  return doc.operations.map((raw,index)=>{if(options.excluded?.includes(index))return {index,excluded:true};try{
   if(!object(raw)||Object.keys(raw).some(k=>!allowed.includes(k)))throw Error('Неизвестные поля операции: используйте единый стандарт');
   if(!validDate(raw.date))throw Error('Уточните дату в формате ГГГГ-ММ-ДД');if(!['income','expense','transfer','lunch'].includes(raw.type))throw Error('Уточните тип: расход, доход, перевод или обед');
@@ -37,26 +37,21 @@ export function previewJsonImport(data,doc,options={}){
    if(raw.currency!=='RUB')throw Error('Обед компании указывается в RUB');
    if(['account','category','paymentMethod','from','to','fee'].some(k=>raw[k]!==undefined))throw Error('Обед компании: без счёта, категории, способа оплаты и комиссии');
    transaction={date:raw.date,type:'lunch',cat:'lunch',amount,currency:'RUB',note:raw.note,externalId:raw.externalId,tags:['импорт']};
-   const lunches=transactions.filter(t=>t.type==='lunch'||t.cat==='lunch');
-   referenceDuplicate=!!(raw.externalId&&lunches.some(t=>t.externalId===raw.externalId));
-   duplicate=referenceDuplicate||lunches.some(t=>t.date===raw.date&&(t.currency||'RUB')==='RUB'&&sameMoney(t.amount,amount));transactions.push(transaction);
+   ({duplicate,referenceDuplicate}=identity.transaction(transaction));
   }else if(raw.type==='transfer'){
    if(raw.account!==undefined||raw.category!==undefined||raw.paymentMethod!==undefined)throw Error('Перевод использует from/to, без account/category/paymentMethod');
    const from=ownAccount(data,raw.from),to=ownAccount(data,raw.to);if(from.id===to.id)throw Error('Для перевода нужны разные собственные счета');
    if((from.currency||'RUB')!==(to.currency||'RUB')||raw.currency!==(from.currency||'RUB'))throw Error('Счета перевода должны быть в одной указанной валюте');
    const fee=raw.fee??0;if(typeof fee!=='number'||fee<0||!Number.isFinite(parseMoney(fee)))throw Error('Неверная комиссия');
    transfer={from:from.id,to:to.id,date:raw.date,amount,fee,currency:raw.currency,note:raw.note,externalId:raw.externalId};
-   referenceDuplicate=!!(raw.externalId&&transfers.some(t=>t.externalId===raw.externalId&&t.from===from.id));
-   const similar=transfers.filter(t=>t.from===from.id&&t.to===to.id&&t.date===raw.date&&sameMoney(t.amount,amount));
-   if(similar.some(t=>!sameMoney(t.fee||0,fee)))throw Error('Похожий перевод имеет другую комиссию. Сверьте вручную');duplicate=referenceDuplicate||similar.length>0;transfers.push(transfer);
+   ({duplicate,referenceDuplicate}=identity.transfer(transfer));
   }else{
    if(raw.from!==undefined||raw.to!==undefined||raw.fee!==undefined)throw Error('Расход и доход используют account, без from/to/fee');
    const account=ownAccount(data,raw.account);if(raw.currency!==(account.currency||'RUB'))throw Error('Валюта должна совпадать со счётом: не угадываем курс');
    if(raw.type==='expense'&&!categories.has(raw.category))throw Error('Выберите категорию расхода');if(raw.type==='income'&&raw.category!==undefined&&raw.category!=='income')throw Error('Категория дохода — income');
    if(raw.paymentMethod!==undefined&&!['card','sbp','cash','bank','unknown'].includes(raw.paymentMethod))throw Error('Неверный способ оплаты');
    transaction={date:raw.date,type:raw.type,amount,currency:raw.currency,accountId:account.id,cat:raw.type==='income'?'income':raw.category,note:raw.note,paymentMethod:raw.paymentMethod||'unknown',externalId:raw.externalId,tags:['импорт']};
-   referenceDuplicate=!!(raw.externalId&&transactions.some(t=>t.accountId===account.id&&t.externalId===raw.externalId));
-   duplicate=referenceDuplicate||transactions.some(t=>t.accountId===account.id&&t.type===raw.type&&t.date===raw.date&&(t.currency||'RUB')===raw.currency&&sameMoney(t.amount,amount));transactions.push(transaction);
+   ({duplicate,referenceDuplicate}=identity.transaction(transaction));
   }
   return {index,transaction,transfer,duplicate,referenceDuplicate,force:!!options.forced?.includes(index)};
  }catch(e){return {index,error:e.message};}});

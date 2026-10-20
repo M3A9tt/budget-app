@@ -74,6 +74,64 @@ for(const width of [320,360,390,430,768,1280]){
  await page.locator('.mini-nav').getByRole('button',{name:'Записать',exact:true}).click();await page.getByRole('button',{name:'Перевод',exact:true}).click();await page.locator('select[name=from]').selectOption('alpha');await page.locator('select[name=to]').selectOption('sber');await page.locator('input[name=amount]').fill('10');await checkOverflow('transfer '+width);await page.screenshot({path:screenshotDir+'/transfer-'+width+'.png',fullPage:true});
  await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'До погашения',exact:true}).click();await page.getByRole('button',{name:/Кредиты, сплит, рассрочки/}).click();
 }
+// 4.2: repair a partially valid JSON import in Settings without changing bank balances.
+await page.setViewportSize({width:390,height:844});
+await page.goto(origin+'/?settings=1');
+await page.getByRole('button',{name:/Импорт операций/}).click();
+const importBox=page.getByRole('textbox',{name:'Или вставить JSON',exact:true});
+const importNote='Импорт через браузер: сгруппированные копейки';
+await importBox.fill(JSON.stringify({format:'burget-operations',version:1,operations:[null,{date:today,type:'expense',amount:12.3,currency:'RUB',account:'alpha',category:'food',note:importNote,paymentMethod:'sbp'}]}));
+await page.getByRole('button',{name:'Проверить и исправить',exact:true}).click();
+const badImportRow=page.locator('.json-import-row').nth(0),goodImportRow=page.locator('.json-import-row').nth(1);
+await badImportRow.locator('summary').waitFor();
+assert.match(await badImportRow.locator('summary').textContent(),/Неизвестные поля операции/);
+assert.equal(await page.getByRole('button',{name:'Подтвердить импорт · 1',exact:true}).isDisabled(),true);
+assert.equal(await page.locator('.json-import-row').count(),2);
+await badImportRow.getByRole('checkbox',{name:'Исключить строку',exact:true}).check();
+await goodImportRow.locator('summary').click();
+await goodImportRow.getByRole('textbox',{name:'Сумма',exact:true}).fill('1 234,50');
+assert.equal(await goodImportRow.getByRole('textbox',{name:'Сумма',exact:true}).inputValue(),'1 234,50');
+assert.equal(await page.getByRole('checkbox',{name:'Также изменить остатки счетов',exact:true}).isChecked(),false);
+assert.equal(await page.getByRole('button',{name:'Подтвердить импорт · 1',exact:true}).isEnabled(),true);
+await checkOverflow('json partial import 390');
+await page.screenshot({path:screenshotDir+'/09-json-repair-390.png',fullPage:true});
+const beforeJsonBalances=data.accounts.map(a=>({id:a.id,balance:a.balance}));
+await page.getByRole('button',{name:'Подтвердить импорт · 1',exact:true}).click();
+await page.locator('.json-import-row').first().waitFor({state:'detached'});
+const importedExpense=data.transactions.find(t=>t.note===importNote);
+assert.ok(importedExpense);assert.equal(importedExpense.amount,1234.5);assert.equal(importedExpense.balanceEffect,'history-only');
+assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeJsonBalances);
+// Corporate lunch editing must retain its account-free import contract.
+const lunchImportNote='Обед компании через браузер';
+await importBox.fill(JSON.stringify({format:'burget-operations',version:1,operations:[{date:today,type:'lunch',amount:379.5,currency:'RUB',note:lunchImportNote}]}));
+await page.getByRole('button',{name:'Проверить и исправить',exact:true}).click();
+const companyImportRow=page.locator('.json-import-row');
+await companyImportRow.locator('summary').click();
+assert.equal(await companyImportRow.getByLabel('Оплата',{exact:true}).count(),0);
+assert.equal(await companyImportRow.getByLabel('Счёт',{exact:true}).count(),0);
+await companyImportRow.getByRole('textbox',{name:'Описание',exact:true}).fill(lunchImportNote+' · проверено');
+assert.equal(await page.getByRole('button',{name:'Подтвердить импорт · 1',exact:true}).isEnabled(),true);
+await page.getByRole('button',{name:'Подтвердить импорт · 1',exact:true}).click();
+await page.locator('.json-import-row').first().waitFor({state:'detached'});
+const importedLunch=data.transactions.find(t=>t.note===lunchImportNote+' · проверено');
+assert.equal(importedLunch?.type,'lunch');assert.equal(importedLunch.accountId,undefined);assert.equal(importedLunch.paymentMethod,undefined);
+assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeJsonBalances);
+// A backup downloaded before another device writes must be downloaded again.
+await page.goto(origin+'/?settings=1');
+await page.getByRole('button',{name:/Резервные копии/}).click();
+await page.getByLabel('Восстановить бэкап',{exact:true}).setInputFiles({name:'browser-qa-backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(data))});
+await page.getByRole('button',{name:'Скачать копию перед заменой',exact:true}).waitFor();
+await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Скачать копию перед заменой',exact:true}).click()]);
+await page.getByRole('checkbox',{name:/Копию сохранил, понимаю/}).check();
+assert.equal(await page.getByRole('button',{name:'Восстановить проверенный бэкап',exact:true}).isEnabled(),true);
+data=putTransaction(data,{id:'qa-remote-write',type:'expense',cat:'food',date:today,amount:1,currency:'RUB',accountId:'alpha',note:'С другого устройства во время восстановления'});revision++;
+await page.locator('.mini-header').getByRole('button',{name:'Обновить данные',exact:true}).click();
+await page.getByText(/Бюджет обновился\. Перед заменой скачай свежую копию/).waitFor();
+assert.equal(await page.getByRole('button',{name:'Восстановить проверенный бэкап',exact:true}).isDisabled(),true);
+assert.equal(await page.getByRole('checkbox',{name:/Копию сохранил, понимаю/}).isChecked(),false);
+assert.equal(data.transactions.filter(t=>t.id==='qa-remote-write').length,1);
+await checkOverflow('backup refreshed 390');
+await page.screenshot({path:screenshotDir+'/10-backup-refresh-390.png',fullPage:true});
 // Summary images use the same exact-period model as their full text.
 const reportBundle=await build({entryPoints:['server/report-html.jsx'],bundle:true,write:false,format:'esm',platform:'browser',loader:{'.css':'text'}});
 const {renderReportHtml}=await import('data:text/javascript;base64,'+Buffer.from(reportBundle.outputFiles[0].contents).toString('base64'));
@@ -84,5 +142,5 @@ for(const [name,source,from] of [['day',demoData(today),today],['week',demoData(
  const bounds=await page.locator('#report-card').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth,height:e.clientHeight}));assert.equal(bounds.width,640);assert.ok(bounds.scroll<=641);assert.ok(bounds.height<2000);
  await page.locator('#report-card').screenshot({path:screenshotDir+'/summary-'+name+'.png'});
 }
-assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; calendar state, transfer with fee, partial installment/edit, day/week/empty summary cards; no page errors.');
+assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; calendar state, transfer with fee, partial installment/edit; partial JSON repair, grouped decimals, corporate lunch contract, history-only balances, stale backup confirmation; day/week/empty summary cards; no page errors.');
 }finally{await browser?.close();await server.close();}

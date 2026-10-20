@@ -6,10 +6,13 @@ export function resolveImportAccount(data,value){
 }
 export function importAccountSources(doc){
  const sources=new Map();
- for(const row of doc?.operations||[])for(const field of row.type==='lunch'?[]:row.type==='transfer'?['from','to']:['account']){
+ for(const row of doc?.operations||[]){
+  if(!row||typeof row!=='object'||Array.isArray(row))continue;
+  for(const field of row.type==='lunch'?[]:row.type==='transfer'?['from','to']:['account']){
   const value=row[field];if(typeof value!=='string'||!value.trim())continue;
   const k=key(value);if(!sources.has(k))sources.set(k,{key:k,name:value,currencies:new Set()});
   sources.get(k).currencies.add(row.currency);
+  }
  }
  return [...sources.values()].map(s=>({...s,currencies:[...s.currencies]}));
 }
@@ -27,6 +30,6 @@ export function prepareImportAccounts(data,doc,bindings={},options={}){
   if(account.accType==='savings'&&account.balance<0)throw Error('Накопления не могут быть отрицательными');
   accounts.push(account);mapping.set(source.key,account.id);
  }
- const operations=doc.operations.map(row=>{const next={...row};for(const field of row.type==='lunch'?[]:row.type==='transfer'?['from','to']:['account'])if(typeof row[field]==='string'&&mapping.has(key(row[field])))next[field]=mapping.get(key(row[field]));return next;});
+ const operations=doc.operations.map(row=>{if(!row||typeof row!=='object'||Array.isArray(row))return row;const next={...row};for(const field of row.type==='lunch'?[]:row.type==='transfer'?['from','to']:['account'])if(typeof row[field]==='string'&&mapping.has(key(row[field])))next[field]=mapping.get(key(row[field]));return next;});
  return {data:{...data,accounts},doc:{...doc,operations}};
 }

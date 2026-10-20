@@ -5,9 +5,16 @@ import {validateDebtLinks} from './debt-state.js';
 import {validateWishes} from './wishes.js';
 import {clockAt,DEFAULT_ZONE} from './time-settings.js';
 import {validateModules} from './modules.js';
-import {plannedPaid,planPeriod,planType} from './planned-model.js';
+import {plannedPaid,planPeriod,planType,validPlannedPeriod,validatePlannedLinks} from './planned-model.js';
 import {validateReminderSettings} from './reminder-settings.js';
-export const roundMoney = n => Math.round((n + Number.EPSILON) * 100) / 100;
+export const roundMoney = n => {
+  if(!Number.isFinite(n))return n;
+  // Decimal shifting keeps values such as 10.075 on the correct side of the
+  // half-cent boundary; a fixed binary epsilon does not at that magnitude.
+  const [digits,exponent='0']=Math.abs(n).toString().split('e');
+  const cents=Math.round(Number(digits+'e'+(Number(exponent)+2)));
+  return cents===0?0:(n<0?-cents:cents)/100;
+};
 export function parseMoney(value) {
   const s = String(value ?? '').trim().replace(/[\s\u00a0]/g, '').replace(',', '.');
   if (!/^-?\d+(?:\.\d{1,2})?$/.test(s)) return NaN;
@@ -69,6 +76,9 @@ function prepare(data, tx) {
 function log(data, entry) {
   return {...data, history: [{id:newId(),ts:Date.now(),...entry},...(data.history||[])].slice(0,200)};
 }
+function samePlan(a,b){
+  return !!a&&!!b&&[...new Set([...Object.keys(a),...Object.keys(b)])].every(key=>JSON.stringify(a[key])===JSON.stringify(b[key]));
+}
 function reconcileRecurring(data,...ids) {
   const touched=new Set(ids.filter(Boolean));
   if(!touched.size)return data;
@@ -88,7 +98,8 @@ export function putTransaction(data, input) {
   if(input.recurringId&&!rule&&!old)throw Error('План операции больше не существует');
   if(rule&&input.date>clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date)throw Error('Будущую операцию оставьте планом; подтвердите после фактической оплаты или поступления');
   const period=rule?(input.recurringPeriod||planPeriod(rule,input.date)):undefined;
-  if(rule&&(input.type!==planType(rule)||!(rule.frequency==='once'?period==='once':['daily','weekly'].includes(rule.frequency)?/^\d{4}-\d{2}-\d{2}$/.test(period):/^\d{4}-(0[1-9]|1[0-2])$/.test(period))||(rule.skippedPeriods||[]).includes(period)))throw Error('Неверный или пропущенный период плана');
+  const sameOccurrence=rule&&old&&old.recurringId===rule.id&&(old.recurringPeriod||planPeriod(rule,old.date))===period;
+  if(rule&&(input.type!==planType(rule)||!validPlannedPeriod(rule,period,!sameOccurrence)||(rule.skippedPeriods||[]).includes(period)))throw Error('Неверный или пропущенный период плана');
   if(rule&&plannedPaid({...data,transactions:data.transactions.filter(t=>t.id!==old?.id)}, {...rule,lastCreated:old?'':rule.lastCreated},period))throw Error('Этот период уже подтверждён');
   if(rule&&input.saveRecurringAmount&&(input.currency||'RUB')!==(rule.currency||'RUB'))throw Error('Чтобы обновить сумму плана, оставьте валюту плана или снимите флажок');
   if(old?.lunchId&&input.lunchId!==old.lunchId)throw Error('Связь доплаты с обедом нельзя удалить при редактировании');
@@ -100,7 +111,9 @@ export function putTransaction(data, input) {
   next = {...next, transactions: old ? next.transactions.map(t => t.id === tx.id ? tx : t) : [...next.transactions,tx]};
   const relatedBefore=old&&old.date!==tx.date?next.transactions.filter(t=>t.lunchId===tx.id):[];
   if(relatedBefore.length)next={...next,transactions:next.transactions.map(t=>t.lunchId===tx.id?{...t,date:tx.date,...(t._lunchCheckDay?{_lunchCheckDay:tx.date}:{}),revision:(t.revision||0)+1,updatedAt:tx.updatedAt}:t)};
-  return log(validateLunchLinks(validateInstallmentLinks(validateDebtLinks(reconcileRecurring(next,old?.recurringId,tx.recurringId)))), {type:old?'edit_tx':'add_tx',before:old,after:tx,...(relatedBefore.length?{relatedBefore}:{} )});
+  next=validatePlannedLinks(validateLunchLinks(validateInstallmentLinks(validateDebtLinks(reconcileRecurring(next,old?.recurringId,tx.recurringId)))));
+  const recurringChange=rule&&saveRecurringAmount?{recurringBefore:structuredClone(rule),recurringAfter:structuredClone(next.recurring.find(r=>r.id===rule.id))}:{};
+  return log(next,{type:old?'edit_tx':'add_tx',before:old,after:tx,...(relatedBefore.length?{relatedBefore}:{}),...recurringChange});
 }
 export function deleteTransaction(data, id) {
   const tx = data.transactions.find(t => t.id === id);
@@ -113,6 +126,7 @@ export function undoTransaction(data, entry) {
   // Only a still-available journal event can be reversed. Never trust cached fields.
   entry=(data.history||[]).find(h=>h.id===entry?.id);
   if(!entry||!['add_tx','edit_tx','delete_tx'].includes(entry.type))throw Error('Это изменение уже отменено или отсутствует в истории. Обновите данные');
+  if(entry.recurringBefore&&(!entry.recurringAfter||!samePlan(data.recurring.find(r=>r.id===entry.recurringAfter.id),entry.recurringAfter)))throw Error('После этого действия план изменялся или был удалён. Откат отменён, чтобы сохранить актуальные настройки');
   let next = data;
   const current = entry.after && data.transactions.find(t => t.id === entry.after.id);
   if (entry.type === 'delete_tx') {
@@ -131,22 +145,24 @@ export function undoTransaction(data, entry) {
       next = {...next, transactions:[...next.transactions,entry.before]};
     }
   }
-  return validateLunchLinks(validateInstallmentLinks(validateDebtLinks(reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId)))); 
+  if(entry.recurringBefore)next={...next,recurring:next.recurring.map(r=>r.id===entry.recurringBefore.id?structuredClone(entry.recurringBefore):r)};
+  return validatePlannedLinks(validateLunchLinks(validateInstallmentLinks(validateDebtLinks(reconcileRecurring({...next, history:(next.history||[]).filter(h => h.id !== entry.id)},entry.before?.recurringId,entry.after?.recurringId)))));
 }
-export function transferMoney(data, {id,from,to,amount,fee=0,note='',date,externalId,balanceEffect='normal'}) {
+export function transferMoney(data, {id,from,to,amount,fee=0,note='',date,externalId,externalAccountId,balanceEffect='normal'}) {
   if(balanceEffect!=='history-only'&&date>clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date)throw Error('Будущий перевод пока не меняет остатки: запишите его после фактической передачи денег');
   const a = positive(amount), f = parseMoney(fee);
   if (!Number.isFinite(f) || f < 0) throw new Error('Неверная комиссия');
   const source = data.accounts.find(x => x.id === from), target = data.accounts.find(x => x.id === to);
   if (!source || !target || from === to) throw new Error('Выберите разные счета');
+  if(externalAccountId!==undefined&&(typeof externalAccountId!=='string'||![from,to].includes(externalAccountId)||!data.accounts.some(a=>a.id===externalAccountId)))throw Error('Счёт внешнего идентификатора должен участвовать в переводе');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date||'') || Number.isNaN(Date.parse(date+'T12:00:00Z')) || new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw new Error('Неверная дата перевода');
   if ((source.currency||'RUB') !== (target.currency||'RUB')) throw new Error('Переводы между разными валютами временно отключены: нужен фактический курс обмена');
   if(!['normal','history-only'].includes(balanceEffect))throw Error('Неверный режим перевода');
   if(id!==undefined&&(typeof id!=='string'||!id||id.length>100))throw Error('Неверный идентификатор перевода');
   const prior=id&&(data.transfers||[]).find(t=>t.id===id);
-  if(prior){if(prior.from===from&&prior.to===to&&prior.amount===a&&(prior.fee||0)===f&&(prior.note||'')===note&&prior.date===date&&(prior.balanceEffect||'normal')===balanceEffect&&prior.externalId===externalId&&(prior.currency||'RUB')===(source.currency||'RUB'))return data;throw Error('Этот перевод уже сохранён с другими данными. Проверь историю переводов');}
+  if(prior){if(prior.from===from&&prior.to===to&&prior.amount===a&&(prior.fee||0)===f&&(prior.note||'')===note&&prior.date===date&&(prior.balanceEffect||'normal')===balanceEffect&&prior.externalId===externalId&&(prior.externalAccountId||prior.from)===(externalAccountId||from)&&(prior.currency||'RUB')===(source.currency||'RUB'))return data;throw Error('Этот перевод уже сохранён с другими данными. Проверь историю переводов');}
   let next = {...data, accounts:balanceEffect==='history-only'?data.accounts:data.accounts.map(x => x.id === from ? {...x,balance:roundMoney(x.balance-a)} : x.id === to ? {...x,balance:roundMoney(x.balance+a)} : x),
-    transfers:[...(data.transfers||[]),{id:id||newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,balanceEffect}]};
+    transfers:[...(data.transfers||[]),{id:id||newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,...(externalAccountId!==undefined?{externalAccountId}:{}),balanceEffect}]};
   if (f) next = putTransaction(next,{type:'expense',cat:'other',amount:f,currency:source.currency||'RUB',note:'Комиссия за перевод'+(note?' · '+note:''),date,tags:['комиссия'],accountId:from,balanceEffect});
   return next;
 }
@@ -189,11 +205,12 @@ export function migrateData(input, defaults) {
     for (const field of ['amount','target','saved']) if (entity[field]!==undefined && (!Number.isFinite(entity[field])||entity[field]<0)) throw new Error('Неверная сумма: '+k);
   }
   for(const t of data.transfers)if(!t.id||(!t.from&&!t.to)||(t.from&&t.from===t.to)||!Number.isFinite(t.amount)||t.amount<=0||!dateValid(t.date)||(t.fee!==undefined&&(!Number.isFinite(t.fee)||t.fee<0)))throw Error('Неверный перевод в бэкапе');
+  for(const t of data.transfers)if(t.externalAccountId!==undefined&&(typeof t.externalAccountId!=='string'||![t.from,t.to].includes(t.externalAccountId)||!accountIds.has(t.externalAccountId)))throw Error('Счёт внешнего идентификатора перевода отсутствует или не участвует в переводе');
   for(const p of data.installments){if(p.obligationKind!==undefined&&!['installment','split','loan','mortgage'].includes(p.obligationKind))throw Error('Неверный вид обязательства');if(p.cadence!==undefined&&!['monthly','weekly','biweekly'].includes(p.cadence))throw Error('Неверный график обязательства');if(!p.id||!Array.isArray(p.payments)||!Number.isFinite(p.total)||p.total<=0||p.total>1e12||!currencies.has(p.currency))throw new Error('Неверная рассрочка');for(const x of p.payments)if(!x.id||!Number.isFinite(x.amount)||x.amount<=0||x.amount>1e12||!dateValid(x.date))throw new Error('Неверный платёж рассрочки');}
   for (const k of ['transactions','accounts','debts','goals','recurring','installments','transfers']) if (new Set(data[k].map(x=>x.id)).size !== data[k].length) throw new Error('Повторяющиеся ID: '+k);
   data.migrationWarnings = data.transactions.filter(t=>t.accountId && !Number.isFinite(t.accountAmount) && (t.currency||'RUB') !== (data.accounts.find(a=>a.id===t.accountId)?.currency||'RUB')).map(t=>t.id);
   for(const d of data.debts){if(d.dueDate&&!dateValid(d.dueDate))throw Error('Неверный срок возврата долга');}
-  validateDebtLinks(data);validateInstallmentLinks(data);validateLunchLinks(data);delete data._pinHash;
+  validatePlannedLinks(data);validateDebtLinks(data);validateInstallmentLinks(data);validateLunchLinks(data);delete data._pinHash;
   // Preserve supplied balances. Historical bank exchange rates cannot be reconstructed.
   return data;
 }

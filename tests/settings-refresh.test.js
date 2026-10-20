@@ -1,10 +1,11 @@
+import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {buildSync} from 'esbuild';
 
 // Exercise the real component handlers and effects without a browser or server.
-const bundle=buildSync({entryPoints:[new URL('../src/NotificationSettings.jsx',import.meta.url).pathname],bundle:true,write:false,format:'cjs',platform:'node',external:['react']}).outputFiles[0].text;
+const bundle=buildSync({entryPoints:[fileURLToPath(new URL('../src/NotificationSettings.jsx',import.meta.url))],bundle:true,write:false,format:'cjs',platform:'node',external:['react']}).outputFiles[0].text;
 function panel(initial,mutate){
  const slots=[],effects=[];let index=0,changed=false,props={data:{settings:initial},mutate,busy:false},tree;
  const React={createElement:(type,props,...children)=>({type,props:props||{},children}),Fragment:'fragment',useState(initial){const slot=index++;if(!(slot in slots))slots[slot]=typeof initial==='function'?initial():initial;return [slots[slot],value=>{const next=typeof value==='function'?value(slots[slot]):value;if(!Object.is(next,slots[slot])){slots[slot]=next;changed=true;}}];},useRef(value){const slot=index++;return slots[slot]??(slots[slot]={current:value});},useEffect(fn,deps){const slot=index++;if(!slots[slot]||deps.some((v,i)=>!Object.is(v,slots[slot][i]))){slots[slot]=deps;effects.push(fn);}}};

@@ -3,3 +3,12 @@ function fixture(){const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync
 const request=(code,origin='https://budget.test')=>new Request('https://budget.test/api/v1/auth/login',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({code})});
 test('One-time web code creates protected cookie and cannot be replayed',async()=>{const {env}=fixture(),code=await issueWebCode(env,'111'),r=await webAuthRoute(request(code),env,'/login');assert.equal(r.status,200);const c=r.headers.get('Set-Cookie');for(const flag of ['Secure','HttpOnly','SameSite=Strict'])assert.ok(c.includes(flag));assert.equal(await webSession(new Request('https://budget.test',{headers:{Cookie:c.split(';')[0]}}),env),'111');assert.equal((await webAuthRoute(request(code),env,'/login')).status,401);});
 test('Web code expiration, untrusted origin and logout are enforced',async()=>{const {env,db}=fixture();let code=await issueWebCode(env,'111');assert.equal((await webAuthRoute(request(code,'https://evil.test'),env,'/login')).status,403);db.exec('UPDATE user_web_codes SET expires_at=0');assert.equal((await webAuthRoute(request(code),env,'/login')).status,401);code=await issueWebCode(env,'111');const r=await webAuthRoute(request(code),env,'/login'),cookie=r.headers.get('Set-Cookie').split(';')[0];await webAuthRoute(new Request('https://budget.test/api/v1/auth/logout',{method:'POST',headers:{Origin:'https://budget.test',Cookie:cookie}}),env,'/logout');assert.equal(await webSession(new Request('https://budget.test',{headers:{Cookie:cookie}}),env),null);});
+
+test('Null and non-object login JSON cannot crash authentication or issue a session',async()=>{
+ const {env,db}=fixture();
+ for(const value of [null,[],true,42,'code']){
+  const response=await webAuthRoute(new Request('https://budget.test/api/v1/auth/login',{method:'POST',headers:{Origin:'https://budget.test','Content-Type':'application/json'},body:JSON.stringify(value)}),env,'/login');
+  assert.equal(response.status,401);assert.equal(response.headers.get('Cache-Control'),'no-store');assert.equal(response.headers.get('Set-Cookie'),null);assert.match((await response.json()).error,/Код/);
+ }
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM user_web_sessions').get().n,0);db.close();
+});

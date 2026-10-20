@@ -1,8 +1,9 @@
+import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {buildSync} from 'esbuild';
-const code=buildSync({entryPoints:[new URL('../src/MiniApp.jsx',import.meta.url).pathname],bundle:true,write:false,format:'cjs',platform:'node',loader:{'.css':'empty'},external:['react']}).outputFiles[0].text;
+const code=buildSync({entryPoints:[fileURLToPath(new URL('../src/MiniApp.jsx',import.meta.url))],bundle:true,write:false,format:'cjs',platform:'node',loader:{'.css':'empty'},external:['react']}).outputFiles[0].text;
 // Run the real screen handlers with in-memory hooks; no server or personal profile involved.
 function app(){
  const slots=[],layouts=[],listeners=new Map();let index=0,tree,scroll=0;
