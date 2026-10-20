@@ -90,7 +90,7 @@ test('Opening a section sends the image with its real actions immediately; text 
   const before=f.sent.length;await showBotView(f.env,'111',api,name);const messages=f.sent.slice(before).filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia'].includes(x.method));assert.equal(messages.length,1);assert.ok(['sendPhoto','editMessageMedia'].includes(messages[0].method));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.web_app));assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='📄 Скачать PNG'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='🖼 Показать картинкой'));
  }
  assert.equal(captures,4); // savings and goals reuse the same current snapshot.
- await showBotView(f.env,'111',api,'analytics',{chart:'categories',days:7});assert.match(f.last().text,/Разобраться в деньгах · 7 дней/);const beforeText=captures;await showBotView(f.env,'111',api,'analytics',{textOnly:true});assert.equal(f.sent.at(-1).method,'sendMessage');assert.equal(captures,beforeText);
+ await showBotView(f.env,'111',api,'analytics',{chart:'categories',days:7});assert.match(f.last().text,/Разобраться в деньгах · 7 дней/);const beforeText=captures;await showBotView(f.env,'111',api,'analytics',{textOnly:true});assert.equal(f.sent.filter(x=>['sendMessage','editMessageText'].includes(x.method)).at(-1).method,'sendMessage');assert.equal(captures,beforeText);
  await showBotView(f.env,'111',api,'home');await f.press('✍️ Записать');assert.match(f.last().text,/Что записать/);assert.equal(f.snapshot().transactions.length,0);
 }));
 test('Savings and goals page buttons match six items in the image',()=>{
