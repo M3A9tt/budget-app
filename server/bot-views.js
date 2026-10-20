@@ -98,5 +98,5 @@ export function botView(d,name='home',a={},owner=false){
  if(name==='analytics')r.actions.unshift(...[['📈 Расходы','analytics'],['🎨 Категории','categories'],['🔮 Прогноз','forecast']].map(([label,chart])=>view(label,'analytics',{chart,days:a.days===7?7:30})),...[7,30].map(days=>view(`${days} дней`,'analytics',{chart:a.chart,days})));
  if(name==='more')r.actions.unshift(view('🖼 Картинки миниаппы','pictures'));
  if(['more','payments','analytics','categories','pictures'].includes(name))r.actions=r.actions.filter(x=>{const module=({goals:'goals',wishes:'goals',plans:'plans',installments:'installments',debts:'debts',limits:'limits'})[x.view]||(x.args?.chart==='forecast'||x.args?.kind==='forecast'?'forecast':null);return !module||moduleEnabled(d,module);});
- r.lines=r.lines.filter(Boolean);r.actions=[{label:'📱 Открыть миниаппу',command:'/app'},...r.actions.filter(x=>x.command!=='/app')];r.actions.push(view('⌂ Главное меню','home'));return r;
+ r.lines=r.lines.filter(Boolean);r.actions.push(view('⌂ Главное меню','home'));return r;
 }
