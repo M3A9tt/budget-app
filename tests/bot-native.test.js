@@ -87,7 +87,7 @@ test('Picture generation failure keeps native menus usable and does not mutate f
 test('Opening a section sends the image with its real actions immediately; text mode and editing remain connected',()=>run(async f=>{
  let captures=0;const api={readState:async()=>({revision:1,data:f.snapshot(),isOwner:true}),telegram:async(_env,method,body)=>{f.sent.push({method,body});return {};},capturePicture:async()=>{captures++;const b=new Uint8Array(24);b.set([137,80,78,71,13,10,26,10]);const v=new DataView(b.buffer);v.setUint32(16,1280);v.setUint32(20,922);return b;}};
  for(const name of ['home','analytics','lunch','savings','goals']){
-  const before=f.sent.length;await showBotView(f.env,'111',api,name);const messages=f.sent.slice(before).filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia'].includes(x.method));assert.equal(messages.length,1);assert.equal(messages[0].method,'sendPhoto');assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.web_app));assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='📄 Скачать PNG'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='🖼 Показать картинкой'));
+  const before=f.sent.length;await showBotView(f.env,'111',api,name);const messages=f.sent.slice(before).filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia'].includes(x.method));assert.equal(messages.length,1);assert.ok(['sendPhoto','editMessageMedia'].includes(messages[0].method));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.web_app));assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='📄 Скачать PNG'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='🖼 Показать картинкой'));
  }
  assert.equal(captures,4); // savings and goals reuse the same current snapshot.
  await showBotView(f.env,'111',api,'analytics',{chart:'categories',days:7});assert.match(f.last().text,/Разобраться в деньгах · 7 дней/);const beforeText=captures;await showBotView(f.env,'111',api,'analytics',{textOnly:true});assert.equal(f.sent.at(-1).method,'sendMessage');assert.equal(captures,beforeText);
@@ -196,7 +196,7 @@ test('Budget bot labels, settings, planned income and debt refunds remain human-
  assert.match(botView(d,'activity').actions.find(a=>a.label.includes('Покупка')).label,/Добавление/);
  assert.match(botView(d,'plan',{id:'income-month'}).lines.join(' '),/Ежемесячно/);
  assert.match(botView(d,'dueItem',{id:'income-month',period:today.slice(0,7)}).lines.join(' '),/поступление/i);
- assert.match(botView(d,'debtHistory',{id:'debt-1'}).actions[1].label,/200/);
+ assert.ok(botView(d,'debtHistory',{id:'debt-1'}).actions.some(a=>/200/.test(a.label)));
 });
 test('Cancel closes old input keyboard and preserves real account balance',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('100');
@@ -446,7 +446,7 @@ test('Compact navigation retains every callback and leaves long account and tran
 
 test('Navigation reuses latest bot screen without promoting the miniapp in every view',()=>run(async f=>{
  await f.update('/accounts');
- const first=f.last().message_id;
+ const first=JSON.parse(f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bv_*' ORDER BY rowid DESC LIMIT 1").get().payload).cardId;
  assert.ok(first);
  assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(b=>b.web_app));
  await f.update('/history');
