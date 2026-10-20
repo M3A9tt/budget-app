@@ -47,13 +47,36 @@ export function compactMenuRows(buttons,routes,name){
  }
  return rows;
 }
-async function menu(env,userId,screen){const routes=[{label:'📱 Открыть миниаппу',command:'/app'},...(screen.actions||[]).filter(x=>x.command!=='/app')],id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:x.special==='dayCheck'?`check:${x.args.day}:${x.args.action}`:`b:r:${id}:${i}`}]);if(screen.origin?.name==='transaction'&&buttons.length===5)return {inline_keyboard:[buttons[0],[...buttons[1],...buttons[2]],buttons[3],buttons[4]]};
- if(screen.origin?.name==='lunchMonths'&&buttons.length>=12)return {inline_keyboard:[buttons[0],...Array.from({length:6},(_,i)=>[buttons[i*2+1][0],buttons[i*2+2][0]]),...buttons.slice(13)]};
- return {inline_keyboard:compactMenuRows(buttons,routes,screen.origin?.name)};}
+async function latestView(env,userId){
+ const row=await env.DB.prepare("SELECT payload FROM telegram_drafts WHERE owner=? AND id GLOB 'bv_*' AND consumed=0 AND expires_at>? ORDER BY rowid DESC LIMIT 1").bind(userId,Date.now()).first();
+ if(!row)return null;
+ const p=JSON.parse(row.payload);
+ return p.cardId?{message_id:p.cardId,...(p.cardPhoto?{photo:true}:{})}:null;
+}
+async function rememberView(env,userId,id,messageId,photo=false){
+ if(!messageId)return;
+ const current=await load(env,userId,id);
+ await replace(env,userId,current.row,{...current.p,cardId:messageId,cardPhoto:photo});
+}
+async function menu(env,userId,screen){
+ const routes=screen.actions||[],id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});
+ const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:x.special==='dayCheck'?`check:${x.args.day}:${x.args.action}`:`b:r:${id}:${i}`}]);
+ if(screen.origin?.name==='transaction'&&buttons.length===5)return {id,reply_markup:{inline_keyboard:[buttons[0],[...buttons[1],...buttons[2]],buttons[3],buttons[4]]}};
+ if(screen.origin?.name==='lunchMonths'&&buttons.length>=12)return {id,reply_markup:{inline_keyboard:[buttons[0],...Array.from({length:6},(_,i)=>[buttons[i*2+1][0],buttons[i*2+2][0]]),...buttons.slice(13)]}};
+ return {id,reply_markup:{inline_keyboard:compactMenuRows(buttons,routes,screen.origin?.name)}};
+}
 async function render(env,userId,api,screen){
- const text=[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),reply_markup=await menu(env,userId,screen);
- if(api.viewMessage?.message_id&&!api.viewMessage.photo)try{return await api.telegram(env,'editMessageText',{chat_id:userId,message_id:api.viewMessage.message_id,text,reply_markup});}catch{/* Old or deleted cards remain navigable through a new message. */}
- const result=await send(api,env,userId,text,reply_markup);await retireMenu(env,userId,api,api.viewMessage,result);return result;
+ const previous=api.viewMessage?.message_id?api.viewMessage:await latestView(env,userId);
+ const text=[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),{id,reply_markup}=await menu(env,userId,screen);
+ if(previous?.message_id&&!previous.photo)try{
+  const result=await api.telegram(env,'editMessageText',{chat_id:userId,message_id:previous.message_id,text,reply_markup});
+  await rememberView(env,userId,id,result?.message_id||previous.message_id);
+  return result||{message_id:previous.message_id};
+ }catch{/* Deleted/expired/unedittable message: send a new screen. */}
+ const result=await send(api,env,userId,text,reply_markup);
+ await rememberView(env,userId,id,result?.message_id);
+ await retireMenu(env,userId,api,previous,result);
+ return result;
 }
 export async function showBotView(env,userId,api,name='home',args={}){
  const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'savings',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
@@ -64,7 +87,10 @@ export async function showBotView(env,userId,api,name='home',args={}){
    try{await api.telegram(env,'sendChatAction',{chat_id:userId,action:'upload_photo'});}catch{}
    const picture=await getPicture(env,userId,s,screen.picture,api.capturePicture);
    const actions=[...screen.actions,{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...picture.params,key:picture.cache_key}},view('📝 Текстом',name,{...args,textOnly:true})];
-   const result=await uploadPicture(env,userId,picture,await menu(env,userId,{actions,origin:screen.origin}),false,[screen.title,'',...screen.lines].join('\n'),api.viewMessage?.photo?api.viewMessage.message_id:undefined);await retireMenu(env,userId,api,api.viewMessage,result);return result;
+   const previous=api.viewMessage?.message_id?api.viewMessage:await latestView(env,userId),{id,reply_markup}=await menu(env,userId,{actions,origin:screen.origin});
+    const result=await uploadPicture(env,userId,picture,reply_markup,false,[screen.title,'',...screen.lines].join('\n'),previous?.photo?previous.message_id:undefined);
+    await rememberView(env,userId,id,result?.message_id||previous?.message_id,true);
+    await retireMenu(env,userId,api,previous,result);return result;
   }catch(error){console.warn('Picture fallback',pictureErrorCode(error));}
  }
  return render(env,userId,api,screen);
@@ -82,7 +108,7 @@ export async function pauseBotForm(env,userId,api){const active=await pendingFor
 async function resumeMenu(env,userId,api,active,op,args){return render(env,userId,api,{title:'✍️ Есть незавершённая запись',lines:[active.p.values.amount?money(active.p.values.amount,active.p.values.currency||'RUB'):'Можно продолжить с последнего поля.'],actions:[{label:'▶️ Продолжить запись',special:'resumeForm',args:{id:active.row.id}},{label:'Начать заново',special:'restartForm',args:{op,args}},view('Главная','home')]});}
 async function start(env,userId,api,op,args={}){
  const active=await pendingForm(env,userId);if(active&&!args.forceNew)return resumeMenu(env,userId,api,active,op,args);
- await cancelBotFlow(env,userId,api);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...(op==='tx'&&!args.id?quickDefaults(s.data,args):{}),...initialValues(s.data,op,args),...args.prefill},step:args.quickInput?1:0,status:'form',revision:s.revision};
+ await cancelBotFlow(env,userId,api);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...(op==='tx'&&!args.id?quickDefaults(s.data,args):{}),...initialValues(s.data,op,args),...args.prefill},step:args.quickInput?1:0,status:'form',revision:s.revision,...(api.viewMessage?.message_id&&!api.viewMessage.photo?{cardId:api.viewMessage.message_id}:{})};
  if(args.ownLunch){p.values.note=p.values.note||'Обед за свои';p.values.cat='food';p.values.tags=['обед-за-свои'];}
  const id=await create(env,userId,p,'bf_');if(args.review)return preview(env,userId,api,id,p);if(op==='restore')await api.sendFile(env,userId,s.data,'byurdzhet-before-restore.json');return prompt(env,userId,api,id,p);
 }
@@ -143,14 +169,14 @@ async function route(env,userId,api,r){
  const s=await api.readState(env,userId);
  if(r.special==='picture'||r.special==='pictureOriginal'){
   try{
-   await send(api,env,userId,'🖼 Готовлю снимок…');
+   try{await api.telegram(env,'sendChatAction',{chat_id:userId,action:'upload_photo'});}catch{/* Optional typing indicator. */}
    const picture=r.special==='pictureOriginal'?await originalPicture(env,userId,r.args.key):await getPicture(env,userId,s,r.args,api.capturePicture),p=picture.params;
    const actions=[{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...p,key:picture.cache_key}},view('🖼 Другие картинки','pictures')];
    if(['analytics','categories'].includes(p.kind))actions.unshift(...[7,30].map(days=>({label:`${days} дней`,special:'picture',args:{...p,days}})));
    if(p.kind==='lunch')actions.unshift(view('Выбрать месяц','lunchMonths'));
    if(p.kind==='savings'){if(p.page>0)actions.unshift({label:'← Накопления',special:'picture',args:{...p,page:p.page-1}});if((p.page+1)*6<Math.max(s.data.accounts.filter(isSavings).length,s.data.goals.length))actions.unshift({label:'Накопления →',special:'picture',args:{...p,page:p.page+1}});}
    actions.push(view('Открыть раздел',p.kind==='budget'?'home':['categories','forecast'].includes(p.kind)?'analytics':p.kind,p.kind==='lunch'?{month:p.month}:{}));
-   return await uploadPicture(env,userId,picture,await menu(env,userId,{actions}),r.special==='pictureOriginal');
+   return await uploadPicture(env,userId,picture,(await menu(env,userId,{actions})).reply_markup,r.special==='pictureOriginal',undefined,api.viewMessage?.photo?api.viewMessage.message_id:undefined);
   }catch{return render(env,userId,api,{title:'🖼 Снимок миниаппы',lines:[PICTURE_ERROR],actions:[{label:'Повторить',special:'picture',args:r.args},view('Картинки','pictures'),view('Главная','home')]});}
  }
  if(r.special==='lunchQuestion'){const day=todayMoscow(s.data.settings.timeZone);await setDayCheck(env,userId,day,'lunch','open');const body=lunchReminder(day);return send(api,env,userId,body.text,body.reply_markup);}
@@ -178,7 +204,7 @@ export async function botChat(update,env,userId,api){
   if(action==='v'&&id==='app'){await api.command('/app');return true;}
   if(action==='v'){await pauseBotForm(env,userId,api);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   let loaded;try{loaded=await load(env,userId,id);}catch{const receipt=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,'bot:'+id).first();return render(env,userId,api,{title:receipt?'✅ Это действие уже выполнено':'Эта карточка уже закрыта',lines:[receipt?'Повторной записи не будет. Открой историю, чтобы посмотреть результат.':'Открой актуальный раздел.'],actions:[view('✍️ Записать','add'),view('История','history'),view('Главная','home')]});}const {p}=loaded;
-  if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');let r=p.routes[Number(arg)];if(r.op)r={...r,args:{...r.args,returnTo:p.origin}};if(r.view==='transaction'&&p.origin?.name==='history')r={...r,args:{...r.args,backTo:p.origin}};const result=await route(env,userId,r.view?{...api,viewMessage:callback.message}:api,r);if(r.op)await retireMenu(env,userId,api,callback.message,result);return true;}
+  if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');let r=p.routes[Number(arg)];if(r.op)r={...r,args:{...r.args,returnTo:p.origin}};if(r.view==='transaction'&&p.origin?.name==='history')r={...r,args:{...r.args,backTo:p.origin}};const result=await route(env,userId,{...api,viewMessage:callback.message},r);if(r.op)await retireMenu(env,userId,api,callback.message,result);return true;}
   if(p.kind!=='bot-form')throw Error('Карточка устарела');
   const generation=callback.data.split(':').at(-1);if(/^g\d+$/.test(generation)&&Number(generation.slice(1))!==p.cardVersion){await send(api,env,userId,'Используй кнопки последнего шага.');return true;}
   if(p.paused){await resumeMenu(env,userId,api,loaded,'tx',{type:'expense'});return true;}
