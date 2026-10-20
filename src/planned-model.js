@@ -1,6 +1,30 @@
 export const planType=r=>r.type||'expense';
 export const planPeriod=(r,date)=>r.frequency==='once'?'once':['daily','weekly'].includes(r.frequency)?date:date.slice(0,7);
 export function plannedPaid(data,r,period){const linked=data.transactions.filter(t=>t.recurringId===r.id&&t.type===planType(r));return linked.some(t=>(t.recurringPeriod||planPeriod(r,t.date))===period)||(!linked.length&&r.lastCreated===period);}
+export function validPlannedPeriod(rule,period,checkSchedule=true){
+ const frequency=rule.frequency||'monthly';
+ let valid=frequency==='once'?period==='once':frequency==='monthly'?/^\d{4}-(0[1-9]|1[0-2])$/.test(period):
+  typeof period==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(period)&&Number.isFinite(Date.parse(period+'T12:00:00Z'))&&new Date(period+'T12:00:00Z').toISOString().slice(0,10)===period;
+ if(valid&&checkSchedule&&rule.startDate){
+  if(frequency==='monthly')valid=period>=rule.startDate.slice(0,7);
+  else if(frequency!=='once'){const days=(Date.parse(period+'T12:00:00Z')-Date.parse(rule.startDate+'T12:00:00Z'))/86400000;valid=Number.isInteger(days)&&days>=0&&(frequency!=='weekly'||days%7===0);}
+ }
+ return valid;
+}
+// A confirmation belongs to an occurrence, independently of its payment date.
+// Run this after every ledger transition, including restores and backup imports.
+export function validatePlannedLinks(data){
+ const rules=new Map((data.recurring||[]).map(r=>[r.id,r])),seen=new Set();
+ for(const tx of data.transactions){
+  if(!tx.recurringId)continue;
+  const rule=rules.get(tx.recurringId);if(!rule)continue; // Deleted plans retain their financial history.
+  const period=tx.recurringPeriod||planPeriod(rule,tx.date);
+  // A changed future schedule must not invalidate the already recorded dates.
+  if(!validPlannedPeriod(rule,period,false)||tx.type!==planType(rule)||(rule.skippedPeriods||[]).includes(period))throw Error('Неверный или пропущенный период плана');
+  const key=JSON.stringify([rule.id,period]);if(seen.has(key))throw Error('Этот период уже подтверждён. Сначала проверьте существующую оплату');seen.add(key);
+ }
+ return data;
+}
 export function plannedOccurrences(data,today,end=today){
  const items=[];
  for(const r of data.recurring.filter(r=>r.active)){

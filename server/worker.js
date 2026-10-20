@@ -29,6 +29,8 @@ import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
 // Separate new D1 database. This Worker never writes to legacy Supabase.
 import {putTransaction,migrateData,validateStateChange} from '../src/ledger.js';
+import {validDate} from '../src/finance-tools.js';
+import {RequestError,parseJsonObject,readJsonObject,readRequestText,validateInput} from './request-errors.js';
 
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 async function equalSecret(a,b) {
@@ -39,7 +41,7 @@ async function equalSecret(a,b) {
 }
 export function moscowDate(date=new Date()) {return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(date);}
 async function readState(env,userId) {
-  if(!await hasAccess(env,userId))throw new Error('Нет доступа');
+  if(!await hasAccess(env,userId))throw new RequestError('Нет доступа',403);
   // One-time copy, only for the configured owner; old tables stay untouched.
   if(String(userId)===String(env.TELEGRAM_OWNER_ID)&&!await env.DB.prepare('SELECT user_id FROM legacy_owner_migrations WHERE user_id=?').bind(String(userId)).first())await env.DB.batch([
     env.DB.prepare("INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) SELECT ?,revision,data,updated_at FROM finance_state WHERE id='owner'").bind(String(userId)),
@@ -53,21 +55,22 @@ async function readState(env,userId) {
   return {revision:row.revision,data:JSON.parse(row.data),userId:String(userId),isOwner:String(userId)===String(env.TELEGRAM_OWNER_ID),uninitialized:row.revision===0};
 }
 async function writeTransaction(env,userId,input,key) {
-  if(!key||key.length>160)throw new Error('Нужен уникальный Idempotency-Key');
+  if(!key||key.length>160)throw new RequestError('Нужен уникальный Idempotency-Key');
   const state=await readState(env,userId);
   const requestHash=await hashRequest(input);
-  const stored=async()=>{const prior=await readReceipt(env,userId,key);if(!prior)return null;if(prior.requestHash!==requestHash)throw Error('Ключ уже использован для другой операции');return prior.result;};
+  const stored=async()=>{const prior=await readReceipt(env,userId,key);if(!prior)return null;if(prior.requestHash!==requestHash)throw new RequestError('Ключ уже использован для другой операции',409);return prior.result;};
   const prior=await stored();if(prior)return prior;
-  const next=migrateData(putTransaction(state.data,input),EMPTY),tx=next.history[0].after;
+  const next=validateInput(()=>migrateData(putTransaction(state.data,input),EMPTY)),tx=next.history[0].after;
+  const encoded=validateInput(()=>encodeState(next),413);
   const result={transaction:tx,revision:state.revision+1};
   // SQLite transaction: INSERT result succeeds only for the matching snapshot.
   const rows=await env.DB.batch([
     backupBefore(env,userId,state.revision),
     env.DB.prepare("INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM user_finance_state WHERE user_id=? AND revision=?)").bind(userId,key,requestHash,JSON.stringify(result),Date.now(),userId,state.revision),
-    env.DB.prepare("UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND EXISTS(SELECT 1 FROM user_idempotency WHERE user_id=? AND id=?)").bind(encodeState(next),new Date().toISOString(),userId,state.revision,userId,key),
+    env.DB.prepare("UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND EXISTS(SELECT 1 FROM user_idempotency WHERE user_id=? AND id=?)").bind(encoded,new Date().toISOString(),userId,state.revision,userId,key),
     trimBackups(env,userId)
   ]);
-  if(rows[2].meta.changes!==1){const completed=await stored();if(completed)return completed;throw new Error('Конфликт обновления. Повторите с тем же ключом');}
+  if(rows[2].meta.changes!==1){const completed=await stored();if(completed)return completed;throw new RequestError('Конфликт обновления. Повторите с тем же ключом',409);}
   return result;
 }
 async function telegram(env,method,body) {
@@ -182,6 +185,7 @@ async function handleTelegram(update,env) {
 export default {
   async fetch(request,env) {
     const url=new URL(request.url);
+    try {
     if(url.pathname==='/api/v1/releases/check-picture'){
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);
       try{const storage=await checkPersistence(env,latestRelease.id),picture=await getPicture(env,'__fictional_render_check__',{revision:1,data:demoData()},{kind:'budget'});return json({releaseId:latestRelease.id,storage,...pngInfo(picture.bytes)});}catch{return json({error:'Screenshot smoke check failed'},503);}
@@ -189,13 +193,14 @@ export default {
     if(url.pathname==='/card-demo'){
       const data=demoData();try{const params=pictureParams(Object.fromEntries(url.searchParams),data),{renderReportHtml}=await import('./report-html.jsx');return new Response(renderReportHtml(data,params),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch{return json({error:'Unknown demo card'},400);}
     }
-    if(url.pathname==='/api/v1/releases/announce'){if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);let input;try{input=await request.json();}catch{return json({error:'Invalid JSON'},400);}if(input.releaseId!==latestRelease.id)return json({error:'Release mismatch'},409);return json({releaseId:latestRelease.id,...await broadcastRelease(env,telegram)});}
+    if(url.pathname==='/api/v1/releases/announce'){if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);const input=await readJsonObject(request);if(input.releaseId!==latestRelease.id)return json({error:'Release mismatch'},409);return json({releaseId:latestRelease.id,...await broadcastRelease(env,telegram)});}
     if(url.pathname==='/telegram/webhook') {
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Telegram-Bot-Api-Secret-Token'),env.TELEGRAM_WEBHOOK_SECRET))return json({error:'Unauthorized'},401);
-      try {await handleTelegram(await request.json(),env);return json({ok:true});}catch{return json({error:'Delivery failed'},503);}
+      const update=await readJsonObject(request);
+      try {await handleTelegram(update,env);return json({ok:true});}catch{return json({error:'Delivery failed'},503);}
     }
-    if(!url.pathname.startsWith('/api/v1/'))return env.ASSETS?env.ASSETS.fetch(request):json({error:'Not found'},404);
-    if(['/api/v1/auth/login','/api/v1/auth/logout'].includes(url.pathname))return webAuthRoute(request,env,url.pathname);
+    if(!url.pathname.startsWith('/api/v1/'))return env.ASSETS?await env.ASSETS.fetch(request):json({error:'Not found'},404);
+    if(['/api/v1/auth/login','/api/v1/auth/logout'].includes(url.pathname))return await webAuthRoute(request,env,url.pathname);
     const auth=request.headers.get('Authorization')||'';
     const telegramUser=auth.startsWith('tma ')?await validateTelegramInitData(auth.slice(4),env.TELEGRAM_BOT_TOKEN,await allAllowedUsers(env)):null;
     const apiAccess=auth.startsWith('Bearer ')&&await equalSecret(auth,env.API_TOKEN?'Bearer '+env.API_TOKEN:null);
@@ -204,38 +209,47 @@ export default {
     if(!telegramUser&&!apiAccess&&!sessionAccess)return json({error:'Откройте приложение заново из меню Telegram-бота'},401);
     const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
     if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
-    try {
-      if(url.pathname==='/api/v1/admin/lunch-learning'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);if(request.method==='GET')return json(await learningQueue(env));if(request.method==='POST')return json(await moderateLearning(env,await request.json()));}
+      if(url.pathname==='/api/v1/admin/lunch-learning'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);if(request.method==='GET')return json(await learningQueue(env));if(request.method==='POST')return json(await moderateLearning(env,await readJsonObject(request)));}
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
-      if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId);if(Number(request.headers.get('Content-Length')||0)>16000)return json({error:'Пакет слишком большой'},413);const text=await request.text();if(text.length>16000)return json({error:'Пакет слишком большой'},413);return json(await collectTelemetry(env,userId,JSON.parse(text),current.data.settings.telemetryEnabled!==false));}
-      if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await request.json(),telegram,periodSummary));}
-      if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await request.json(),telegram));
+      if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId),text=await readRequestText(request,16000);return json(await collectTelemetry(env,userId,parseJsonObject(text),current.data.settings.telemetryEnabled!==false));}
+      if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await readJsonObject(request),telegram,periodSummary));}
+      if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await readJsonObject(request),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
-        const text=await request.text();if(new TextEncoder().encode(text).length>1_550_000)return json({error:'Профиль больше допустимого размера'},413);
-        const input=JSON.parse(text),key=request.headers.get('Idempotency-Key');
+        const text=await readRequestText(request);
+        const input=parseJsonObject(text),key=request.headers.get('Idempotency-Key');
+        if(!Number.isSafeInteger(input.expectedRevision)||input.expectedRevision<0)throw new RequestError('Нужна корректная ревизия данных');
         if(key&&(!/^[a-zA-Z0-9:_-]{1,160}$/.test(key)))return json({error:'Неверный ключ сохранения'},400);
         const receipt=key?'state:'+key:null,hash=receipt?await hashRequest(input):null;
         const stored=async()=>{const prior=await readReceipt(env,userId,receipt);return prior?(prior.requestHash===hash?json(prior.result):json({error:'Ключ сохранения уже использован'},409)):null;};
         const prior=await stored();if(prior)return prior;
-        const data=migrateData(input.data,EMPTY),current=await readState(env,userId);
+        const data=validateInput(()=>migrateData(input.data,EMPTY)),current=await readState(env,userId);
         if(current.revision!==input.expectedRevision)return await stored()||json({error:'Revision conflict'},409);
-        validateStateChange(current.data,data);delete data._pinHash;const result={revision:input.expectedRevision+1};
+        validateInput(()=>validateStateChange(current.data,data));delete data._pinHash;const result={revision:input.expectedRevision+1};
+        const encoded=validateInput(()=>encodeState(data),413);
         const rows=await env.DB.batch([
           backupBefore(env,userId,input.expectedRevision),
-          env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(encodeState(data),new Date().toISOString(),userId,input.expectedRevision),
+          env.DB.prepare('UPDATE user_finance_state SET data=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?').bind(encoded,new Date().toISOString(),userId,input.expectedRevision),
           ...(receipt?[env.DB.prepare('INSERT INTO user_idempotency(user_id,id,request_hash,result,created_at) SELECT ?,?,?,?,? WHERE changes()=1').bind(userId,receipt,hash,JSON.stringify(result),Date.now())]:[]),
           trimBackups(env,userId)
         ]);
         if(rows[1].meta.changes!==1)return await stored()||json({error:'Revision conflict'},409);
         return json(result);
       }
-      if(request.method==='POST'&&url.pathname==='/api/v1/transactions')return json(await writeTransaction(env,userId,await request.json(),request.headers.get('Idempotency-Key')),201);
+      if(request.method==='POST'&&url.pathname==='/api/v1/transactions')return json(await writeTransaction(env,userId,await readJsonObject(request),request.headers.get('Idempotency-Key')),201);
       if(request.method==='GET'&&url.pathname==='/api/v1/summary') {
-        const state=await readState(env,userId);return json({text:periodSummary(state.data,url.searchParams.get('from')||moscowDate(),url.searchParams.get('to')||moscowDate(),'Расходы')});
+        const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;
+        const from=url.searchParams.get('from')||today,to=url.searchParams.get('to')||today;
+        if(!validDate(from)||!validDate(to)||from>to)throw new RequestError('Проверьте начало и конец периода');
+        return json({text:periodSummary(state.data,from,to,'Расходы')});
       }
       return json({error:'Not found'},404);
-    }catch(e){return json({error:e.message},400);}
+    }catch(error){
+      if(error instanceof RequestError)return json({error:error.message},error.status);
+      // Log route metadata only: database errors can contain financial data.
+      console.error(JSON.stringify({event:'request_failed',method:request.method,path:url.pathname}));
+      return json({error:'Сервер временно недоступен. Повтори запрос; операцию — с тем же ключом.'},503);
+    }
   },
   async scheduled(event,env,ctx) {
     // Minute wake-up in UTC; each profile uses its own IANA time zone.

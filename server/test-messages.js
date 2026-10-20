@@ -1,3 +1,4 @@
+import {RequestError} from './request-errors.js';
 import {sendSummary} from './summary-delivery.js';
 import {TEST_MESSAGE_TYPES} from '../src/test-message-types.js';
 import {expenseReminder,lunchReminder,paymentReminder} from './notifications.js';
@@ -5,7 +6,7 @@ import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {duePayments} from '../src/due-payments.js';
 import {releaseText} from '../src/release-notes.js';
 export function testMessage(data,type,summary,now=new Date(),appUrl){
- if(!TEST_MESSAGE_TYPES.some(([id])=>id===type))throw Error('Неизвестный тип сообщения');
+ if(!TEST_MESSAGE_TYPES.some(([id])=>id===type))throw new RequestError('Неизвестный тип сообщения');
  const today=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,shift=n=>new Date(Date.parse(today+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);let body;
  if(type==='expense')body=expenseReminder(data,today);
  if(type==='lunch')body=lunchReminder(today);
@@ -19,10 +20,10 @@ export function testMessage(data,type,summary,now=new Date(),appUrl){
 const ready=new WeakSet();
 async function ensure(env){if(ready.has(env.DB))return;await env.DB.prepare('CREATE TABLE IF NOT EXISTS user_notification_tests(user_id TEXT NOT NULL,id TEXT NOT NULL,kind TEXT NOT NULL,sent INTEGER NOT NULL DEFAULT 0,lease_until INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,id))').run();ready.add(env.DB);}
 export async function sendTestMessage(env,userId,data,input,send,summary){
- if(!input||Object.keys(input).some(k=>!['id','type'].includes(k))||!/^[a-f0-9-]{36}$/.test(input.id||'')||!TEST_MESSAGE_TYPES.some(([id])=>id===input.type))throw Error('Неверный тестовый запрос');
+ if(!input||Object.keys(input).some(k=>!['id','type'].includes(k))||!/^[a-f0-9-]{36}$/.test(input.id||'')||!TEST_MESSAGE_TYPES.some(([id])=>id===input.type))throw new RequestError('Неверный тестовый запрос');
  const body=testMessage(data,input.type,summary,new Date(),env.MINI_APP_URL);await ensure(env);const now=Date.now();await env.DB.prepare('DELETE FROM user_notification_tests WHERE created_at<?').bind(now-86400000).run();
  await env.DB.prepare('INSERT OR IGNORE INTO user_notification_tests(user_id,id,kind,created_at) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM user_notification_tests WHERE user_id=? AND created_at>?)<12').bind(userId,input.id,input.type,now,userId,now-60000).run();
- const row=await env.DB.prepare('SELECT * FROM user_notification_tests WHERE user_id=? AND id=?').bind(userId,input.id).first();if(!row)throw Error('Слишком много тестов. Повтори через минуту.');if(row.kind!==input.type)throw Error('Ключ уже использован для другого типа');if(row.sent===1)return {sent:true,duplicate:true};
- const claim=await env.DB.prepare('UPDATE user_notification_tests SET lease_until=? WHERE user_id=? AND id=? AND sent<>1 AND lease_until<=?').bind(now+60000,userId,input.id,now).run();if(!claim.meta.changes)throw Error('Этот тест уже отправляется');
+ const row=await env.DB.prepare('SELECT * FROM user_notification_tests WHERE user_id=? AND id=?').bind(userId,input.id).first();if(!row)throw new RequestError('Слишком много тестов. Повтори через минуту.');if(row.kind!==input.type)throw new RequestError('Ключ уже использован для другого типа');if(row.sent===1)return {sent:true,duplicate:true};
+ const claim=await env.DB.prepare('UPDATE user_notification_tests SET lease_until=? WHERE user_id=? AND id=? AND sent<>1 AND lease_until<=?').bind(now+60000,userId,input.id,now).run();if(!claim.meta.changes)throw new RequestError('Этот тест уже отправляется');
  try{if(body.report)await sendSummary(env,userId,data,{...body.report,text:body.text},send,{progress:{photoSent:row.sent===2},checkpoint:async()=>{await env.DB.prepare('UPDATE user_notification_tests SET sent=2 WHERE user_id=? AND id=?').bind(userId,input.id).run();}});else await send(env,'sendMessage',{chat_id:String(userId),...body});await env.DB.prepare('UPDATE user_notification_tests SET sent=1,lease_until=0 WHERE user_id=? AND id=?').bind(userId,input.id).run();return {sent:true};}catch(e){await env.DB.prepare('UPDATE user_notification_tests SET lease_until=0 WHERE user_id=? AND id=?').bind(userId,input.id).run();throw e;}
 }
