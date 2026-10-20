@@ -70,7 +70,7 @@ test('Native edit from history changes the same operation; deletion and undo res
 }));
 test('Native wizard cancellation preserves pending lunch input; a test callback never runs real reminder actions',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('100');await f.update('/cancel');assert.equal(f.snapshot().transactions.length,0);await f.update('/tests');await f.press('Вопрос об обеде');const callback=f.last().reply_markup.inline_keyboard[0][0].callback_data;await f.update('',callback);assert.equal(f.snapshot().transactions.length,0);
- await f.update('/menu');const keyboard=f.sent.filter(x=>x.body.reply_markup?.keyboard).at(-1).body.reply_markup.keyboard;assert.equal(keyboard.flat().length,7);assert.equal(keyboard[0][0].text,'📱 Миниаппа');assert.ok(f.sent.flatMap(x=>x.body.reply_markup?.inline_keyboard?.flat()||[]).every(x=>Buffer.byteLength(x.callback_data||'')<=64));
+ await f.update('/menu');const keyboard=f.sent.filter(x=>x.body.reply_markup?.keyboard).at(-1).body.reply_markup.keyboard;assert.equal(keyboard.flat().length,6);assert.equal(keyboard[0][0].text,'💰 Бюджет');assert.ok(f.sent.flatMap(x=>x.body.reply_markup?.inline_keyboard?.flat()||[]).every(x=>Buffer.byteLength(x.callback_data||'')<=64));
 }));
 test('Native personal goals, wished purchases and installment actions share domain ledgers',()=>{let d=seed();d=applyBotAction(d,'goal',{}, {name:'Подушка',target:3000,accountId:'reserve'});d=applyBotAction(d,'fundGoal',{id:d.goals[0].id},{from:'bank',amount:100,date:today});assert.equal(d.accounts[1].balance,2100);assert.equal(d.transactions.length,0);assert.throws(()=>applyBotAction(d,'wish',{}, {name:'ТВ',target:3000,currency:'RUB',accountId:'reserve'}));d=applyBotAction(d,'wish',{}, {name:'ТВ',note:'Для комнаты',priority:'main',target:30000,currency:'RUB',accountId:''});d=applyBotAction(d,'wishDone',{id:d.wishes[0].id,done:true});assert.equal(d.wishes[0].done,true);d=applyBotAction(d,'installment',{}, {name:'Сплит',total:300,count:3,firstDate:today,accountId:'bank',cat:'tech',obligationKind:'split',cadence:'biweekly'});d=applyBotAction(d,'payInstallment',{id:d.installments[0].id,paymentId:d.installments[0].payments[0].id},{date:today});assert.equal(d.accounts[0].balance,9800);assert.equal(d.transactions.length,1);});
 
@@ -82,12 +82,12 @@ test('New reserve can be funded atomically from an existing account in the nativ
  await f.update('/savings');await f.press('＋ Добавить');await f.update('На отпуск');await f.press('Накопления');await f.press('RUB');await f.press('Отложить с моего счёта');await f.press(/Банк/);await f.update('300');await f.press(/^Оставить:/);await f.press('Наличными');assert.equal(f.snapshot().accounts.length,2);await f.press('✅ Подтвердить');const d=f.snapshot();assert.equal(d.accounts.length,3);assert.equal(d.accounts[0].balance,9700);assert.equal(d.accounts.at(-1).balance,300);assert.equal(d.accounts.at(-1).storageKind,'cash');assert.equal(d.transfers.length,1);assert.equal(d.transactions.length,0);
 }));
 test('Picture generation failure keeps native menus usable and does not mutate finances',()=>run(async f=>{
- const before=f.snapshot();f.env.BROWSER={};await f.update('/budget');assert.match(f.last().text,/Твой бюджет/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='✍️ Записать'));assert.equal(f.last().reply_markup.inline_keyboard[0][0].web_app.url,f.env.MINI_APP_URL);assert.deepEqual(f.snapshot(),before);await f.update('/more');await f.press('🖼 Картинки миниаппы');assert.match(f.last().text,/Миниаппа в картинках/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='💚 Бюджет'));await f.press('⌂ Главное меню');assert.match(f.last().text,/Бюджет|бюджет/);
+ const before=f.snapshot();f.env.BROWSER={};await f.update('/budget');assert.match(f.last().text,/Твой бюджет/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='✍️ Записать'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.web_app));assert.deepEqual(f.snapshot(),before);await f.update('/more');await f.press('🖼 Картинки миниаппы');assert.match(f.last().text,/Миниаппа в картинках/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='💚 Бюджет'));await f.press('⌂ Главное меню');assert.match(f.last().text,/Бюджет|бюджет/);
 }));
 test('Opening a section sends the image with its real actions immediately; text mode and editing remain connected',()=>run(async f=>{
  let captures=0;const api={readState:async()=>({revision:1,data:f.snapshot(),isOwner:true}),telegram:async(_env,method,body)=>{f.sent.push({method,body});return {};},capturePicture:async()=>{captures++;const b=new Uint8Array(24);b.set([137,80,78,71,13,10,26,10]);const v=new DataView(b.buffer);v.setUint32(16,1280);v.setUint32(20,922);return b;}};
  for(const name of ['home','analytics','lunch','savings','goals']){
-  const before=f.sent.length;await showBotView(f.env,'111',api,name);const messages=f.sent.slice(before).filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia'].includes(x.method));assert.equal(messages.length,1);assert.equal(messages[0].method,'sendPhoto');assert.ok(f.last().reply_markup.inline_keyboard[0][0].web_app);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='📄 Скачать PNG'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='🖼 Показать картинкой'));
+  const before=f.sent.length;await showBotView(f.env,'111',api,name);const messages=f.sent.slice(before).filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia'].includes(x.method));assert.equal(messages.length,1);assert.equal(messages[0].method,'sendPhoto');assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.web_app));assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='📄 Скачать PNG'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='🖼 Показать картинкой'));
  }
  assert.equal(captures,4); // savings and goals reuse the same current snapshot.
  await showBotView(f.env,'111',api,'analytics',{chart:'categories',days:7});assert.match(f.last().text,/Разобраться в деньгах · 7 дней/);const beforeText=captures;await showBotView(f.env,'111',api,'analytics',{textOnly:true});assert.equal(f.sent.at(-1).method,'sendMessage');assert.equal(captures,beforeText);
@@ -443,3 +443,17 @@ test('Compact navigation retains every callback and leaves long account and tran
  const routes=[{label:'Миниаппа',command:'/app'},...['Расход','Доход','Обед компании','Перевод своим','Очень длинное название операции которое не поместится рядом','Ещё'].map(label=>({label}))];
  const buttons=routes.map((r,i)=>[{text:r.label,callback_data:String(i)}]);const rows=compactMenuRows(buttons,routes,'add');assert.deepEqual(rows.flat(),buttons.flat());assert.ok(rows.length<buttons.length);assert.equal(rows[0].length,1);assert.equal(rows.find(row=>row.some(b=>b.text.startsWith('Очень'))).length,1);assert.deepEqual(compactMenuRows(buttons,routes,'accounts'),buttons);
 });
+
+test('Navigation reuses latest bot screen without promoting the miniapp in every view',()=>run(async f=>{
+ await f.update('/accounts');
+ const first=f.last().message_id;
+ assert.ok(first);
+ assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(b=>b.web_app));
+ await f.update('/history');
+ assert.equal(f.sent.at(-1).method,'editMessageText');
+ assert.equal(f.last().message_id,first);
+ assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(b=>b.web_app));
+ await f.update('/more');
+ assert.equal(f.sent.at(-1).method,'editMessageText');
+ assert.ok(f.last().reply_markup.inline_keyboard.flat().some(b=>b.web_app));
+}));
