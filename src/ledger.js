@@ -15,6 +15,8 @@ export const roundMoney = n => {
   const cents=Math.round(Number(digits+'e'+(Number(exponent)+2)));
   return cents===0?0:(n<0?-cents:cents)/100;
 };
+// Sum rounded monetary amounts as cents, including historical currency fallbacks.
+export const sumMoney = (rows, value = x => x) => rows.reduce((cents,row) => cents + Math.round(roundMoney(value(row))*100),0)/100;
 export function parseMoney(value) {
   const s = String(value ?? '').trim().replace(/[\s\u00a0]/g, '').replace(',', '.');
   if (!/^-?\d+(?:\.\d{1,2})?$/.test(s)) return NaN;
@@ -34,8 +36,9 @@ function rate(data, currency) {
   return r;
 }
 export function historicalRub(tx, fallback) {
-  return Number.isFinite(tx.amountRub) ? tx.amountRub : fallback(tx.amount, tx.currency || 'RUB');
+  return Number.isFinite(tx.amountRub) ? tx.amountRub : roundMoney(fallback(tx.amount, tx.currency || 'RUB'));
 }
+export const transactionRub = (data,tx) => historicalRub(tx,(amount,currency)=>amount*(data.rates?.[currency]||1));
 function delta(data, tx) {
   if (tx.balanceEffect === 'history-only' || !tx.accountId || tx.type === 'lunch' || tx.cat === 'lunch') return 0;
   const account = data.accounts.find(a => a.id === tx.accountId);
@@ -90,6 +93,7 @@ function reconcileRecurring(data,...ids) {
 }
 export function putTransaction(data, input) {
   const old = data.transactions.find(t => t.id === input.id);
+  if(old?.recurringId&&input.recurringId!==old.recurringId)throw Error('Связь операции с планом нельзя удалить или заменить при редактировании');
   if(old?.installmentPaymentId&&input.installmentPaymentId!==old.installmentPaymentId)throw Error('Связь операции с рассрочкой нельзя удалить при редактировании');
   if(old?.debtId&&input.debtId!==old.debtId)throw Error('Связь операции с долгом нельзя удалить при редактировании');
   if (old && input.revision !== old.revision) throw new Error('Операция уже изменена. Откройте её заново');
@@ -176,7 +180,17 @@ export function migrateData(input, defaults) {
   const data = {installments:[],reconciliations:[],wishes:[],...structuredClone(defaults), ...input, schemaVersion:2,
     settings:{...defaults.settings,...input.settings},rates:{...defaults.rates,...input.rates}};
   const dateValid=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
-  for(const key of ['accounts','transactions','transfers','recurring','goals','debts','installments','reconciliations','customCats'])if(data[key].some(x=>!x||typeof x!=='object'||Array.isArray(x)))throw Error('Повреждённая запись: '+key);
+  const record=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+  for(const key of ['accounts','transactions','transfers','recurring','goals','debts','installments','reconciliations','customCats','history']){
+    for(const row of data[key]){
+      if(!record(row))throw Error('Повреждённая запись: '+key);
+      if(row.id!==undefined&&(typeof row.id!=='string'||!row.id.trim()))throw Error('Неверный идентификатор: '+key);
+      for(const field of ['name','note','person','cat','icon','color'])if(row[field]!==undefined&&typeof row[field]!=='string')throw Error('Неверное текстовое поле '+field+': '+key);
+      if(row.tags!==undefined&&(!Array.isArray(row.tags)||row.tags.some(tag=>typeof tag!=='string')))throw Error('Теги операции должны быть строками');
+      for(const field of ['payments','relatedBefore'])if(row[field]!==undefined&&(!Array.isArray(row[field])||row[field].some(x=>!record(x))))throw Error('Повреждённые вложенные записи '+field+': '+key);
+      if(key==='history')for(const field of ['before','after','recurringBefore','recurringAfter'])if(row[field]!=null&&!record(row[field]))throw Error('Повреждённая история: '+field);
+    }
+  }
   if(data.settings.reserveRub!==undefined&&(!Number.isFinite(data.settings.reserveRub)||data.settings.reserveRub<0))throw Error('Неверный резерв');
   if(data.settings.nextIncomeDate&&!dateValid(data.settings.nextIncomeDate))throw Error('Неверная дата следующего дохода');
   const currencies=new Set(['RUB','USD','EUR','GBP','CNY','TRY']);

@@ -8,8 +8,9 @@ import React from 'react';
 import TestRenderer,{act} from 'react-test-renderer';
 import {EMPTY,CATEGORIES,dashboard,todayMoscow,money} from '../src/mini-model.js';
 import {orderedAccounts,accountTotals} from '../src/account-balances.js';
+import {createPlanned,skipPlanned} from '../src/planned-operations.js';
 import {putTransaction} from '../src/ledger.js';
-const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
+const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as AppErrorBoundary} from './src/AppErrorBoundary.jsx';export {default as PlannedOperations} from './src/PlannedOperations.jsx';export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
 const ctx={module:{exports:{}},exports:{},require,Intl,Date,console,structuredClone,window:{scrollTo:()=>{}},crypto:globalThis.crypto};ctx.exports=ctx.module.exports;vm.runInNewContext(bundle,ctx);const ui=ctx.module.exports;
 const state=()=>({...structuredClone(EMPTY),accounts:[{id:'zero',name:'Пустой счёт',balance:0,currency:'RUB'},{id:'small',name:'Малый счёт',balance:100,currency:'RUB'},{id:'fx',name:'Доллары',balance:20,currency:'USD'},{id:'large',name:'Большой счёт',balance:1000,currency:'RUB'},{id:'reserve',name:'Резервный счёт',balance:3000,currency:'RUB',savingsKind:'deposit'}]});
 const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.children?text(x.children):'';
@@ -71,4 +72,29 @@ test('Installment review opens the shared draft with the remaining sum; paid row
 test('Linked payment form keeps the source visible and does not offer unrelated quick repeats',()=>{
  const data=state(),today=todayMoscow(),draft={type:'expense',cat:'tech',amount:'200',date:today,currency:'RUB',accountId:'large',note:'Сплит',installmentPaymentId:'p'};
  const v=mount('EntryComposer',{data,draft,cats:CATEGORIES,busy:false,setDraft:()=>{},onSave:()=>{},suggestions:[{id:'coffee',note:'Кофе',amount:180,currency:'RUB'}]});assert.ok(text(v.toJSON()).includes('Платёж по графику'));assert.equal(v.root.findAllByProps({className:'entry-repeat'}).length,0);v.unmount();
+});
+
+
+test('Skipped periods stay in a supplemental disclosure and returning one preserves balances',async()=>{
+ let data=createPlanned(state(),{name:'Возврат пропуска',amount:'10',type:'expense',frequency:'once',startDate:todayMoscow(),accountId:'large',cat:'food'});
+ const id=data.recurring[0].id;data=skipPlanned(data,id,'once');const balances=structuredClone(data.accounts);
+ let view;const props=()=>({data,cats:CATEGORIES,busy:false,onPrepare:()=>{},mutate:async fn=>{data=fn(data);view.update(React.createElement(ui.PlannedOperations,props()));return true;}});
+ view=mount('PlannedOperations',props());assert.ok(text(view.toJSON()).includes('Пропущенные периоды · 1'));
+ const disclosure=view.root.findByProps({className:'plan-skipped'});assert.equal(disclosure.type,'details');assert.equal(disclosure.props.open,undefined);
+ const restore=disclosure.findAllByType('button').find(b=>text(b)==='Вернуть в план');
+ await act(async()=>{await restore.props.onClick();});
+ assert.deepEqual(data.accounts,balances);assert.equal(data.transactions.length,0);assert.equal(data.recurring[0].skippedPeriods.length,0);
+ assert.ok(!text(view.toJSON()).includes('Пропущенные периоды'));
+ assert.ok(text(view.toJSON()).includes('Проверить и подтвердить'));view.unmount();
+});
+
+
+test('Render failure offers reload without clearing financial storage or showing exception details',()=>{
+ let reloads=0;ctx.window.location={reload:()=>reloads++};
+ const original=console.error;console.error=()=>{};
+ let view;try{act(()=>{view=TestRenderer.create(React.createElement(ui.AppErrorBoundary,null,React.createElement(()=>{throw Error('private financial payload');})));});}finally{console.error=original;}
+ assert.ok(text(view.toJSON()).includes('Не удалось открыть экран'));assert.ok(!text(view.toJSON()).includes('private financial payload'));
+ assert.equal(view.root.findByProps({role:'alert'}).type,'main');
+ act(()=>view.root.findByType('button').props.onClick());assert.equal(reloads,1);view.unmount();
+ const valid=mount('AppErrorBoundary',{children:React.createElement('span',null,'Рабочий экран')});assert.equal(text(valid.toJSON()),'Рабочий экран');valid.unmount();
 });

@@ -13,7 +13,8 @@ export function lunchDeletionRecords(data,id){
 }
 
 export function validateLunchLinks(data){
- for(const tx of data.transactions){if(!tx.lunchId)continue;const meal=data.transactions.find(t=>t.id===tx.lunchId);if(typeof tx.lunchId!=='string'||!meal||!companyLunch(meal)||tx.type!=='expense'||companyLunch(tx)||tx.date!==meal.date)throw Error('Доплата должна относиться к существующему обеду той же даты');}
+ const meals=new Map(data.transactions.filter(companyLunch).map(t=>[t.id,t]));
+ for(const tx of data.transactions){if(!tx.lunchId)continue;const meal=meals.get(tx.lunchId);if(typeof tx.lunchId!=='string'||!meal||tx.type!=='expense'||companyLunch(tx)||tx.date!==meal.date)throw Error('Доплата должна относиться к существующему обеду той же даты');}
  return data;
 }
 // A previous deletion is evidence for a repair suggestion, never an automatic debit reversal.

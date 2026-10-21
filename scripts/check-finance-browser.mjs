@@ -132,6 +132,17 @@ assert.equal(await page.getByRole('checkbox',{name:/Копию сохранил,
 assert.equal(data.transactions.filter(t=>t.id==='qa-remote-write').length,1);
 await checkOverflow('backup refreshed 390');
 await page.screenshot({path:screenshotDir+'/10-backup-refresh-390.png',fullPage:true});
+// Return an accidentally skipped occurrence without touching actual balances.
+data.recurring.push({id:'qa-skipped',name:'Случайный пропуск',type:'expense',frequency:'monthly',startDate:today,active:true,amount:75,currency:'RUB',accountId:'alpha',cat:'housing',dueDay:Number(today.slice(-2)),skippedPeriods:[today.slice(0,7)]});
+await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'Постоянные',exact:true}).click();
+const skippedCard=page.locator('.mini-card').filter({has:page.getByText('Случайный пропуск',{exact:true})});
+await skippedCard.locator('.plan-skipped summary').click();
+const beforeRestoreBalances=data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeRestoreCount=data.transactions.length;
+await skippedCard.getByRole('button',{name:'Вернуть в план '+today.slice(0,7),exact:true}).click();
+await skippedCard.getByRole('button',{name:'Проверить и подтвердить',exact:true}).waitFor();
+assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeRestoreBalances);assert.equal(data.transactions.length,beforeRestoreCount);assert.deepEqual(data.recurring.find(r=>r.id==='qa-skipped').skippedPeriods,[]);
+for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:900});await checkOverflow('restored plan '+width);}
+await page.setViewportSize({width:390,height:844});await page.screenshot({path:screenshotDir+'/11-restored-plan-390.png',fullPage:true});
 // Summary images use the same exact-period model as their full text.
 const reportBundle=await build({entryPoints:['server/report-html.jsx'],bundle:true,write:false,format:'esm',platform:'browser',loader:{'.css':'text'}});
 const {renderReportHtml}=await import('data:text/javascript;base64,'+Buffer.from(reportBundle.outputFiles[0].contents).toString('base64'));
@@ -142,5 +153,5 @@ for(const [name,source,from] of [['day',demoData(today),today],['week',demoData(
  const bounds=await page.locator('#report-card').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth,height:e.clientHeight}));assert.equal(bounds.width,640);assert.ok(bounds.scroll<=641);assert.ok(bounds.height<2000);
  await page.locator('#report-card').screenshot({path:screenshotDir+'/summary-'+name+'.png'});
 }
-assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; calendar state, transfer with fee, partial installment/edit; partial JSON repair, grouped decimals, corporate lunch contract, history-only balances, stale backup confirmation; day/week/empty summary cards; no page errors.');
+assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; calendar state, transfer with fee, partial installment/edit; partial JSON repair, grouped decimals, corporate lunch contract, history-only balances, stale backup confirmation; skipped plan recovery; day/week/empty summary cards; no page errors.');
 }finally{await browser?.close();await server.close();}

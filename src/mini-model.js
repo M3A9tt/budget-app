@@ -1,3 +1,4 @@
+import {transactionRub,sumMoney} from './ledger.js';
 import {spendingPlan} from './finance-events.js';
 import {accountTotals} from './account-balances.js';
 export const CATEGORIES=[{id:'food',name:'Еда',icon:'food',color:'#b8dec4'},{id:'transport',name:'Транспорт',icon:'transport',color:'#a6b7e8'},{id:'housing',name:'ЖКХ',icon:'home',color:'#d6b499'},{id:'health',name:'Здоровье',icon:'health',color:'#c2ace1'},{id:'fun',name:'Развлечения',icon:'play',color:'#d7bd79'},{id:'subs',name:'Подписки',icon:'repeat',color:'#a7cbd8'},{id:'clothes',name:'Одежда',icon:'other',color:'#c1bacd'},{id:'comm',name:'Связь',icon:'other',color:'#a6c2bc'},{id:'tech',name:'Техника',icon:'other',color:'#9eacc7'},{id:'other',name:'Другое',icon:'other',color:'#a2a8b7'}];
@@ -5,13 +6,13 @@ export const EMPTY={schemaVersion:2,transactions:[],accounts:[],debts:[],goals:[
 export const todayMoscow=(zone='Europe/Moscow')=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(new Date());
 export const money=(n,currency='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2,minimumFractionDigits:0}).format(n||0);
 export function dashboard(data,today=todayMoscow(data.settings?.timeZone)) {
-  const rub=t=>Number.isFinite(t.amountRub)?t.amountRub:t.amount*(data.rates[t.currency||'RUB']||1);
+  const rub=t=>transactionRub(data,t);
   const month=today.slice(0,7),txs=data.transactions.filter(t=>t.date.startsWith(month)&&t.date<=today);
-  const expenses=txs.filter(t=>t.type==='expense'&&t.cat!=='lunch'),income=txs.filter(t=>t.type==='income').reduce((n,t)=>n+rub(t),0);
-  const spent=expenses.reduce((n,t)=>n+rub(t),0),balance=accountTotals(data).spendable;
+  const expenses=txs.filter(t=>t.type==='expense'&&t.cat!=='lunch'),income=sumMoney(txs.filter(t=>t.type==='income'),rub);
+  const spent=sumMoney(expenses,rub),balance=sumMoney([accountTotals(data).spendable]);
   const plan=spendingPlan(data,today),{reserve,free,obligations,plannedExpenses,obligationItems,unknown,days}=plan,end=plan.until,hasPayday=plan.exclusive;
-  const categories=CATEGORIES.concat(data.customCats||[]).map(c=>({...c,value:expenses.filter(t=>t.cat===c.id).reduce((n,t)=>n+rub(t),0)})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
-  const daily=Array.from({length:7},(_,i)=>{const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-6+i);const date=d.toISOString().slice(0,10);return{date,label:new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:'UTC'}).format(d),amount:data.transactions.filter(t=>t.date===date&&t.type==='expense'&&t.cat!=='lunch').reduce((n,t)=>n+rub(t),0)};});
+  const categories=CATEGORIES.concat(data.customCats||[]).map(c=>({...c,value:sumMoney(expenses.filter(t=>t.cat===c.id),rub)})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
+  const daily=Array.from({length:7},(_,i)=>{const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-6+i);const date=d.toISOString().slice(0,10);return{date,label:new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:'UTC'}).format(d),amount:sumMoney(data.transactions.filter(t=>t.date===date&&t.type==='expense'&&t.cat!=='lunch'),rub)};});
   return {balance,spent,income,free,reserve,obligations,plannedExpenses,budgetUntil:end,budgetHorizon:hasPayday?'payday':'30-days',obligationItems:obligationItems.sort((a,b)=>a.date.localeCompare(b.date)),unknown,days,daily,categories};
 }
 export function demoData(today=todayMoscow()) {

@@ -2,7 +2,7 @@ import {importIdentity} from './import-identity.js';
 import {cashTimeline} from './finance-events.js';
 import {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
 export {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
-import {parseMoney,roundMoney,putTransaction,transferMoney} from './ledger.js';
+import {parseMoney,roundMoney,sumMoney,transactionRub,putTransaction,transferMoney} from './ledger.js';
 const id=()=>crypto.randomUUID();
 export function validDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;}
 const positive=v=>{const n=parseMoney(v);if(!Number.isFinite(n)||n<=0)throw Error('Нужна положительная сумма');return n;};
@@ -38,7 +38,7 @@ export function payInstallment(data,{planId,paymentId,date}){
 export function forecast(data,today,days=30){
  if(!Number.isInteger(days)||days<1||days>366)throw Error('Прогноз — от 1 до 366 дней');
  const past=new Date(today+'T12:00:00Z');past.setUTCDate(past.getUTCDate()-29);const from=past.toISOString().slice(0,10);
- const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&!t.debtId&&t.date>=from&&t.date<=today),daily=rows.reduce((n,t)=>n+(t.amountRub??t.amount*(data.rates[t.currency||'RUB']||1)),0)/30;
+ const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&!t.debtId&&t.date>=from&&t.date<=today),daily=sumMoney(rows,t=>transactionRub(data,t))/30;
  const timeline=cashTimeline(data,today,days,daily),overdue=timeline.points[0].due;
  return {...timeline,points:timeline.points.slice(1),plannedIncome:timeline.plannedIncome,plannedExpense:roundMoney(timeline.points.slice(1).reduce((n,p)=>n+p.due,0)),overdue,daily:roundMoney(daily),activeDays:new Set(rows.map(t=>t.date)).size};
 }
