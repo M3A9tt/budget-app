@@ -1,7 +1,19 @@
 name: Deploy Budget staging
 on:
   push:
-    branches: ["codex/multiuser-staging-20261013"]
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'server/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.js'
+      - 'scripts/check-release.mjs'
+      - 'scripts/configure-staging.mjs'
+      - 'scripts/announce-release.mjs'
+      - '.github/workflows/deploy-staging.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/codex/multiuser-staging-20261013'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
