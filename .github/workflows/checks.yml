@@ -2,7 +2,7 @@ name: Budget checks
 on:
   pull_request:
   push:
-    branches: ["codex/**"]
+    branches: ["main", "codex/**"]
 permissions:
   contents: read
 jobs:

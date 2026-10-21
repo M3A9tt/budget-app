@@ -1,0 +1,39 @@
+name: Visual audit evidence
+on:
+  pull_request:
+    paths:
+      - 'scripts/capture-audit-comparison.mjs'
+      - '.github/workflows/audit-visual.yml'
+      - 'docs/MODERNIZATION-4.2.0.md'
+  workflow_dispatch:
+    inputs:
+      before_ref:
+        description: 'Git revision before the audited changes'
+        default: '4755826e182350c88abaac17c6070b8700b98afb'
+        required: true
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install playwright-core install --with-deps chromium
+      - name: Capture both revisions on identical fictional records
+        run: node scripts/capture-audit-comparison.mjs
+        env:
+          AUDIT_BEFORE_REF: ${{ inputs.before_ref || '4755826e182350c88abaac17c6070b8700b98afb' }}
+          AUDIT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-audit-comparison
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-before-after
+          path: ${{ runner.temp }}/burget-audit-comparison
+          if-no-files-found: error
