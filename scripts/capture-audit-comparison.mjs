@@ -23,7 +23,7 @@ try{
  for(const [label,source,sha] of [['before',oldRoot,beforeSha],['after',root,afterSha]]){
   const server=await createServer({root:source,server:{host:'127.0.0.1',port:0}});
   await server.listen();
-  const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+  const context=await browser.newContext({viewport:{width:390,height:1200},deviceScaleFactor:1,isMobile:true,hasTouch:true});
   try{
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.clock.install({time:new Date(date+'T09:00:00Z')});
@@ -34,12 +34,12 @@ try{
    const card=page.locator('.mini-card').filter({has:page.getByText('Оплата интернета',{exact:true})});await card.waitFor();
    if(label==='after'){await card.locator('.plan-skipped summary').click();await card.getByRole('button',{name:'Вернуть в план 2026-10',exact:true}).waitFor();}
    else assert.equal(await card.getByRole('button',{name:/Вернуть в план/}).count(),0);
-   await page.evaluate(()=>document.fonts.ready);await card.screenshot({path:join(out,'plans-'+label+'.png'),animations:'disabled'});
+   await page.evaluate(()=>document.fonts.ready);await card.evaluate(el=>el.scrollIntoView({block:'start'}));await card.screenshot({path:join(out,'plans-'+label+'.png'),animations:'disabled'});
    await page.locator('.mini-nav').getByRole('button',{name:'Анализ',exact:true}).click();await page.locator('.report-spending-hero').waitFor();
    const amount=(await page.locator('.report-total-button strong').textContent()).replace(/\s/g,'');assert.equal(amount,label==='before'?'30,23₽':'30,24₽');
    await page.locator('.report-spending-hero').screenshot({path:join(out,'money-'+label+'.png'),animations:'disabled'});
    assert.deepEqual(errors,[]);
-   await writeFile(join(out,label+'.json'),JSON.stringify({sha,date,viewport:{width:390,height:844},fixture,displayedTotal:amount},null,2)+'\n');
+   await writeFile(join(out,label+'.json'),JSON.stringify({sha,date,viewport:{width:390,height:1200},fixture,displayedTotal:amount},null,2)+'\n');
   }finally{await context.close();await server.close();}
  }
  console.log(JSON.stringify({beforeSha,afterSha,date,out,checks:'Actual UI from both revisions; same records; totals asserted; no page errors'}));
