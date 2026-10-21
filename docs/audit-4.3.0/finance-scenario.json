@@ -1,0 +1,34 @@
+[
+  {
+    "stage": "До графика",
+    "balance": 12000,
+    "expenses": 560,
+    "obligations": 6000,
+    "available": 6000,
+    "transactions": 3
+  },
+  {
+    "stage": "График создан",
+    "balance": 12000,
+    "expenses": 560,
+    "obligations": 9000,
+    "available": 3000,
+    "transactions": 3
+  },
+  {
+    "stage": "Первый платёж подтверждён",
+    "balance": 9000,
+    "expenses": 3560,
+    "obligations": 6000,
+    "available": 3000,
+    "transactions": 4
+  },
+  {
+    "stage": "Оплата удалена",
+    "balance": 12000,
+    "expenses": 560,
+    "obligations": 9000,
+    "available": 3000,
+    "transactions": 3
+  }
+]

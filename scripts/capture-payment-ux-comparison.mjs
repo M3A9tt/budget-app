@@ -16,8 +16,8 @@ const input={name:'Телефон',total:'9000',count:'3',firstDate:'2026-10-28'
 let browser;
 await mkdir(out,{recursive:true});
 try{
- browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--single-process','--no-zygote']});
  for(const [label,sha] of [['before',beforeSha],['after',afterSha]]){
+  browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--single-process','--no-zygote']});
   const source=join(temporary,label);git('worktree','add','--detach',source,sha);await symlink(join(root,'node_modules'),join(source,'node_modules'),'junction');
   const server=await createServer({root:source,server:{host:'127.0.0.1',port:0}});await server.listen();
   const context=await browser.newContext({viewport:{width:390,height:1200},deviceScaleFactor:1,isMobile:true,hasTouch:true,locale:'ru-RU'});
@@ -31,22 +31,22 @@ try{
    for(const key of ['name','total','count','firstDate'])await disclosure.locator(`[name="${key}"]`).fill(input[key]);
    if(label==='before')for(const key of ['cadence','accountId','cat','obligationKind'])await disclosure.locator(`[name="${key}"]`).selectOption(input[key]);
    else await disclosure.getByLabel('Как часто',{exact:true}).selectOption(input.cadence);
-   await page.screenshot({path:join(out,label+'-page.png'),fullPage:true});await disclosure.screenshot({path:join(out,label+'-form.png')});
+   await page.screenshot({path:join(out,label+'-page.png'),fullPage:true});await disclosure.evaluate(e=>window.scrollTo({top:window.scrollY+e.getBoundingClientRect().top,behavior:'instant'}));await disclosure.screenshot({path:join(out,label+'-form.png')});
    if(label==='after'){
     await disclosure.getByRole('button',{name:'Посмотреть график',exact:true}).click();await disclosure.getByLabel('С какого счёта платить',{exact:true}).selectOption(input.accountId);
     await disclosure.locator('.installment-example summary').click();await disclosure.getByLabel('Тип графика',{exact:true}).selectOption(input.obligationKind);await disclosure.getByLabel('Категория расходов',{exact:true}).selectOption(input.cat);await disclosure.locator('.installment-example summary').click();
-    assert.equal(await disclosure.locator('.installment-preview li').count(),3);await disclosure.screenshot({path:join(out,'after-preview.png')});
+    assert.equal(await disclosure.locator('.installment-preview li').count(),3);await disclosure.evaluate(e=>window.scrollTo({top:window.scrollY+e.getBoundingClientRect().top,behavior:'instant'}));await disclosure.screenshot({path:join(out,'after-preview.png')});
    }
    assert.deepEqual(errors,[]);
    const {expenseReminder}=await import(pathToFileURL(join(source,'server/notifications.js')));await writeFile(join(out,label+'-reminder.json'),JSON.stringify(expenseReminder(fixture,date),null,2)+'\n');
    if(label==='after'){
     const {createInstallment,payInstallment}=await import(pathToFileURL(join(source,'src/finance-tools.js'))),{deleteTransaction,migrateData}=await import(pathToFileURL(join(source,'src/ledger.js'))),{EMPTY,dashboard}=await import(pathToFileURL(join(source,'src/mini-model.js')));
     const base=migrateData(structuredClone(fixture),EMPTY),scheduled=createInstallment(base,input),plan=scheduled.installments.at(-1),paid=payInstallment(scheduled,{planId:plan.id,paymentId:plan.payments[0].id,date}),deleted=deleteTransaction(paid,paid.transactions.at(-1).id);
-    const values=[['До графика',base],['График создан',scheduled],['Первый платёж подтверждён',paid],['Оплата удалена',deleted]].map(([stage,data])=>{const s=dashboard(data,date);return {stage,balance:data.accounts.find(a=>a.id==='bank').balance,expenses:s.spent,obligations:s.obligations,available:s.available,transactions:data.transactions.length};});
+    const values=[['До графика',base],['График создан',scheduled],['Первый платёж подтверждён',paid],['Оплата удалена',deleted]].map(([stage,data])=>{const s=dashboard(data,date);return {stage,balance:data.accounts.find(a=>a.id==='bank').balance,expenses:s.spent,obligations:s.obligations,available:s.free,transactions:data.transactions.length};});
     assert.deepEqual(values.map(x=>[x.balance,x.expenses,x.obligations,x.available]),[[12000,560,6000,6000],[12000,560,9000,3000],[9000,3560,6000,3000],[12000,560,9000,3000]]);
     await writeFile(join(out,'finance-scenario.json'),JSON.stringify(values,null,2)+'\n');
    }
-  }finally{await context.close();await server.close();}
+  }finally{await context.close();await server.close();await browser.close();}
  }
  await writeFile(join(out,'capture.json'),JSON.stringify({beforeSha,afterSha,date,viewport:{width:390,height:1200},fixture,input},null,2)+'\n');
  console.log('Captured actual source revisions: '+beforeSha+' → '+afterSha);
