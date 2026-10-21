@@ -1,0 +1,98 @@
+{
+  "sha": "5d25326412f60f9c8117127863e0f901d6fd36fc",
+  "date": "2026-10-21",
+  "viewport": {
+    "width": 390,
+    "height": 1200
+  },
+  "fixture": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "old-fx-0",
+        "type": "expense",
+        "cat": "food",
+        "amount": 0.05,
+        "currency": "USD",
+        "date": "2026-10-21",
+        "note": "Старая валютная покупка",
+        "tags": []
+      },
+      {
+        "id": "old-fx-1",
+        "type": "expense",
+        "cat": "food",
+        "amount": 0.05,
+        "currency": "USD",
+        "date": "2026-10-21",
+        "note": "Старая валютная покупка",
+        "tags": []
+      },
+      {
+        "id": "old-fx-2",
+        "type": "expense",
+        "cat": "food",
+        "amount": 0.05,
+        "currency": "USD",
+        "date": "2026-10-21",
+        "note": "Старая валютная покупка",
+        "tags": []
+      }
+    ],
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 10000,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [
+      {
+        "id": "skipped",
+        "name": "Оплата интернета",
+        "amount": 600,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "comm",
+        "type": "expense",
+        "frequency": "monthly",
+        "startDate": "2026-10-21",
+        "dueDay": 21,
+        "active": true,
+        "skippedPeriods": [
+          "2026-10"
+        ]
+      }
+    ],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "2026-11-01",
+      "timeZone": "Europe/Moscow",
+      "modules": {
+        "plans": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 201.5,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  },
+  "displayedTotal": "30,24₽"
+}
