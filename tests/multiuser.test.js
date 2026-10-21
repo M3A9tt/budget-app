@@ -1,0 +1,329 @@
+import {setDayCheck,dayChecks} from '../server/habits.js';
+import {moscowDate} from '../server/worker.js';
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {DatabaseSync} from 'node:sqlite';import {createHmac} from 'node:crypto';
+import worker from '../server/worker.js';import {issueWebCode,hashToken} from '../server/web-auth.js';import {EMPTY} from '../src/mini-model.js';
+function fixture(){const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
+ const DB={prepare(sql){let args=[];const s={bind(...v){args=v.map(x=>x instanceof ArrayBuffer?new Uint8Array(x):x);return s;},async first(){return db.prepare(sql).get(...args)||null;},async all(){return{results:db.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}};return s;},async batch(ss){db.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());db.exec('COMMIT');return out;}catch(e){db.exec('ROLLBACK');throw e;}}};
+ const env={DB,TELEGRAM_OWNER_ID:'111',TELEGRAM_ALLOWED_IDS:'222',TELEGRAM_BOT_TOKEN:'test-bot',TELEGRAM_WEBHOOK_SECRET:'test-webhook',API_TOKEN:'owner-api'};
+ function signed(id){const p=new URLSearchParams({auth_date:String(Math.floor(Date.now()/1000)),user:JSON.stringify({id:Number(id),first_name:'Test'})});const secret=createHmac('sha256','WebAppData').update(env.TELEGRAM_BOT_TOKEN).digest(),check=[...p.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}=${v}`).join('\n');p.set('hash',createHmac('sha256',secret).update(check).digest('hex'));return p.toString();}
+ const call=(id,path='state',method='GET',body,headers={})=>worker.fetch(new Request('https://budget.test/api/v1/'+path,{method,headers:{Authorization:'tma '+signed(id),'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)}),env);
+ const data=balance=>({...structuredClone(EMPTY),accounts:[{id:'same-account',name:'Bank',currency:'RUB',balance}]});return{db,env,call,data,signed};}
+const purchase={type:'expense',cat:'food',amount:100,currency:'RUB',date:'2026-10-13',accountId:'same-account',note:'Purchase'};
+test('Two signed profiles have isolated state, revisions, summaries and backup keys',async()=>{const{call,data,db}=fixture();await call('111','state','PUT',{expectedRevision:0,data:data(1000)});await call('222','state','PUT',{expectedRevision:0,data:data(7000)});await call('111','state','PUT',{expectedRevision:1,data:data(500)});const a=await(await call('111')).json(),b=await(await call('222')).json();assert.equal(a.data.accounts[0].balance,500);assert.equal(b.data.accounts[0].balance,7000);assert.equal(b.revision,1);assert.equal((await call('222','state','PUT',{expectedRevision:0,data:data(1)})).status,409);assert.deepEqual(JSON.parse(db.prepare("SELECT data FROM user_state_backups WHERE user_id='111' AND revision=1").get().data).accounts,data(1000).accounts);});
+test('Friend cannot select owner through request body, query or headers',async()=>{const{call,data}=fixture();await call('111','state','PUT',{expectedRevision:0,data:data(1000)});await call('222','state?user_id=111','PUT',{expectedRevision:0,userId:'111',data:data(2000)},{'X-User-ID':'111'});assert.equal((await(await call('111')).json()).data.accounts[0].balance,1000);assert.equal((await(await call('222')).json()).data.accounts[0].balance,2000);});
+test('Idempotency keys may be identical for different users without collisions',async()=>{const{call,data}=fixture();for(const id of ['111','222']){await call(id,'state','PUT',{expectedRevision:0,data:data(1000)});assert.equal((await call(id,'transactions','POST',purchase,{'Idempotency-Key':'same-key'})).status,201);assert.equal((await call(id,'transactions','POST',purchase,{'Idempotency-Key':'same-key'})).status,201);assert.equal((await(await call(id)).json()).data.accounts[0].balance,900);}});
+test('Legacy state migrates once only to owner and preserves original singleton',async()=>{const{db,call,data}=fixture();const original=JSON.stringify(data(3456));db.prepare("INSERT INTO finance_state VALUES('owner',9,?,'old')").run(original);const friend=await(await call('222')).json();assert.equal(friend.data.accounts.length,0);assert.equal(friend.revision,0);const owner=await(await call('111')).json();assert.equal(owner.revision,9);assert.equal(owner.data.accounts[0].balance,3456);await call('111','state','PUT',{expectedRevision:9,data:data(500)});assert.equal((await(await call('111')).json()).data.accounts[0].balance,500);assert.equal(db.prepare("SELECT data FROM finance_state WHERE id='owner'").get().data,original);});
+test('Valid signature of uninvited user is blocked, removed user loses access',async()=>{const{call,env}=fixture();assert.equal((await call('333')).status,401);assert.equal((await call('222')).status,200);env.TELEGRAM_ALLOWED_IDS='';assert.equal((await call('222')).status,401);});
+test('Web code binds session to issuer; friend session sees only friend',async()=>{const{env,call,data}=fixture();await call('111','state','PUT',{expectedRevision:0,data:data(1000)});await call('222','state','PUT',{expectedRevision:0,data:data(2222)});const code=await issueWebCode(env,'222'),login=await worker.fetch(new Request('https://budget.test/api/v1/auth/login',{method:'POST',headers:{Origin:'https://budget.test','Content-Type':'application/json'},body:JSON.stringify({code,userId:'111'})}),env),cookie=login.headers.get('Set-Cookie').split(';')[0];const result=await(await worker.fetch(new Request('https://budget.test/api/v1/state?userId=111',{headers:{Cookie:cookie}}),env)).json();assert.equal(result.userId,'222');assert.equal(result.data.accounts[0].balance,2222);env.TELEGRAM_ALLOWED_IDS='';assert.equal((await worker.fetch(new Request('https://budget.test/api/v1/state',{headers:{Cookie:cookie}}),env)).status,401);});
+test('Owner API token cannot switch profile using a query parameter',async()=>{const{env,call,data}=fixture();await call('111','state','PUT',{expectedRevision:0,data:data(1000)});await call('222','state','PUT',{expectedRevision:0,data:data(2222)});const result=await(await worker.fetch(new Request('https://budget.test/api/v1/state?userId=222',{headers:{Authorization:'Bearer owner-api'}}),env)).json();assert.equal(result.userId,'111');});
+test('Bot callback cannot consume another user draft',async()=>{const{env,db}=fixture();db.prepare('INSERT INTO telegram_drafts(id,owner,payload,expires_at) VALUES(?,?,?,?)').run('owner-draft','111',JSON.stringify(purchase),Date.now()+600000);const messages=[],original=globalThis.fetch;globalThis.fetch=async(url,options)=>{messages.push(JSON.parse(options.body));return Response.json({ok:true,result:{}});};try{const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-webhook'},body:JSON.stringify({callback_query:{id:'cb',data:'save:owner-draft',from:{id:222},message:{chat:{id:222,type:'private'},message_id:1}}})}),env);assert.equal(response.status,200);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM user_idempotency').get().n,0);assert.equal(messages[0].chat_id,222);assert.match(messages[0].text,/устарела/);}finally{globalThis.fetch=original;}});
+test('Scheduled reports go to each owner independently and deduplicate per profile',async()=>{const{env,call,data,db}=fixture();for(const id of ['111','222']){const d=data(Number(id));d.settings={...d.settings,reminders:false,weeklyReport:false,monthlyReport:false};await call(id,'state','PUT',{expectedRevision:0,data:d});}const messages=[],original=globalThis.fetch;globalThis.fetch=async(url,options)=>{messages.push(JSON.parse(options.body));return Response.json({ok:true,result:{}});};try{const promises=[],ctx={waitUntil:p=>promises.push(p)},event={scheduledTime:new Date('2026-10-13T18:00:00Z').getTime()};await worker.scheduled(event,env,ctx);await Promise.all(promises);assert.deepEqual(messages.map(m=>m.chat_id).sort(),['111','222']);assert.match(messages.find(m=>m.chat_id==='111').text,/111 ₽/);assert.match(messages.find(m=>m.chat_id==='222').text,/222 ₽/);await worker.scheduled(event,env,{waitUntil:p=>promises.push(p)});await Promise.all(promises);assert.equal(messages.length,2);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM user_reports_sent').get().n,2);}finally{globalThis.fetch=original;}});
+test('Uninvited friend can obtain own ID without creating or reading any finance profile',async()=>{const{env,db}=fixture(),messages=[],original=globalThis.fetch;globalThis.fetch=async(url,options)=>{messages.push(JSON.parse(options.body));return Response.json({ok:true,result:{}});};try{await worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-webhook'},body:JSON.stringify({message:{text:'/id',from:{id:333},chat:{id:333,type:'private'}}})}),env);assert.equal(messages[0].chat_id,333);assert.match(messages[0].text,/333/);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM user_finance_state').get().n,0);}finally{globalThis.fetch=original;}});
+
+async function botTest(run){const messages=[],original=globalThis.fetch;globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);messages.push({url,body});return Response.json({ok:true,result:url.endsWith('/getMe')?{username:'test_budget_bot'}:{}});};try{await run(messages);}finally{globalThis.fetch=original;}}
+function webhook(env,id,text,callback){return worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-webhook'},body:JSON.stringify(callback?{callback_query:{id:'cb',data:callback,from:{id},message:{chat:{id,type:'private'},message_id:1}}}:{message:{text,from:{id},chat:{id,type:'private'}}})}),env);}
+test('Reusable owner invitation admits isolated profiles; revoked member cannot rejoin and loses session access',async()=>{const{env,call,data,db}=fixture();await call('111','state','PUT',{expectedRevision:0,data:data(900)});await botTest(async messages=>{
+ await webhook(env,222,'/invite');assert.equal(db.prepare("SELECT count(*) n FROM user_invites").get().n,0);
+ await webhook(env,111,'/invite');const link=messages.find(m=>m.body.text?.includes('?start=invite_')).body.text,token=link.match(/invite_([a-f0-9]{32})/)[1];
+ assert.equal(db.prepare('SELECT hash FROM user_join_links').get().hash.includes(token),false);
+ await webhook(env,333,'/start invite_'+token);assert.equal((await call('333')).status,200);assert.equal((await(await call('333')).json()).data.accounts.length,0);assert.equal((await(await call('111')).json()).data.accounts[0].balance,900);
+ await webhook(env,444,'/start invite_'+token);assert.equal((await call('444')).status,200);assert.equal((await(await call('444')).json()).data.accounts.length,0);
+ const code=await issueWebCode(env,'333');const login=await worker.fetch(new Request('https://budget.test/api/v1/auth/login',{method:'POST',headers:{Origin:'https://budget.test','Content-Type':'application/json'},body:JSON.stringify({code})}),env);const cookie=login.headers.get('Set-Cookie').split(';')[0];
+ await webhook(env,222,'', 'revoke:333');assert.equal((await call('333')).status,200);
+ await webhook(env,111,'', 'revoke:333');assert.equal((await call('333')).status,401);assert.equal((await worker.fetch(new Request('https://budget.test/api/v1/state',{headers:{Cookie:cookie}}),env)).status,401);assert.ok(db.prepare("SELECT user_id FROM user_finance_state WHERE user_id='333'").get());
+ await webhook(env,333,'/start invite_'+token);assert.equal((await call('333')).status,401);await webhook(env,111,'','restoreAccess:333');assert.equal((await call('333')).status,200);await webhook(env,111,'/invite_close');await webhook(env,555,'/start invite_'+token);assert.equal((await call('555')).status,401);assert.equal((await call('444')).status,200);
+ });});
+test('Expired and malformed invitations grant no access',async()=>{const{env,call,db}=fixture();await botTest(async messages=>{await webhook(env,111,'/invite');const token=messages.find(m=>m.body.text?.includes('?start=invite_')).body.text.match(/invite_([a-f0-9]{32})/)[1];await webhook(env,111,'/invite_close');await webhook(env,333,'/start invite_'+token);await webhook(env,333,'/start invite_invalid');assert.equal((await call('333')).status,401);assert.equal(db.prepare("SELECT count(*) n FROM user_finance_state WHERE user_id='333'").get().n,0);});});
+
+test('Telegram reminder command opens native settings without changing profile',async()=>{const{env,call,data}=fixture();env.MINI_APP_URL='https://budget.test';await call('222','state','PUT',{expectedRevision:0,data:data(200)});await botTest(async messages=>{await webhook(env,222,'/reminders');assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().every(b=>b.callback_data?.startsWith('b:')));assert.equal((await(await call('222')).json()).revision,1);});});
+
+test('Corporate lunch requires confirmation, never debits personal balance, repeat confirmation writes once',async()=>{const{env,call,data}=fixture(),day=moscowDate();await call('222','state','PUT',{expectedRevision:0,data:data(1000)});await setDayCheck(env,'222',day,'lunch','open');await botTest(async messages=>{await webhook(env,222,'','lunch:'+day+':company');await webhook(env,222,'379,50');assert.equal((await(await call('222')).json()).data.transactions.length,0);const save=messages.at(-1).body.reply_markup.inline_keyboard[0][0].callback_data;await webhook(env,222,'',save);await webhook(env,222,'',save);const state=await(await call('222')).json();assert.equal(state.data.accounts[0].balance,1000);assert.equal(state.data.transactions.length,1);assert.equal(state.data.transactions[0].amount,379.5);assert.equal((await dayChecks(env,'222',day))[0].status,'recorded');});});
+test('Own-paid lunch uses the shared editable confirmation and stale buttons cannot double charge',async()=>{const{env,call,data}=fixture(),day=moscowDate();await call('222','state','PUT',{expectedRevision:0,data:data(1000)});await setDayCheck(env,'222',day,'lunch','open');await botTest(async messages=>{
+ const button=label=>{const b=messages.filter(m=>m.body.reply_markup?.inline_keyboard).at(-1).body.reply_markup.inline_keyboard.flat().find(b=>b.text===label);assert.ok(b,label);return b.callback_data;};
+ await webhook(env,222,'','lunch:'+day+':own');await webhook(env,222,'200');const first=button('✅ Подтвердить');
+ await webhook(env,222,'',button('✏️ Изменить поля'));await webhook(env,222,'',button('Сумма'));await webhook(env,222,'250');const second=button('✅ Подтвердить');
+ await webhook(env,222,'',first);assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ await webhook(env,222,'',second);await webhook(env,222,'',second);const state=await(await call('222')).json();assert.equal(state.data.accounts[0].balance,750);assert.equal(state.data.transactions.length,1);assert.equal(state.data.transactions[0].type,'expense');assert.equal(state.data.transactions[0].cat,'food');assert.equal(state.data.transactions[0]._lunchCheckDay,day);
+});});
+test('Lunch absence excludes only absent days; user and day confirmation remain isolated',async()=>{const{env,call,data}=fixture(),day=moscowDate();for(const id of ['111','222'])await call(id,'state','PUT',{expectedRevision:0,data:data(1000)});await setDayCheck(env,'222',day,'lunch','open');await setDayCheck(env,'222',day,'expense','open');await botTest(async()=>{await webhook(env,222,'','lunch:'+day+':reason:unpaid');await webhook(env,222,'','check:'+day+':done');let state=await(await call('222')).json();assert.ok(state.data.lunchDayOff.includes(day));assert.equal(state.data.lunchAnswers[day].reason,'Неоплачиваемый отпуск');assert.equal(state.data.transactions.length,0);assert.equal((await(await call('111')).json()).data.lunchDayOff.length,0);assert.equal((await dayChecks(env,'222',day)).find(r=>r.kind==='expense').status,'done');await webhook(env,111,'','check:'+day+':done');assert.equal((await dayChecks(env,'111',day)).length,0);await webhook(env,222,'','check:'+day+':off');assert.equal((await(await call('222')).json()).data.settings.expenseCheckEnabled,false);});});
+test('Cron sends checks once per hour and stops confirmed checks while keeping selected reports',async()=>{const{env,call,data}=fixture(),day=moscowDate(),d=data(1000);d.settings={...d.settings,expenseCheckEnabled:true,checkHour:20,checkRepeats:2,reminders:false,dailyReport:true,weeklyReport:false,monthlyReport:false};await call('222','state','PUT',{expectedRevision:0,data:d});await botTest(async messages=>{const run=async hour=>{const promises=[];await worker.scheduled({scheduledTime:Date.parse(day+'T'+String(hour-3).padStart(2,'0')+':00:00Z')},env,{waitUntil:p=>promises.push(p)});await Promise.all(promises);};await run(20);await run(20);assert.equal(messages.filter(m=>m.body.reply_markup?.inline_keyboard?.flat().some(b=>b.callback_data?.startsWith('check:'))).length,1);await webhook(env,222,'','check:'+day+':done');await run(21);assert.equal(messages.filter(m=>m.body.reply_markup?.inline_keyboard?.flat().some(b=>b.callback_data?.startsWith('check:'))).length,1);assert.equal(messages.filter(m=>m.body.text?.includes('<b>Итог дня</b>')).length,1);});});
+test('Bot free text uses native editable preview; explicit account wins and missing choice offers buttons',async()=>{const{env,call,data,db}=fixture(),d=data(1000);d.accounts.push({id:'second',name:'Second',currency:'RUB',balance:500});d.transactions=[{id:'previous',type:'expense',cat:'food',amount:10,currency:'RUB',date:moscowDate(),accountId:'second',note:'Coffee',paymentMethod:'sbp'}];await call('222','state','PUT',{expectedRevision:0,data:d});await botTest(async messages=>{await webhook(env,222,'кофе 180');let draft=JSON.parse(db.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' ORDER BY rowid DESC LIMIT 1").get().payload);assert.equal(draft.values.accountId,'second');assert.equal(draft.values.paymentMethod,'sbp');assert.match(messages.at(-1).body.text,/СБП/);assert.equal((await(await call('222')).json()).data.accounts[1].balance,500);await webhook(env,222,'/cancel');await webhook(env,222,'кофе 180 Bank наличные');draft=JSON.parse(db.prepare("SELECT payload FROM telegram_drafts WHERE id GLOB 'bf_*' ORDER BY rowid DESC LIMIT 1").get().payload);assert.equal(draft.values.accountId,'same-account');assert.equal(draft.values.paymentMethod,'cash');await webhook(env,222,'/cancel');const state=await(await call('222')).json();await call('222','state','PUT',{expectedRevision:state.revision,data:{...state.data,settings:{...state.data.settings,rememberEntryChoices:false}}});await webhook(env,222,'кофе 180');assert.match(messages.at(-1).body.text,/Выбери вариант/);assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().some(x=>/Second/.test(x.text)));});});
+test('Release broadcast includes empty registered profiles, excludes removed users, deduplicates per release',async()=>{const{env,call,db}=fixture();env.MINI_APP_URL='https://budget.test';env.RELEASE_DEPLOY_TOKEN='release-secret';await call('111');await call('222');await call('222','state','PUT',{expectedRevision:0,data:structuredClone(EMPTY)});db.prepare("INSERT INTO user_finance_state VALUES('444',0,?,'now')").run(JSON.stringify(EMPTY));const {latestRelease}=await import('../src/release-notes.js');const announce=key=>worker.fetch(new Request('https://budget.test/api/v1/releases/announce',{method:'POST',headers:{'X-Budget-Release-Key':key,'Content-Type':'application/json'},body:JSON.stringify({releaseId:latestRelease.id})}),env);await botTest(async messages=>{assert.equal((await announce('wrong')).status,401);assert.equal(messages.length,0);assert.equal((await(await announce('release-secret')).json()).sent,2);assert.deepEqual(messages.map(m=>m.body.chat_id).sort(),['111','222']);assert.ok(messages.every(m=>m.body.text.includes(latestRelease.title)));assert.equal((await(await announce('release-secret')).json()).sent,0);assert.equal(messages.length,2);assert.equal(db.prepare("SELECT count(*) n FROM user_reports_sent WHERE id LIKE 'release:%'").get().n,2);});});
+test('Release mismatch cannot broadcast, failed delivery retries without resending successful recipients',async()=>{const{env,call,db}=fixture();env.MINI_APP_URL='https://budget.test';env.RELEASE_DEPLOY_TOKEN='release-secret';await call('111');await call('222');const {latestRelease}=await import('../src/release-notes.js');const announce=id=>worker.fetch(new Request('https://budget.test/api/v1/releases/announce',{method:'POST',headers:{'X-Budget-Release-Key':'release-secret','Content-Type':'application/json'},body:JSON.stringify({releaseId:id})}),env);const original=globalThis.fetch,sent=[];let fail=true;globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);if(body.chat_id==='222'&&fail)return Response.json({ok:false},{status:503});sent.push(body.chat_id);return Response.json({ok:true,result:{}});};try{assert.equal((await announce('wrong-release')).status,409);assert.equal(sent.length,0);let result=await(await announce(latestRelease.id)).json();assert.equal(result.sent,1);assert.equal(result.failed,1);fail=false;db.prepare('UPDATE user_release_outbox SET lease_until=0').run();result=await(await announce(latestRelease.id)).json();assert.equal(result.sent,1);assert.equal(result.alreadySent,1);assert.deepEqual(sent,['111','222']);assert.equal(db.prepare("SELECT count(*) n FROM user_reports_sent WHERE id LIKE 'release:%'").get().n,2);}finally{globalThis.fetch=original;}});
+test('Failed older release remains queued across newer release; expired worker lease recovers',async()=>{const{env,call,db}=fixture();env.MINI_APP_URL='https://budget.test';env.RELEASE_DEPLOY_TOKEN='release-secret';await call('111');db.prepare('INSERT INTO user_release_outbox(user_id,release_id,payload,queued_at,lease_until) VALUES(?,?,?,?,?)').run('111','older-release',JSON.stringify({text:'Older release pending'}),1,Date.now()-1);const {latestRelease}=await import('../src/release-notes.js');await botTest(async messages=>{const response=await worker.fetch(new Request('https://budget.test/api/v1/releases/announce',{method:'POST',headers:{'X-Budget-Release-Key':'release-secret','Content-Type':'application/json'},body:JSON.stringify({releaseId:latestRelease.id})}),env);assert.equal((await response.json()).sent,2);assert.equal(messages[0].body.text,'Older release pending');assert.equal(db.prepare('SELECT COUNT(*) n FROM user_release_outbox').get().n,0);});});
+test('Planned metadata stays personal and confirmation credits only the authenticated profile',async()=>{const{call,data}=fixture();const d=data(1000);d.recurring=[{id:'plan',name:'Expected income',type:'income',frequency:'once',startDate:'2026-10-13',amount:200,currency:'RUB',accountId:'same-account',cat:'income',active:true}];await call('111','state','PUT',{expectedRevision:0,data:d});await call('222','state','PUT',{expectedRevision:0,data:data(5000)});assert.equal((await(await call('222')).json()).data.recurring.length,0);const tx={type:'income',amount:200,currency:'RUB',cat:'income',date:'2026-10-13',accountId:'same-account',recurringId:'plan',recurringPeriod:'once'};assert.equal((await call('111','transactions','POST',tx,{'Idempotency-Key':'planned-1'})).status,201);assert.equal((await call('111','transactions','POST',tx,{'Idempotency-Key':'planned-1'})).status,201);assert.equal((await call('111','transactions','POST',tx,{'Idempotency-Key':'planned-2'})).status,400);assert.equal((await(await call('111')).json()).data.accounts[0].balance,1200);assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);});
+test('Feedback sends only explicit text, version and authenticated sender; retries are idempotent and data stays isolated',async()=>{const{env,call,data,db}=fixture();await call('111','state','PUT',{expectedRevision:0,data:data(12345)});await call('222','state','PUT',{expectedRevision:0,data:{...data(67890),transactions:[{id:'secret',date:moscowDate(),type:'expense',cat:'food',amount:100,currency:'RUB',note:'PRIVATE PURCHASE'}]}});await botTest(async messages=>{const input={id:crypto.randomUUID(),message:'Кнопка на телефоне не нажимается'};assert.equal((await call('222','feedback','POST',input)).status,200);assert.equal((await call('222','feedback','POST',input)).status,200);assert.equal(messages.length,1);assert.equal(messages[0].body.chat_id,'111');assert.ok(messages[0].body.text.includes('222'));assert.ok(!messages[0].body.text.includes('PRIVATE PURCHASE'));assert.ok(!messages[0].body.text.includes('67890'));assert.equal((await call('222','feedback','POST',{...input,id:crypto.randomUUID()})).status,400);assert.equal((await call('222','feedback','POST',{...input,history:[]})).status,400);assert.equal((await(await call('111')).json()).data.accounts[0].balance,12345);assert.equal(db.prepare('SELECT count(*) n FROM user_feedback').get().n,1);});});
+test('Minute cron keeps precise delivery, retries failed job later and cancellation discards pending checks',async()=>{const{env,call,data,db}=fixture();const d=data(1000);d.settings={...d.settings,expenseCheckEnabled:true,checkTime:'20:37',checkRepeats:0,dailyReport:false,weeklyReport:false,monthlyReport:false};await call('222','state','PUT',{expectedRevision:0,data:d});const original=globalThis.fetch,messages=[];let fail=true;globalThis.fetch=async(url,options)=>{if(fail)return Response.json({ok:false},{status:503});messages.push(JSON.parse(options.body));return Response.json({ok:true,result:{}});};const run=async minute=>{const tasks=[];await worker.scheduled({scheduledTime:Date.parse(moscowDate()+'T17:'+minute+':00Z')},env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);};try{await run('36');assert.equal(messages.length,0);await run('37');assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,1);fail=false;db.prepare('UPDATE user_notification_outbox SET lease_until=0').run();await run('38');assert.equal(messages.length,1);await run('38');assert.equal(messages.length,1);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);db.prepare('INSERT INTO user_notification_outbox VALUES(?,?,?,?,0)').run('222','check-old',moscowDate(),JSON.stringify({kind:'expense',body:{chat_id:'222',text:'old'}}));await setDayCheck(env,'222',moscowDate(),'expense','done');await run('39');assert.equal(messages.length,1);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);}finally{globalThis.fetch=original;}});
+test('Changing time zones and optional modules affects only the current user and survives JSON roundtrip',async()=>{const{call,data}=fixture();await call('111','state','PUT',{expectedRevision:0,data:data(1000)});await call('222','state','PUT',{expectedRevision:0,data:{...data(2000),settings:{...EMPTY.settings,timeZone:'Asia/Yekaterinburg',checkTime:'20:37',modules:{lunch:false,forecast:false}}}});const a=await(await call('111')).json(),b=await(await call('222')).json();assert.equal(a.data.settings.timeZone,undefined);assert.equal(b.data.settings.checkTime,'20:37');assert.equal(b.data.settings.modules.lunch,false);assert.equal((await call('222','state','PUT',{expectedRevision:b.revision,data:JSON.parse(JSON.stringify(b.data))})).status,200);assert.equal((await(await call('111')).json()).data.accounts[0].balance,1000);});
+
+test('A queued lunch is cancelled after answering even with expense checks disabled and outside lunch minute',async()=>{
+ const {env,call,data,db}=fixture(),day='2026-10-14',d=data(1000);
+ d.settings={...d.settings,expenseCheckEnabled:false,lunchAskEnabled:true,lunchAskTime:'08:40',dailyReport:false,weeklyReport:false,monthlyReport:false};
+ assert.equal((await call('222','state','PUT',{expectedRevision:0,data:d})).status,200);
+ const original=globalThis.fetch;let sent=0;
+ globalThis.fetch=async()=>Response.json({ok:false},{status:503});
+ const run=async minute=>{const tasks=[];await worker.scheduled({scheduledTime:Date.parse(day+'T05:'+minute+':00Z')},env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);};
+ try{await run('40');assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,1);await setDayCheck(env,'222',day,'lunch','skipped');db.prepare('UPDATE user_notification_outbox SET lease_until=0').run();globalThis.fetch=async()=>{sent++;return Response.json({ok:true,result:{}});};await run('41');assert.equal(sent,0);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);}finally{globalThis.fetch=original;}
+});
+test('A lunch entered in the app cancels a failed queued question without a bot response',async()=>{
+ const {env,call,data,db}=fixture(),day='2026-10-14',d=data(1000);d.settings={...d.settings,lunchAskEnabled:true,lunchAskTime:'08:40',dailyReport:false,weeklyReport:false,monthlyReport:false};await call('222','state','PUT',{expectedRevision:0,data:d});
+ const {ensureNotificationOutbox}=await import('../server/notification-outbox.js');await ensureNotificationOutbox(env);db.prepare('INSERT INTO user_notification_outbox VALUES(?,?,?,?,0)').run('222','lunch-ask:'+day,day,JSON.stringify({kind:'lunch',body:{chat_id:'222',text:'stale'}}));d.transactions=[{id:'lunch',date:day,type:'lunch',cat:'lunch',amount:200,currency:'RUB'}];await call('222','state','PUT',{expectedRevision:1,data:d});
+ await botTest(async messages=>{const tasks=[];await worker.scheduled({scheduledTime:Date.parse(day+'T05:41:00Z')},env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);assert.equal(messages.length,0);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);});
+});
+test('Queued plan reminders are removed when paid, disabled, hidden or past their day',async()=>{
+ for(const scenario of ['paid','disabled','hidden','yesterday','refresh']){
+ const {env,call,data,db}=fixture(),day='2026-10-14',d=data(1000);d.settings={...d.settings,plannedReminders:scenario!=='disabled',modules:{plans:scenario!=='hidden'},dailyReport:false,weeklyReport:false,monthlyReport:false};if(scenario!=='paid')d.recurring=[{id:'p',name:'Test',amount:100,type:'expense',frequency:'once',startDate:day,accountId:'same-account',currency:'RUB',cat:'food',active:true}];await call('222','state','PUT',{expectedRevision:0,data:d});const {ensureNotificationOutbox}=await import('../server/notification-outbox.js');await ensureNotificationOutbox(env);const queueDay=scenario==='yesterday'?'2026-10-13':day;db.prepare('INSERT INTO user_notification_outbox VALUES(?,?,?,?,0)').run('222','planned:'+queueDay,queueDay,JSON.stringify({body:{chat_id:'222',text:'stale'}}));await botTest(async messages=>{const tasks=[];await worker.scheduled({scheduledTime:Date.parse(day+'T15:01:00Z')},env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);assert.equal(messages.length,['yesterday','refresh'].includes(scenario)?1:0,scenario);if(['yesterday','refresh'].includes(scenario)){assert.match(messages[0].body.text,/Test/);assert.ok(messages[0].body.reply_markup.inline_keyboard.flat().some(x=>x.callback_data==='b:n:p:p:once'));assert.equal(db.prepare("SELECT count(*) n FROM user_reports_sent WHERE user_id='222' AND id=?").get('planned:'+day).n,1);}assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0,scenario);});}
+});
+test('Malformed profile cannot prevent another user receiving their report',async()=>{
+ const {env,call,data,db}=fixture();for(const id of ['111','222']){const d=data(1000);d.settings={...d.settings,reportTime:'21:07',weeklyReport:false,monthlyReport:false};await call(id,'state','PUT',{expectedRevision:0,data:d});}db.prepare("UPDATE user_finance_state SET data='invalid' WHERE user_id='111'").run();const original=console.error;console.error=()=>{};try{await botTest(async messages=>{const tasks=[];await worker.scheduled({scheduledTime:Date.parse('2026-10-14T18:07:00Z')},env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);assert.deepEqual(messages.map(m=>m.body.chat_id),['222']);});}finally{console.error=original;}
+});
+
+test('Telemetry respects explicit opt-out, server-derived owner admin access cannot be impersonated, and exports contain aggregates only',async()=>{
+ const {call,data,db}=fixture();const {validateTelemetry}=await import('../src/telemetry-events.js');assert.doesNotThrow(()=>validateTelemetry({id:crypto.randomUUID(),events:[{event:'page_view',screen:'savings',device:'mobile'}]}));const batch={id:crypto.randomUUID(),events:[{event:'entry_open',screen:'add',device:'mobile'},{event:'entry_save',screen:'add',device:'mobile'}]};
+ const initial=data(1);initial.settings.telemetryEnabled=false;await call('222','state','PUT',{expectedRevision:0,data:initial});
+ assert.equal((await(await call('222','telemetry','POST',batch)).json()).accepted,0);
+ assert.equal((await call('222','admin/telemetry?userId=111','GET',undefined,{'X-User-ID':'111'})).status,403);
+ assert.equal((await(await call('111')).json()).isOwner,true);assert.equal((await(await call('222')).json()).isOwner,false);
+ const d=data(998877);d.settings.telemetryEnabled=true;assert.equal((await call('222','state','PUT',{expectedRevision:1,data:d})).status,200);
+ assert.equal((await(await call('222','telemetry','POST',batch)).json()).accepted,2);
+ assert.equal((await(await call('222','telemetry','POST',batch)).json()).duplicate,true);
+ const report=await(await call('111','admin/telemetry')).json();assert.equal(report.rows.reduce((n,r)=>n+r.count,0),2);
+ const text=JSON.stringify(report);for(const secret of ['998877','222','same-account','actor','id','Bank'])assert.ok(!text.includes(secret));
+ assert.deepEqual(Object.keys(report.rows[0]).sort(),['count','day','device','event','screen']);
+ assert.equal(db.prepare('SELECT count(*) n FROM ui_telemetry_receipts').get().n,1);
+ const state=await(await call('222')).json();state.data.settings.telemetryEnabled=false;await call('222','state','PUT',{expectedRevision:state.revision,data:state.data});assert.equal((await(await call('222','telemetry','POST',{...batch,id:crypto.randomUUID()})).json()).accepted,0);
+});
+test('Telemetry rejects notes, sums, arbitrary events, oversized batches and invalid consent without changing finances',async()=>{
+ const{call,data}=fixture();const d=data(1000);d.settings.telemetryEnabled=true;await call('222','state','PUT',{expectedRevision:0,data:d});const event={event:'entry_save',screen:'add',device:'mobile'};
+ for(const events of [[{...event,note:'SECRET'}],[{...event,amount:999}],[{...event,event:'anything'}],Array.from({length:41},()=>event)])assert.equal((await call('222','telemetry','POST',{id:crypto.randomUUID(),events})).status,400);
+ assert.equal((await call('222','telemetry','POST',{id:crypto.randomUUID(),events:[event],userId:'111'})).status,400);
+ d.settings.telemetryEnabled='yes';assert.equal((await call('222','state','PUT',{expectedRevision:1,data:d})).status,400);
+ assert.equal((await(await call('222')).json()).data.accounts[0].balance,1000);assert.equal((await(await call('111','admin/telemetry')).json()).rows.length,0);
+});
+
+test('All seven message tests send only to authenticated caller, use real formatting and never change state or reports',async()=>{
+ const {call,data,env,db}=fixture();const d=data(3456);d.settings={...d.settings,reminderStyle:'custom',reminderText:'Мой <текст>'};await call('222','state','PUT',{expectedRevision:0,data:d});const before=await(await call('222')).json();await call('111');
+ await botTest(async messages=>{for(const type of ['expense','lunch','planned','day','week','month','release']){const input={id:crypto.randomUUID(),type};assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal((await(await call('222','notifications/test','POST',input)).json()).duplicate,true);}
+ const sent=messages.filter(m=>m.url.endsWith('/sendMessage'));assert.equal(sent.length,7);assert.ok(sent.every(m=>m.body.chat_id==='222'&&m.body.parse_mode==='HTML'&&m.body.text.includes('Тест')));assert.ok(sent[0].body.text.includes('Мой &lt;текст&gt;'));assert.ok(sent.some(m=>m.body.text.includes('3456 ₽')||m.body.text.includes('3 456 ₽')));
+ for(const m of sent)for(const b of m.body.reply_markup?.inline_keyboard?.flat()||[])if(b.callback_data)assert.ok(b.callback_data.startsWith('test:'));
+ for(const type of ['expense','lunch'])await webhook(env,222,'','test:'+type);
+ assert.ok(messages.filter(m=>m.url.endsWith('/answerCallbackQuery')).every(m=>m.body.show_alert===true));
+ });assert.deepEqual(await(await call('222')).json(),before);assert.equal(db.prepare('SELECT COUNT(*) n FROM user_reports_sent').get().n,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM user_day_checks').get().n,0);
+ assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day',chat_id:'111'})).status,400);assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'unknown'})).status,400);
+});
+test('Failed test delivery can retry the same key; successful delivery deduplicates and per-user rate is bounded',async()=>{
+ const {call}=fixture();const input={id:crypto.randomUUID(),type:'expense'},original=globalThis.fetch;let fail=true,sent=0;globalThis.fetch=async()=>{if(fail)return Response.json({ok:false},{status:503});sent++;return Response.json({ok:true,result:{}});};try{assert.equal((await call('222','notifications/test','POST',input)).status,503);fail=false;assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal((await call('222','notifications/test','POST',input)).status,200);assert.equal(sent,1);assert.equal((await call('222','notifications/test','POST',{...input,type:'day'})).status,400);for(let i=0;i<11;i++)assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,200);assert.equal((await call('222','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,400);assert.equal((await call('111','notifications/test','POST',{id:crypto.randomUUID(),type:'day'})).status,200);}finally{globalThis.fetch=original;}
+});
+
+test('Navigation releases pending lunch input without creating financial drafts or changing money',async()=>{
+ const {call,data,env,db}=fixture();env.MINI_APP_URL='https://budget.test';await call('222','state','PUT',{expectedRevision:0,data:data(4321)});await setDayCheck(env,'222',moscowDate(),'lunch','amount',{type:'company'});const before=await(await call('222')).json();
+ await botTest(async messages=>{await webhook(env,222,'/menu');let body=messages.find(m=>m.body.reply_markup?.keyboard).body;assert.equal(body.chat_id,'222');assert.equal(body.reply_markup.keyboard.flat().length,6);assert.equal(body.reply_markup.resize_keyboard,true);assert.equal(body.reply_markup.is_persistent,false);assert.equal(body.reply_markup.keyboard.flat().some(b=>b.web_app),false);await webhook(env,222,'💼 Открыть Бюрджет');assert.equal(messages.at(-1).body.reply_markup.inline_keyboard[0][0].web_app.url,env.MINI_APP_URL);
+ await webhook(env,222,'📊 Сводки');body=messages.at(-1).body;assert.equal(body.reply_markup.inline_keyboard[0].length,3);assert.ok(body.reply_markup.inline_keyboard[1][0].callback_data==='nav:more');
+ for(const period of ['day','week','month']){await webhook(env,222,'','nav:'+period);assert.ok(messages.at(-1).body.text.includes('4 321 ₽'));assert.equal(messages.at(-1).body.chat_id,222);}
+ await webhook(env,222,'','nav:more');assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().some(b=>!!b.web_app));await webhook(env,222,'','nav:home');assert.equal(messages.at(-1).body.reply_markup.keyboard.flat().length,6);
+ await webhook(env,222,'🍽 Обеды');assert.match(messages.at(-1).body.text,/Лимит месяца/);assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().every(b=>!!b.callback_data));await webhook(env,222,'🔔 Напоминания');assert.ok(messages.at(-1).body.reply_markup.inline_keyboard.flat().every(b=>b.callback_data?.startsWith('b:')));
+ });assert.deepEqual(await(await call('222')).json(),before);assert.equal(db.prepare("SELECT COUNT(*) n FROM telegram_drafts WHERE id NOT LIKE 'bv_%'").get().n,0);assert.equal((await dayChecks(env,'222',moscowDate()))[0].status,'open');
+});
+test('Release broadcast installs streamlined keyboard only for allowed profiles; existing slash commands still work',async()=>{
+ const {env,call}=fixture();env.MINI_APP_URL='https://budget.test';env.RELEASE_DEPLOY_TOKEN='release-secret';await call('222');await botTest(async messages=>{const {latestRelease}=await import('../src/release-notes.js');await worker.fetch(new Request('https://budget.test/api/v1/releases/announce',{method:'POST',headers:{'X-Budget-Release-Key':'release-secret','Content-Type':'application/json'},body:JSON.stringify({releaseId:latestRelease.id})}),env);assert.equal(messages.length,1);assert.equal(messages[0].body.chat_id,'222');assert.equal(messages[0].body.reply_markup.keyboard.flat().length,6);await webhook(env,222,'/today');assert.ok(messages.at(-1).body.text.includes('Итог дня'));await webhook(env,333,'📊 Сводки');assert.ok(messages.every(m=>String(m.body.chat_id||'222')!=='333'));});
+});
+
+let forwardedMessageId=77;
+async function forwardedLunch(env,id,text,date=Date.now()/1000){return worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':env.TELEGRAM_WEBHOOK_SECRET,'Content-Type':'application/json'},body:JSON.stringify({message:{message_id:++forwardedMessageId,chat:{id,type:'private'},from:{id,first_name:'Test'},text,forward_origin:{type:'hidden_user',sender_user_name:'Private sender',date:Math.floor(date)}}})}),env);}
+const lunchButton=(messages,action)=>{const prefix=action==='pick'?'lc:pick:':'b:'+({save:'c',edit:'z',cancel:'x'})[action]+':';return messages.filter(m=>m.body.reply_markup?.inline_keyboard?.flat().some(b=>b.callback_data?.startsWith(prefix))).at(-1).body.reply_markup.inline_keyboard.flat().find(b=>b.callback_data.startsWith(prefix)).callback_data;};
+async function seedLegacyEditingLunch(env,db,messages){
+ await forwardedLunch(env,222,'Сотрудник (9001)\nСуп без стоимости');
+ // Simulate a still-open prompt sent by a pre-4.0 release.
+ db.prepare("UPDATE telegram_drafts SET consumed=1 WHERE owner='222' AND id GLOB 'bf_*'").run();
+ const row=db.prepare("SELECT id,payload FROM lunch_chat_drafts WHERE user_id='222' AND status='open' ORDER BY rowid DESC LIMIT 1").get();
+ db.prepare("UPDATE lunch_chat_drafts SET status='editing',field='amount',payload=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.payload),promptId:777}),row.id);
+}
+
+test('Forwarded lunch confirmation is idempotent per command, but two identical orders are separate records',async()=>{
+ const {call,data,env}=fixture();const d=data(1000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});const stamp=Date.parse('2026-10-14T09:00:00Z')/1000;
+ await botTest(async messages=>{await forwardedLunch(env,222,'Сотрудник (9001)\nОтбивная\nПюре\n340 р.',stamp);assert.equal((await(await call('222')).json()).data.transactions.length,0);const preview=messages.at(-1).body;assert.ok(preview.text.includes('60'));assert.ok(preview.text.includes('2026-10-14'));assert.ok(!preview.text.includes('9001'));const save=lunchButton(messages,'save');await webhook(env,111,'',save);assert.equal((await(await call('222')).json()).data.transactions.length,0);await webhook(env,222,'',save);await webhook(env,222,'',save);let state=await(await call('222')).json();assert.equal(state.data.transactions.length,1);assert.equal(state.data.transactions[0].amount,340);assert.equal(state.data.accounts[0].balance,1000);assert.equal(state.data.transactions[0].date,'2026-10-14');assert.equal((await dayChecks(env,'222','2026-10-14'))[0].status,'recorded');
+ await forwardedLunch(env,222,'Сотрудник (9001)\nОтбивная\nПюре\n340 р.',stamp);const second=lunchButton(messages,'save');await webhook(env,222,'',second);await webhook(env,222,'',second);const after=(await(await call('222')).json()).data;assert.equal(after.transactions.length,2);assert.notEqual(after.transactions[0].id,after.transactions[1].id);assert.equal(after.accounts[0].balance,1000);
+ });
+});
+test('Editing invalidates old cards, saves corrected amount only, and moderated structure rules contain no text or employee identity',async()=>{
+ const {call,data,env,db}=fixture();await call('222','state','PUT',{expectedRevision:0,data:data(1000)});await botTest(async messages=>{
+ await forwardedLunch(env,222,'Личнаяфамилия (9001)\nСекретноеблюдо 100р\nДругойсекрет 300р');const old=lunchButton(messages,'save');await webhook(env,222,'',lunchButton(messages,'edit'));const fields=messages.at(-1).body.reply_markup.inline_keyboard.flat();await webhook(env,222,'',fields.find(b=>/Сумм|Стоимость/i.test(b.text)).callback_data);await webhook(env,222,'100');assert.equal((await(await call('222')).json()).data.transactions.length,0);const corrected=lunchButton(messages,'save');assert.notEqual(old,corrected);await webhook(env,222,'',old);assert.equal((await(await call('222')).json()).data.transactions.length,0);await webhook(env,222,'',corrected);assert.equal((await(await call('222')).json()).data.transactions[0].amount,100);
+ const own=await(await call('111','admin/lunch-learning')).json();assert.equal(own.examples.length,1);const encoded=JSON.stringify(own);for(const secret of ['Личнаяфамилия','Секретноеблюдо','Другойсекрет'])assert.ok(!encoded.includes(secret));for(const example of own.examples){assert.deepEqual(Object.keys(example).sort(),['id','source','parsed','corrected','rule','status','created_at'].sort());assert.doesNotMatch(example.source,/(^|\D)(9001|222)(\D|$)/);const values=x=>x&&typeof x==='object'?Object.values(x).flatMap(values):[x];assert.ok(!values(example).some(x=>['222',222,'9001',9001].includes(x)));}assert.equal(own.rules.length,0);const id=own.examples[0].id;assert.equal((await call('222','admin/lunch-learning','POST',{id,action:'approve'})).status,403);assert.equal((await call('111','admin/lunch-learning','POST',{id,action:'approve'})).status,200);assert.equal((await(await call('111','admin/lunch-learning')).json()).rules.length,1);
+ await forwardedLunch(env,222,'Другой (9002)\nПервое 120р\nВторое 350р');assert.ok(messages.at(-1).body.text.includes('120'));assert.ok(messages.at(-1).body.text.includes('одобренное'));assert.equal((await(await call('222')).json()).data.transactions.length,1);assert.equal((await call('111','admin/lunch-learning','POST',{id,action:'disable'})).status,200);assert.equal((await(await call('111','admin/lunch-learning')).json()).rules.length,0);
+ });assert.equal(db.prepare('SELECT count(*) n FROM lunch_learning').get().n,1);
+});
+test('Multiple orders require employee selection, configured ID chooses only its row, and cancelling changes nothing',async()=>{
+ const {call,data,env}=fixture();const d=data(1000);d.settings.lunchEmployeeId='9002';await call('222','state','PUT',{expectedRevision:0,data:d});const text='Один (9001) Суп 300р\nДва (9002) Пюре 340р';await botTest(async messages=>{await forwardedLunch(env,222,text);assert.ok(messages.at(-1).body.text.includes('340'));assert.ok(!messages.at(-1).body.text.includes('300'));await webhook(env,222,'',lunchButton(messages,'cancel'));assert.equal((await(await call('222')).json()).data.transactions.length,0);await call('111','state','PUT',{expectedRevision:0,data:{...data(0),settings:{...EMPTY.settings,modules:{lunch:true}}}});await forwardedLunch(env,111,text);const pick=lunchButton(messages,'pick');await webhook(env,111,'',pick);assert.ok(messages.filter(m=>m.url.endsWith('/sendMessage')).at(-1).body.text.includes('300'));assert.equal((await(await call('111')).json()).data.transactions.length,0);});
+});
+test('Missing prices can be corrected, future dates cannot save, and disabling learning leaves queue empty',async()=>{
+ const{call,data,env}=fixture();const d=data(1000);d.settings.lunchLearningEnabled=false;await call('222','state','PUT',{expectedRevision:0,data:d});await botTest(async messages=>{await forwardedLunch(env,222,'Сотрудник (9001)\nСуп без стоимости');assert.ok(!messages.at(-1).body.reply_markup.inline_keyboard.flat().some(b=>b.callback_data.startsWith('b:c:')));await webhook(env,222,'340');await webhook(env,222,'',lunchButton(messages,'save'));assert.equal((await(await call('222')).json()).data.transactions[0].amount,340);assert.equal((await(await call('111','admin/lunch-learning')).json()).examples.length,0);
+ await forwardedLunch(env,222,'Сотрудник (9001)\nСуп 350р',Date.now()/1000+864000);assert.ok(!messages.at(-1).body.reply_markup.inline_keyboard.flat().some(b=>b.callback_data.startsWith('b:c:')));});
+});
+test('Telemetry default is enabled while explicit opt-out and schema validation are preserved',async()=>{const{call,data}=fixture();const batch={id:crypto.randomUUID(),events:[{event:'page_view',screen:'overview',device:'mobile'}]};assert.equal((await(await call('222','telemetry','POST',batch)).json()).accepted,1);const d=data(1);d.settings.lunchEmployeeId='name';assert.equal((await call('222','state','PUT',{expectedRevision:0,data:d})).status,400);d.settings.lunchEmployeeId='9001';d.settings.lunchLearningEnabled='yes';assert.equal((await call('222','state','PUT',{expectedRevision:0,data:d})).status,400);});
+
+test('Moderation rejects conflicting rules against approved examples and cannot activate rejected examples',async()=>{const{call,env}=fixture();const {queueCorrection}=await import('../server/lunch-learning.js'),{parseLunchOrder}=await import('../src/lunch-recognition.js');const p=parseLunchOrder('Первое 100р\nВторое 300р',moscowDate());await queueCorrection(env,'222','first',p,{amount:100,note:p.note},true);let data=await(await call('111','admin/lunch-learning')).json();const first=data.examples[0].id;assert.equal((await call('111','admin/lunch-learning','POST',{id:first,action:'approve'})).status,200);await queueCorrection(env,'222','second',p,{amount:300,note:p.note},true);data=await(await call('111','admin/lunch-learning')).json();const second=data.examples.find(x=>x.status==='pending').id;assert.equal((await call('111','admin/lunch-learning','POST',{id:second,action:'approve'})).status,400);assert.equal((await call('111','admin/lunch-learning','POST',{id:second,action:'reject'})).status,200);assert.equal((await call('111','admin/lunch-learning','POST',{id:second,action:'approve'})).status,400);assert.equal((await(await call('111','admin/lunch-learning')).json()).rules[0].example_id,first);});
+
+test('Legacy single-use invitations survive additive migration; shared links admit many users without sharing profiles',async()=>{const {env,call,db}=fixture(),token='a'.repeat(32);db.prepare('INSERT INTO user_invites(hash,owner_id,expires_at) VALUES(?,?,?)').run(await hashToken(token),'111',Date.now()+60000);await botTest(async messages=>{await webhook(env,333,'/start invite_'+token);assert.equal((await call('333')).status,200);await webhook(env,444,'/start invite_'+token);assert.equal((await call('444')).status,401);await webhook(env,111,'/invite');const shared=messages.find(m=>m.body.text?.includes('?start=invite_')).body.text.match(/invite_([a-f0-9]{32})/)[1];for(const id of [444,555,666]){await webhook(env,id,'/start invite_'+shared);const profile=await(await call(String(id))).json();assert.equal(profile.data.accounts.length,0);assert.equal(profile.data.settings.modules.lunch,false);assert.equal(profile.data.settings.modules.debts,false);}const {allAllowedUsers}=await import('../server/users.js');for(const id of ['333','444','555','666'])assert.ok((await allAllowedUsers(env)).includes(id));await webhook(env,111,'/invite_close');assert.equal((await call('333')).status,200);assert.equal((await call('555')).status,200);});});
+
+test('Free-form Telegram lunch with an account and no currency marker enters personal expense preview',async()=>{
+ for(const text of ['-1039,97 обед в Бургер Кинге Альфа','-1039,97 р. обед в Бургер Кинге Альфа']){
+  const {env,call,data,db}=fixture(),d=data(5000);d.accounts[0].name='Альфа';d.settings.modules={lunch:true};
+  await call('222','state','PUT',{expectedRevision:0,data:d});
+  await botTest(async messages=>{
+   const response=await webhook(env,222,text);assert.equal(response.status,200);
+   const stored=db.prepare("SELECT payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0").get();
+   assert.ok(stored,'Expected a transaction confirmation, not a lunch-recognition request: '+text);
+   const p=JSON.parse(stored.payload);
+   assert.equal(p.op,'tx');assert.equal(p.values.type,'expense');assert.equal(p.values.amount,1039.97);
+   assert.equal(p.values.accountId,'same-account');assert.equal(p.values.cat,'food');
+   assert.deepEqual(p.values.tags,['обед-за-свои']);
+   assert.match(messages.at(-1).body.text,/1[\s\u00a0\u202f]039,97/);
+   assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
+  });
+ }
+});
+
+test('Two simultaneous selection taps create just one corporate order draft',async()=>{
+ const {env,db,call,data}=fixture();const d=data(1000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await forwardedLunch(env,222,'Один (9001) Суп 300р\nДва (9002) Пюре 340р');
+  const selected=lunchButton(messages,'pick');
+  const responses=await Promise.all([webhook(env,222,'',selected),webhook(env,222,'',selected)]);
+  assert.ok(responses.every(r=>r.status===200));
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM lunch_chat_drafts WHERE user_id='222' AND status='open'").get().n,1);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM lunch_chat_drafts WHERE user_id='222' AND status='superseded'").get().n,1);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
+});
+
+test('An interrupted employee choice can be retried after lease expiry',async()=>{
+ const {env,db,call,data}=fixture();const d=data(1000);d.settings.modules={lunch:true};
+ await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await forwardedLunch(env,222,'Один (9001) Суп 300р\nДва (9002) Пюре 340р');
+  const selected=lunchButton(messages,'pick');
+  const id=selected.split(':')[2];
+  db.prepare("UPDATE lunch_chat_drafts SET status='choosing',lease_until=1 WHERE id=?").run(id);
+  await webhook(env,222,'',selected);
+  assert.equal(db.prepare("SELECT status FROM lunch_chat_drafts WHERE id=?").get(id).status,'superseded');
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM lunch_chat_drafts WHERE user_id='222' AND status='open'").get().n,1);
+ });
+});
+
+
+test('A forwarded company meal owns the message and pauses an unfinished transaction form',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await webhook(env,222,'кофе 180 Bank');
+  const pending=db.prepare("SELECT id,payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0 ORDER BY rowid DESC LIMIT 1").get();
+  assert.ok(pending);assert.equal(Boolean(JSON.parse(pending.payload).paused),false);
+  await forwardedLunch(env,222,'Сотрудник (9001)\nСуп\n340 р.');
+  const paused=JSON.parse(db.prepare('SELECT payload FROM telegram_drafts WHERE id=?').get(pending.id).payload);
+  assert.equal(paused.paused,true);
+  assert.ok(messages.at(-1).body.text.includes('незавершённая'));
+  const restart=messages.at(-1).body.reply_markup.inline_keyboard.flat().find(b=>b.text.includes('Начать заново'));await webhook(env,222,'',restart.callback_data);assert.ok(messages.at(-1).body.text.includes('Оплачивает компания'));
+  assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
+  await webhook(env,222,'',lunchButton(messages,'save'));
+  const state=(await(await call('222')).json()).data;
+  assert.equal(state.transactions.length,1);assert.equal(state.transactions[0].type,'lunch');
+  assert.equal(state.accounts[0].balance,5000);
+ });
+});
+test('Unrelated expense does not overwrite an in-progress meal correction',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await seedLegacyEditingLunch(env,db,messages);
+  const row=db.prepare("SELECT id,payload FROM lunch_chat_drafts WHERE user_id='222' AND status='editing'").get();
+  assert.ok(row);
+  db.prepare("UPDATE lunch_chat_drafts SET payload=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.payload),promptId:777}),row.id);
+  await webhook(env,222,'кофе 180 Bank');
+  assert.equal(db.prepare('SELECT status FROM lunch_chat_drafts WHERE id=?').get(row.id).status,'superseded');
+  const form=db.prepare("SELECT payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0 ORDER BY rowid DESC LIMIT 1").get();
+  assert.ok(form);
+  assert.equal(JSON.parse(form.payload).values.amount,180);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
+});
+
+
+test('Correction reply is attributed to its Telegram prompt, never to another transaction form',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await seedLegacyEditingLunch(env,db,messages);
+  const row=db.prepare("SELECT id,payload FROM lunch_chat_drafts WHERE user_id='222' AND status='editing'").get();
+  db.prepare("UPDATE lunch_chat_drafts SET payload=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.payload),promptId:777}),row.id);
+  const reply=message_id=>worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':env.TELEGRAM_WEBHOOK_SECRET},body:JSON.stringify({message:{text:'340',from:{id:222},chat:{id:222,type:'private'},reply_to_message:{message_id}}})}),env);
+  // An unrelated reply starts a new transaction dialog rather than modifying an old meal.
+  await reply(999);
+  assert.equal(db.prepare('SELECT status FROM lunch_chat_drafts WHERE id=?').get(row.id).status,'superseded');
+  const next=db.prepare("SELECT payload FROM telegram_drafts WHERE owner='222' AND id GLOB 'bf_*' AND consumed=0 ORDER BY rowid DESC LIMIT 1").get();
+  assert.equal(JSON.parse(next.payload).values.amount,340);
+  assert.equal((await(await call('222')).json()).data.accounts[0].balance,5000);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
+});
+
+test('A reply to the active correction prompt updates only the meal draft',async()=>{
+ const {env,call,data,db}=fixture();const d=data(5000);d.settings.modules={lunch:true};await call('222','state','PUT',{expectedRevision:0,data:d});
+ await botTest(async messages=>{
+  await seedLegacyEditingLunch(env,db,messages);
+  const row=db.prepare("SELECT id,payload FROM lunch_chat_drafts WHERE user_id='222' AND status='editing'").get();
+  db.prepare("UPDATE lunch_chat_drafts SET payload=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.payload),promptId:777}),row.id);
+  const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':env.TELEGRAM_WEBHOOK_SECRET},body:JSON.stringify({message:{text:'340',from:{id:222},chat:{id:222,type:'private'},reply_to_message:{message_id:777}}})}),env);
+  assert.equal(response.status,200);
+  assert.equal(db.prepare('SELECT status FROM lunch_chat_drafts WHERE id=?').get(row.id).status,'superseded');
+  const next=db.prepare("SELECT payload FROM lunch_chat_drafts WHERE user_id='222' AND status='open' ORDER BY rowid DESC LIMIT 1").get();
+  assert.equal(JSON.parse(next.payload).tx.amount,340);
+  assert.equal((await(await call('222')).json()).data.transactions.length,0);
+ });
+});
+
+test('A real snooze survives midnight, sends once for the original day, and repeated completion stays quiet',async t=>{
+ const start=Date.parse('2026-10-17T20:45:00Z'),nextAt=start+3600000,day='2026-10-17';
+ t.mock.timers.enable({apis:['Date'],now:start});
+ const {env,call,data,db}=fixture(),d=data(1000);d.settings={...d.settings,expenseCheckEnabled:true,checkTime:'22:00',checkRepeats:1,dailyReport:false,weeklyReport:false,monthlyReport:false};
+ await call('222','state','PUT',{expectedRevision:0,data:d});await setDayCheck(env,'222',day,'expense','open');
+ await botTest(async messages=>{
+  await webhook(env,222,'','check:'+day+':later');const row=db.prepare("SELECT payload FROM user_day_checks WHERE user_id='222' AND day=?").get(day);assert.equal(JSON.parse(row.payload).nextAt,nextAt);
+  await webhook(env,222,'','check:'+day+':later');assert.equal(db.prepare("SELECT payload FROM user_day_checks WHERE user_id='222' AND day=?").get(day).payload,row.payload);
+  t.mock.timers.setTime(nextAt);
+  const run=async()=>{const tasks=[];await worker.scheduled({scheduledTime:nextAt},env,{waitUntil:p=>tasks.push(p)});await Promise.all(tasks);};
+  await run();await run();const reminders=messages.filter(m=>m.url.endsWith('/sendMessage')&&m.body.reply_markup?.inline_keyboard?.flat().some(b=>b.callback_data?.startsWith('check:')));
+  assert.equal(reminders.length,1);assert.match(reminders[0].body.text,/2026-10-17/);assert.ok(reminders[0].body.reply_markup.inline_keyboard.flat().every(b=>b.callback_data.startsWith('check:'+day+':')));
+  assert.equal(db.prepare("SELECT count(*) n FROM user_reports_sent WHERE user_id='222' AND id=?").get('check:'+day+':snooze-'+nextAt).n,1);
+  await webhook(env,222,'','check:'+day+':done');const sends=messages.filter(m=>m.url.endsWith('/sendMessage')).length;
+  await webhook(env,222,'','check:'+day+':done');await run();assert.equal(messages.filter(m=>m.url.endsWith('/sendMessage')).length,sends);
+  assert.equal((await(await call('222')).json()).data.accounts[0].balance,1000);
+ });
+});
+
+test('Old queued checks are discarded after editing, completion, disable or rescheduling',async()=>{
+ const {ensureNotificationOutbox,deliverNotifications}=await import('../server/notification-outbox.js');
+ const day='2026-10-17',now=Date.parse(day+'T18:00:00Z');
+ for(const status of ['editing','done','off','pending']){
+  const {env,data,db}=fixture(),d=data(1000);d.settings.expenseCheckEnabled=true;await ensureNotificationOutbox(env);
+  db.prepare('INSERT INTO user_notification_outbox VALUES(?,?,?,?,0)').run('222','check:'+day+':1200',day,JSON.stringify({kind:'expense',body:{text:'old'}}));
+  const sent=[];await deliverNotifications(env,'222',day,d,[],[{day,kind:'expense',status,payload:JSON.stringify(status==='pending'?{nextAt:now+3600000}:{})}],async(...args)=>sent.push(args),()=>'',setDayCheck,{now});
+  assert.equal(sent.length,0,status);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0,status);
+ }
+});
+
+test('Scheduled visual summary checkpoints photo and retries only full text without mutating finances',async()=>{
+ const {env,call,data,db}=fixture(),day=moscowDate(),d=data(1000);await call('222','state','PUT',{expectedRevision:0,data:d});
+ const {deliverNotifications}=await import('../server/notification-outbox.js');const {periodSummary}=await import('../server/period-summary.js');
+ const bytes=new Uint8Array(24);bytes.set([137,80,78,71,13,10,26,10]);const view=new DataView(bytes.buffer);view.setUint32(16,640);view.setUint32(20,1000);
+ let renders=0,photos=0,texts=0,fail=true;env.BROWSER={};
+ const {sendSummary}=await import('../server/summary-delivery.js'),{getPicture}=await import('../server/bot-pictures.js');
+ const delivery={deliverSummary:(env,userId,data,report,send,options)=>sendSummary(env,userId,data,report,send,{...options,picture:(env,userId,state,params)=>getPicture(env,userId,state,params,async()=>{renders++;return bytes;})})};
+ const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{assert.ok(options.body instanceof FormData);photos++;return Response.json({ok:true,result:{photo:[{file_id:'report-photo'}]}});};
+ const send=async(e,method,body)=>{texts++;assert.match(body.text,/Итог дня/);if(fail)throw Error('text failed');};
+ const before=JSON.parse(db.prepare("SELECT data FROM user_finance_state WHERE user_id='222'").get().data);
+ try{
+  await deliverNotifications(env,'222',day,d,[{id:'day:'+day,from:day,to:day,title:'Итог дня'}],[],send,periodSummary,async()=>{},delivery);
+  const queued=JSON.parse(db.prepare("SELECT payload FROM user_notification_outbox WHERE user_id='222'").get().payload);assert.equal(queued.progress.photoSent,true);assert.equal(photos,1);
+  db.prepare('UPDATE user_notification_outbox SET lease_until=0').run();fail=false;
+  await deliverNotifications(env,'222',day,d,[],[],send,periodSummary,async()=>{},delivery);
+  assert.equal(photos,1);assert.equal(renders,1);assert.equal(texts,2);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM user_reports_sent').get().n,1);
+  assert.deepEqual(JSON.parse(db.prepare("SELECT data FROM user_finance_state WHERE user_id='222'").get().data),before);
+ }finally{globalThis.fetch=original;}
+});

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+.env.*
+server/wrangler.jsonc
+server/wrangler.staging.jsonc
+
+# Local Wrangler packaging checks
+worker-dry-run/

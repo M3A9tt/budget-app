@@ -1,0 +1,43 @@
+{
+  "name": "finance-api-v2",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-12",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "finance-v2",
+      "database_id": "REPLACE_WITH_NEW_D1_DATABASE_ID"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "vars": {
+    "TELEGRAM_OWNER_ID": "REPLACE_WITH_YOUR_NUMERIC_TELEGRAM_ID",
+    "TELEGRAM_ALLOWED_IDS": "",
+    "MINI_APP_URL": "https://REPLACE_WITH_NEW_WORKER.workers.dev"
+  },
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/telegram/*",
+      "/card-demo"
+    ]
+  },
+  "browser": {
+    "binding": "BROWSER"
+  },
+  "rules": [
+    {
+      "type": "Text",
+      "globs": [
+        "**/*.css"
+      ],
+      "fallthrough": true
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+import AppErrorBoundary from './AppErrorBoundary.jsx';
+import React,{lazy,Suspense} from 'react';
+import ReactDOM from 'react-dom/client';
+import MiniApp from './MiniApp.jsx';
+const Classic=lazy(()=>import('./App.jsx'));
+const classic=new URLSearchParams(location.search).get('classic')==='1';
+ReactDOM.createRoot(document.getElementById('root')).render(<AppErrorBoundary><React.StrictMode>{classic?<Suspense fallback={<div>Загрузка…</div>}><div role="status" style={{padding:12,background:"#353024",color:"#ffe0a0",fontFamily:"sans-serif"}}>Архивная версия · данные хранятся отдельно. <a href="/" style={{color:"inherit"}}>Открыть Бюрджет</a></div><Classic/></Suspense>:<MiniApp/>}</React.StrictMode></AppErrorBoundary>);
