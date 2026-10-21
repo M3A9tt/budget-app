@@ -12,7 +12,7 @@ import {sendBotFile,readBotDocument} from './bot-files.js';
 import {lunchChatMessage,lunchChatCallback,pruneLunchChat,pauseLunchEdit} from './lunch-chat.js';
 import {userSwitchedDialog} from './dialog-focus.js';
 import {learningQueue,moderateLearning,pruneLearning} from './lunch-learning.js';
-import {botKeyboard,navigationCommand,summariesMenu,extraMenu,botHelp} from './bot-navigation.js';
+import {botKeyboard,navigationCommand,summariesMenu,botHelp} from './bot-navigation.js';
 import {sendTestMessage} from './test-messages.js';
 import {telegramPresentation} from '../src/telegram-presentation.js';
 import {collectTelemetry,telemetryReport,pruneTelemetry} from './telemetry.js';

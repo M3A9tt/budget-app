@@ -1,3 +1,5 @@
+import {botKeyboard,extraMenu,miniAppButton} from '../server/bot-navigation.js';
+import {broadcastRelease} from '../server/releases.js';
 import {showBotView,compactMenuRows} from '../server/bot-chat.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,7 +45,7 @@ test('Native savings transfer and linked debt return use the same account and re
 test('Native deposit creation retains metadata; schedule confirmation checks actual amount',()=>run(async f=>{
  await f.update('/accounts');await f.press('＋ Добавить');await f.update('Вклад');await f.press('Вклад');await f.press('RUB');await f.press('Уже отложено — указать остаток');await f.update('5000');await f.press('В банке');await f.update('12');await f.update('2027-01-15');await f.press('✅ Подтвердить');const a=f.snapshot().accounts.at(-1);assert.equal(a.savingsKind,'deposit');assert.equal(a.annualRate,12);assert.equal(a.balance,5000);
  const d=f.snapshot();d.recurring=[{id:'rent',name:'ЖКХ',type:'expense',amount:1000,currency:'RUB',accountId:'bank',cat:'housing',frequency:'once',startDate:today,active:true}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
- await f.update('/payments');await f.press('Что оплатить сейчас');await f.press(/ЖКХ/);await f.press('Подтвердить / изменить сумму');await f.press('Нет');await f.press(/^Оставить:/);assert.match(f.last().text,/Изменения применятся/);assert.equal(f.snapshot().accounts[0].balance,10000);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9000);assert.equal(f.snapshot().transactions[0].recurringId,'rent');
+ await f.update('/payments');await f.press('Оплатить сейчас');await f.press(/ЖКХ/);await f.press('Подтвердить / изменить сумму');await f.press('Нет');await f.press(/^Оставить:/);assert.match(f.last().text,/Изменения применятся/);assert.equal(f.snapshot().accounts[0].balance,10000);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,9000);assert.equal(f.snapshot().transactions[0].recurringId,'rent');
 }));
 test('Native import maps unknown accounts, previews rows and deduplicates without moving historical balances',()=>run(async f=>{
  await f.update('/import');await f.update(JSON.stringify({format:'burget-operations',version:1,operations:[{date:today,type:'expense',amount:180,currency:'RUB',account:'Альфа из выписки',category:'food',note:'Кофе'}]}));await f.press(/Банк/);await f.press('Нет, это старая история');assert.match(f.last().text,/Новых: 1/);assert.equal(f.snapshot().transactions.length,0);await f.press('✅ Импортировать 1');assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,10000);
@@ -82,7 +84,7 @@ test('New reserve can be funded atomically from an existing account in the nativ
  await f.update('/savings');await f.press('＋ Добавить');await f.update('На отпуск');await f.press('Накопления');await f.press('RUB');await f.press('Отложить с моего счёта');await f.press(/Банк/);await f.update('300');await f.press(/^Оставить:/);await f.press('Наличными');assert.equal(f.snapshot().accounts.length,2);await f.press('✅ Подтвердить');const d=f.snapshot();assert.equal(d.accounts.length,3);assert.equal(d.accounts[0].balance,9700);assert.equal(d.accounts.at(-1).balance,300);assert.equal(d.accounts.at(-1).storageKind,'cash');assert.equal(d.transfers.length,1);assert.equal(d.transactions.length,0);
 }));
 test('Picture generation failure keeps native menus usable and does not mutate finances',()=>run(async f=>{
- const before=f.snapshot();f.env.BROWSER={};await f.update('/budget');assert.match(f.last().text,/Твой бюджет/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='✍️ Записать'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.web_app));assert.deepEqual(f.snapshot(),before);await f.update('/more');await f.press('🖼 Картинки миниаппы');assert.match(f.last().text,/Миниаппа в картинках/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='💚 Бюджет'));await f.press('⌂ Главное меню');assert.match(f.last().text,/Бюджет|бюджет/);
+ const before=f.snapshot();f.env.BROWSER={};await f.update('/budget');assert.match(f.last().text,/Твой бюджет/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='✍️ Записать'));assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(x=>x.web_app));assert.deepEqual(f.snapshot(),before);await f.update('/more');await f.press('⋯ Инструменты');await f.press('🖼 Картинки');assert.match(f.last().text,/Миниаппа в картинках/);assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='💚 Бюджет'));await f.press('⌂ Главное меню');assert.match(f.last().text,/Бюджет|бюджет/);
 }));
 test('Opening a section sends the image with its real actions immediately; text mode and editing remain connected',()=>run(async f=>{
  let captures=0;const api={readState:async()=>({revision:1,data:f.snapshot(),isOwner:true}),telegram:async(_env,method,body)=>{f.sent.push({method,body});return {};},capturePicture:async()=>{captures++;const b=new Uint8Array(24);b.set([137,80,78,71,13,10,26,10]);const v=new DataView(b.buffer);v.setUint32(16,1280);v.setUint32(20,922);return b;}};
@@ -123,7 +125,7 @@ test('History filters and installment ownership survive confirmations; outcome r
  await f.update('/add');await f.press('− Расход');await f.update('100');await f.press('✅ Подтвердить');await f.update('/history');await f.press('Расходы');await f.press(/Еда ·/);await f.press('✏️ Изменить');await f.update('120');await f.press('✅ Подтвердить');await f.press('↩️ Вернуться в раздел');await f.press('⋯ Действия');await f.press('История');
  const viewDraft=f.sqlite.prepare("SELECT payload FROM telegram_drafts WHERE id=?").get(f.button('Все записи').split(':')[2]);assert.equal(JSON.parse(viewDraft.payload).origin.args.type,'expense');
  const d=f.snapshot();d.installments=[{id:'split',name:'Покупка частями',accountId:'bank',currency:'RUB',total:1000,payments:[{id:'p1',date:today,amount:400},{id:'p2',date:'2026-12-01',amount:600}]}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
- await f.update('/payments');await f.press('Кредиты / сплит / ипотека');await f.press(/Покупка частями/);await f.press(/Оплатил/);await f.press(/^Оставить:/);await f.press('✅ Подтвердить');assert.match(f.last().text,/осталось 600/);assert.match(f.last().text,/2026-12-01/);await f.press('↩️ Вернуться в раздел');assert.match(f.last().text,/Покупка частями/);assert.match(f.last().text,/600/);
+ await f.update('/payments');await f.press('Кредиты и сплит');await f.press(/Покупка частями/);await f.press(/Оплатил/);await f.press(/^Оставить:/);await f.press('✅ Подтвердить');assert.match(f.last().text,/осталось 600/);assert.match(f.last().text,/2026-12-01/);await f.press('↩️ Вернуться в раздел');assert.match(f.last().text,/Покупка частями/);assert.match(f.last().text,/600/);
  const next=f.snapshot();next.goals=[{id:'goal',name:'Подушка',target:3000,currency:'RUB',accountId:'reserve'}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(next));await f.update('/goals');await f.press(/Подушка/);await f.press('Отложить на цель');await f.press(/Банк/);await f.update('100');await f.press(/^Оставить:/);await f.press('✅ Подтвердить');assert.match(f.last().text,/2.?100/);assert.match(f.last().text,/3.?000/);assert.equal(f.snapshot().accounts[1].balance,2100);assert.equal(f.snapshot().transfers.length,1);
 }));
 test('Multiple accounts require an explicit first choice; currency follows a newly selected account',()=>run(async f=>{
@@ -152,7 +154,7 @@ test('Reminder buttons settle shared plan, installment and debt, reject stale/fo
 });
 
 test('Home and module controls persist per user through native confirmation and never change money',()=>run(async f=>{
- const initial=f.snapshot();await f.update('/budget');await f.press('⚙️ Моя главная');await f.press('Минимум');assert.equal(f.snapshot().settings.homeLayout,undefined);await f.press('✅ Подтвердить');assert.deepEqual(f.snapshot().settings.homeLayout.hidden.includes('wishes'),true);assert.equal(f.snapshot('222').settings.homeLayout,undefined);
+ const initial=f.snapshot();await f.update('/settings');await f.press('⚙️ Моя главная');await f.press('Минимум');assert.equal(f.snapshot().settings.homeLayout,undefined);await f.press('✅ Подтвердить');assert.deepEqual(f.snapshot().settings.homeLayout.hidden.includes('wishes'),true);assert.equal(f.snapshot('222').settings.homeLayout,undefined);
  await f.update('/settings');await f.press('🧩 Модули');await f.press('✓ Цели накоплений');await f.press('✅ Подтвердить');assert.equal(f.snapshot().settings.modules.goals,false);assert.deepEqual(f.snapshot().accounts,initial.accounts);assert.deepEqual(f.snapshot().transactions,initial.transactions);assert.equal(f.snapshot('222').settings.modules,undefined);
 }));
 
@@ -172,7 +174,7 @@ test('Transaction card is compact with sum, dishes and relative day; navigation 
  f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
  await f.update('/history');await f.press(/Суп, гречка/);
  const card=f.last();assert.match(card.text,/🍽 Обед · 379/);assert.match(card.text,/Сегодня/);assert.match(card.text,/Блюда:\nСуп, гречка/);assert.doesNotMatch(card.text,/с возвратом остатка/);
- assert.equal(card.reply_markup.inline_keyboard.length,3);assert.deepEqual(card.reply_markup.inline_keyboard.map(row=>row.length),[1,2,1]);
+ assert.equal(card.reply_markup.inline_keyboard.length,2);assert.deepEqual(card.reply_markup.inline_keyboard.map(row=>row.length),[2,2]);
  assert.ok(card.reply_markup.inline_keyboard.flat().some(x=>x.text==='⋯ Действия'));assert.ok(!card.reply_markup.inline_keyboard.flat().some(x=>x.text.startsWith('Удалить')));
  await f.press('⋯ Действия');assert.ok(f.last().reply_markup.inline_keyboard.flat().some(x=>x.text==='Удалить запись'));
  const yesterday=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);d.transactions[0].date=yesterday;
@@ -441,7 +443,7 @@ test('Lunch amount 380 succeeds with a hyphenated unrelated account and repeated
 });
 test('Compact navigation retains every callback and leaves long account and transaction names alone',()=>{
  const routes=[{label:'Миниаппа',command:'/app'},...['Расход','Доход','Обед компании','Перевод своим','Очень длинное название операции которое не поместится рядом','Ещё'].map(label=>({label}))];
- const buttons=routes.map((r,i)=>[{text:r.label,callback_data:String(i)}]);const rows=compactMenuRows(buttons,routes,'add');assert.deepEqual(rows.flat(),buttons.flat());assert.ok(rows.length<buttons.length);assert.equal(rows[0].length,1);assert.equal(rows.find(row=>row.some(b=>b.text.startsWith('Очень'))).length,1);assert.deepEqual(compactMenuRows(buttons,routes,'accounts'),buttons);
+ const buttons=routes.map((r,i)=>[{text:r.label,callback_data:String(i)}]);const rows=compactMenuRows(buttons,routes,'add');assert.deepEqual(rows.flat(),buttons.flat());assert.ok(rows.length<buttons.length);assert.equal(rows[0].length,2);assert.equal(rows.find(row=>row.some(b=>b.text.startsWith('Очень'))).length,1);assert.deepEqual(compactMenuRows(buttons,routes.map((r,i)=>({...r,view:'account',args:{id:String(i)}})),'accounts'),buttons);
 });
 
 test('Navigation reuses latest bot screen without promoting the miniapp in every view',()=>run(async f=>{
@@ -456,4 +458,38 @@ test('Navigation reuses latest bot screen without promoting the miniapp in every
  await f.update('/more');
  assert.equal(f.sent.at(-1).method,'editMessageText');
  assert.ok(f.last().reply_markup.inline_keyboard.flat().some(b=>b.web_app));
+}));
+
+
+test('All miniapp launch buttons use web_app directly and never a text or callback command',()=>{
+ const url='https://budget.test/?source=menu',data=seed();
+ const keyboard=botKeyboard(url,data);assert.deepEqual(keyboard.keyboard.map(r=>r.length),[3,3]);assert.ok(!keyboard.keyboard.flat().some(b=>/миниапп|открыть/i.test(b.text)));assert.equal(keyboard.resize_keyboard,true);
+ const app=miniAppButton(url);assert.deepEqual(app,{text:'📱 Миниаппа',web_app:{url}});assert.equal(app.callback_data,undefined);
+ const extras=extraMenu(url).inline_keyboard.flat(),launch=extras.find(b=>b.web_app);assert.deepEqual(launch,app);assert.ok(!extras.some(b=>b.callback_data==='b:v:app'));
+ assert.equal(miniAppButton(undefined),null);assert.ok(!extraMenu().inline_keyboard.flat().some(b=>/Миниаппа/.test(b.text)));assert.throws(()=>miniAppButton('http://budget.test'));
+});
+
+test('Start installs Telegram native miniapp menu without another launcher message; stale app callback is repaired in place',()=>run(async f=>{
+ await f.update('/menu');const menu=f.sent.find(x=>x.method==='setChatMenuButton');assert.ok(menu);assert.equal(menu.body.chat_id,'111');assert.equal(menu.body.menu_button.type,'web_app');assert.equal(menu.body.menu_button.web_app.url,'https://budget.test/');
+ const before=f.sent.filter(x=>['sendMessage','editMessageText','sendPhoto','editMessageMedia'].includes(x.method)).length;
+ await f.update('','b:v:app');assert.equal(f.sent.filter(x=>['sendMessage','editMessageText','sendPhoto','editMessageMedia'].includes(x.method)).length,before);
+ const repair=f.sent.filter(x=>x.method==='editMessageReplyMarkup').at(-1);assert.ok(repair.body.reply_markup.inline_keyboard.flat().some(b=>b.web_app));assert.deepEqual(f.snapshot(),seed());
+}));
+
+test('Main menus and form choices are compact while every callback still selects the correct record',()=>run(async f=>{
+ for(const command of ['/budget','/more','/settings','/payments']){
+  await f.update(command);const rows=f.last().reply_markup.inline_keyboard;assert.ok(rows.length<=6,command);assert.ok(rows.some(row=>row.length>=2));assert.ok(rows.every(row=>row.length<=3));
+ }
+ await f.update('/more');await f.press('⋯ Инструменты');await f.press('💾 Копии');assert.match(f.last().text,/Резервные копии/);
+ await f.update('/add');await f.press('− Расход');await f.update('125');await f.press('🏷 Категория');assert.ok(f.last().reply_markup.inline_keyboard.some(row=>row.length===2));
+ await f.press('Варианты →');await f.press('Техника');assert.match(f.last().text,/Техника/);await f.press('✅ Подтвердить');assert.equal(f.snapshot().transactions[0].cat,'tech');assert.equal(f.snapshot().accounts[0].balance,9875);
+}));
+
+test('Release refreshes each users native miniapp menu and keyboard once; repeated announcement does not spam',()=>run(async f=>{
+ const calls=[],send=async(env,method,body)=>{calls.push({method,body});};
+ const first=await broadcastRelease(f.env,send);assert.equal(first.sent,2);assert.equal(first.failed,0);
+ assert.equal(calls.filter(x=>x.method==='setChatMenuButton').length,2);assert.equal(calls.filter(x=>x.method==='sendMessage').length,2);
+ for(const c of calls.filter(x=>x.method==='sendMessage'))assert.deepEqual(c.body.reply_markup.keyboard.map(r=>r.length),[3,3]);
+ const before=calls.length,again=await broadcastRelease(f.env,send);assert.equal(again.sent,0);assert.equal(again.alreadySent,2);assert.equal(calls.length,before);
+ assert.deepEqual(f.snapshot(),seed());
 }));

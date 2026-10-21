@@ -15,7 +15,7 @@ import {lunchReminder} from './notifications.js';
 import {setDayCheck} from './habits.js';
 import {botView,view,act} from './bot-views.js';
 import {fieldsFor,parseField,applyBotAction,initialValues,botImportPreview} from './bot-catalog.js';
-import {botKeyboard,BOT_SECTIONS} from './bot-navigation.js';
+import {botKeyboard,BOT_SECTIONS,buttonRows,miniAppButton,configureMiniAppMenu,extraMenu} from './bot-navigation.js';
 import {EMPTY,money,todayMoscow} from '../src/mini-model.js';
 import {migrateData} from '../src/ledger.js';
 import {lunchCalculator} from '../src/lunch-budget.js';
@@ -37,15 +37,9 @@ async function retireMenu(env,userId,api,message,result){
  try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:message.message_id,reply_markup:{inline_keyboard:[]}});}catch{/* Deleted messages do not block the next screen. */}
 }
 export function compactMenuRows(buttons,routes,name){
- if(!['home','add'].includes(name))return buttons;
- const rows=[];
- for(let i=0;i<buttons.length;i++){
-  const route=routes[i],last=rows.at(-1),previous=routes[i-1];
-  const short=route.command!=='/app'&&[...route.label].length<=22;
-  if(short&&last?.length===1&&previous?.command!=='/app'&&[...previous.label].length<=22&&[...route.label,...previous.label].length<=40)last.push(buttons[i][0]);
-  else rows.push([...buttons[i]]);
- }
- return rows;
+ const records=new Set(['account','transaction','goal','wish','debt','installment','dueItem','movement']);
+ return buttonRows(buttons.flat(),{columns:['home','more','moreTools','settings','homeLayout','modules','tests','pictures','analytics','help'].includes(name)?3:2,
+  fullWidth:(button,i)=>!!(routes[i]?.args?.id&&records.has(routes[i]?.view))||/[₽$€]|\d{4}-\d{2}-\d{2}/.test(button.text)});
 }
 async function latestView(env,userId){
  const row=await env.DB.prepare("SELECT payload FROM telegram_drafts WHERE owner=? AND id GLOB 'bv_*' AND consumed=0 AND expires_at>? ORDER BY rowid DESC LIMIT 1").bind(userId,Date.now()).first();
@@ -59,9 +53,8 @@ async function rememberView(env,userId,id,messageId,photo=false){
  await replace(env,userId,current.row,{...current.p,cardId:messageId,cardPhoto:photo});
 }
 async function menu(env,userId,screen){
- const routes=screen.actions||[],id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});
- const buttons=routes.map((x,i)=>[x.command==='/app'&&env.MINI_APP_URL?{text:short(x.label),web_app:{url:env.MINI_APP_URL}}:{text:short(x.label),callback_data:x.special==='dayCheck'?`check:${x.args.day}:${x.args.action}`:`b:r:${id}:${i}`}]);
- if(screen.origin?.name==='transaction'&&buttons.length===4)return {id,reply_markup:{inline_keyboard:[buttons[0],[...buttons[1],...buttons[2]],buttons[3]]}};
+ const routes=(screen.actions||[]).filter(x=>x.command!=='/app'||env.MINI_APP_URL),id=await create(env,userId,{kind:'bot-view',routes,origin:screen.origin});
+ const buttons=routes.map((x,i)=>[x.command==='/app'?miniAppButton(env.MINI_APP_URL,short(x.label)):{text:short(x.label),callback_data:x.special==='dayCheck'?`check:${x.args.day}:${x.args.action}`:`b:r:${id}:${i}`}]);
  if(screen.origin?.name==='lunchMonths'&&buttons.length>=12)return {id,reply_markup:{inline_keyboard:[...Array.from({length:6},(_,i)=>[buttons[i*2][0],buttons[i*2+1][0]]),...buttons.slice(12)]}};
  return {id,reply_markup:{inline_keyboard:compactMenuRows(buttons,routes,screen.origin?.name)}};
 }
@@ -118,11 +111,11 @@ async function prompt(env,userId,api,id,p,page=0){
  if(changed){const loaded=await load(env,userId,id);if(loaded.row.payload!==expectedPayload)throw Error('Шаг уже изменился. Используй последнее сообщение.');await replace(env,userId,loaded.row,p);}
  if(p.op==='tx'&&!p.editing&&p.values.amount&&p.values.amount>0&&(p.args.type==='lunch'||s.data.accounts.some(a=>a.id===p.values.accountId))&&p.step>0)return preview(env,userId,api,id,p);
  const f=fields[p.step];if(!f)return preview(env,userId,api,id,p);
- const items=f.choices||[],part=items.slice(page*8,page*8+8),rows=part.map(([value,label],i)=>[{text:short(label),callback_data:`b:p:${id}:${p.step}:${page*8+i}`}]);
- if(items.length>8)rows.push([...(page>0?[{text:'← Варианты',callback_data:`b:q:${id}:${p.step}:${page-1}`}]:[]),...((page+1)*8<items.length?[{text:'Варианты →',callback_data:`b:q:${id}:${p.step}:${page+1}`}]:[])]);
+ const items=f.choices||[],part=items.slice(page*6,page*6+6),rows=buttonRows(part.map(([value,label],i)=>({text:short(label),callback_data:`b:p:${id}:${p.step}:${page*6+i}`})));
+ if(items.length>6)rows.push([...(page>0?[{text:'← Варианты',callback_data:`b:q:${id}:${p.step}:${page-1}`}]:[]),...((page+1)*6<items.length?[{text:'Варианты →',callback_data:`b:q:${id}:${p.step}:${page+1}`}]:[])]);
  const current=Object.hasOwn(p.values,f.key)?p.values[f.key]:f.default;
  if(f.optional||(current!==undefined&&current!==''&&(f.type!=='choice'||items.some(([v])=>String(v)===String(current)))))rows.push([{text:f.optional&&current===''?'Пропустить':`Оставить: ${short(items.find(([v])=>String(v)===String(current))?.[1]??(current===''?'пусто':f.type==='document'?'выбранный файл':current),35)}`,callback_data:`b:k:${id}:${p.step}`}]);
- if(p.step>0)rows.push([{text:'← Назад',callback_data:'b:b:'+id}]);rows.push([{text:'✕ Отмена',callback_data:'b:x:'+id}]);
+ rows.push([...(p.step>0?[{text:'← Назад',callback_data:'b:b:'+id}]:[]),{text:'✕ Отмена',callback_data:'b:x:'+id}]);
  const message=await formCard(env,userId,api,id,`✍️ ${f.label}\n${p.args.lunchCheckDay?'Обед за '+p.args.lunchCheckDay+'\n':''}\n${f.type==='choice'?(items.length?'Выбери вариант кнопкой.':'Подходящих записей нет. Создай их в соответствующем разделе.'):f.type==='document'?'Отправь файл или вставь содержимое.':'Напиши ответ сообщением.'}`,{inline_keyboard:rows},p.values);
  // A reply to an old prompt must never become the answer to a later field.
  const loaded=await load(env,userId,id);if(loaded.p.step===p.step&&loaded.p.status==='form')await replace(env,userId,loaded.row,{...loaded.p,promptId:message?.message_id});
@@ -192,7 +185,13 @@ async function route(env,userId,api,r){
 export async function botChat(update,env,userId,api){
  const callback=update.callback_query,message=update.message;
  if(callback?.data?.startsWith('b:')){
-  await api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});const [,action,id,arg,extra]=callback.data.split(':');
+  const [,action,id,arg,extra]=callback.data.split(':');
+  if(action==='v'&&id==='app'){
+   await api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:env.MINI_APP_URL?'Кнопка обновлена. Нажми «Миниаппа» ещё раз.':'Адрес миниаппы ещё не настроен'});
+   if(env.MINI_APP_URL&&callback.message?.message_id)await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:callback.message.message_id,reply_markup:extraMenu(env.MINI_APP_URL)});
+   return true;
+  }
+  await api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});
   if(action==='n'){
    const state=await api.readState(env,userId),today=todayMoscow(state.data.settings.timeZone);
    const item=duePayments(state.data,today).find(x=>x.id===arg&&(id==='p'?x.kind==='plan'&&x.period===extra:id==='i'?x.kind==='installment':id==='d'&&x.kind==='debt'));
@@ -201,7 +200,6 @@ export async function botChat(update,env,userId,api){
    const returnTo={name:'due',args:{}};
    await start(env,userId,api,item.kind==='plan'?'confirmPlan':item.kind==='installment'?'payInstallment':'repay',{...(item.kind==='plan'?{id:item.id,period:item.period}:item.kind==='installment'?{id:item.planId,paymentId:item.id}:{id:item.id}),returnTo});return true;
   }
-  if(action==='v'&&id==='app'){await api.command('/app');return true;}
   if(action==='v'){await pauseBotForm(env,userId,api);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   let loaded;try{loaded=await load(env,userId,id);}catch{const receipt=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,'bot:'+id).first();return render(env,userId,api,{title:receipt?'✅ Это действие уже выполнено':'Эта карточка уже закрыта',lines:[receipt?'Повторной записи не будет. Открой историю, чтобы посмотреть результат.':'Открой актуальный раздел.'],actions:[view('✍️ Записать','add'),view('История','history'),view('Главная','home')]});}const {p}=loaded;
   if(action==='r'){if(p.kind!=='bot-view'||!p.routes[Number(arg)])throw Error('Кнопка устарела');let r=p.routes[Number(arg)];if(r.op)r={...r,args:{...r.args,returnTo:p.origin}};if(r.view==='transaction'&&p.origin?.name==='history')r={...r,args:{...r.args,backTo:p.origin}};const result=await route(env,userId,{...api,viewMessage:callback.message},r);if(r.op)await retireMenu(env,userId,api,callback.message,result);return true;}
@@ -219,7 +217,7 @@ export async function botChat(update,env,userId,api){
    await render(env,userId,{...api,viewMessage:p.cardId?{message_id:p.cardId}:undefined},{title:outcome.title,lines:outcome.lines,actions,origin:dest});return true;
   }
   if(action==='u'&&p.op==='import'){const index=Number(arg),doc=parseImportJson(p.values.content);if(!Number.isInteger(index)||!doc.operations[index])throw Error('Строка отсутствует');const next={kind:'bot-form',cardId:p.cardId,cardVersion:p.cardVersion,op:'importRow',args:{index},values:{...doc.operations[index]},step:0,status:'confirm',revision:p.revision,importParent:{...p,row:doc.operations[index]}};await replace(env,userId,loaded.row,next);return botChat({callback_query:{...callback,data:'b:z:'+id}},env,userId,api);}
-  if(action==='z'||action==='l'){const s=await api.readState(env,userId),fields=fieldsFor(s.data,p.op,p.args,p.values),page=action==='l'?Math.max(0,Number(arg)||0):0;await formCard(env,userId,api,id,'✏️ Что изменить?',{inline_keyboard:[...fields.slice(page*8,page*8+8).map((f,i)=>[{text:short(f.label),callback_data:`b:j:${id}:${page*8+i}`}]),...(page>0?[[{text:'← Поля',callback_data:`b:l:${id}:${page-1}`}]]:[]),...((page+1)*8<fields.length?[[{text:'Поля →',callback_data:`b:l:${id}:${page+1}`}]]:[]),[{text:'К проверке',callback_data:'b:t:'+id},{text:'Отмена',callback_data:'b:x:'+id}]]});return true;}
+  if(action==='z'||action==='l'){const s=await api.readState(env,userId),fields=fieldsFor(s.data,p.op,p.args,p.values),page=action==='l'?Math.max(0,Number(arg)||0):0;await formCard(env,userId,api,id,'✏️ Что изменить?',{inline_keyboard:[...buttonRows(fields.slice(page*6,page*6+6).map((f,i)=>({text:short(f.label),callback_data:`b:j:${id}:${page*6+i}`}))),...(page>0?[[{text:'← Поля',callback_data:`b:l:${id}:${page-1}`}]]:[]),...((page+1)*6<fields.length?[[{text:'Поля →',callback_data:`b:l:${id}:${page+1}`}]]:[]),[{text:'К проверке',callback_data:'b:t:'+id},{text:'Отмена',callback_data:'b:x:'+id}]]});return true;}
   if(action==='j'){const s=await api.readState(env,userId),fields=fieldsFor(s.data,p.op,p.args,p.values),step=Number(arg);if(!Number.isInteger(step)||!fields[step])throw Error('Поле не найдено');const next={...p,step,status:'form',editing:true};await replace(env,userId,loaded.row,next);await prompt(env,userId,api,id,next);return true;}
   if(action==='t'){await preview(env,userId,api,id,p);return true;}
   if(action==='b'){const next={...p,step:action==='z'?0:Math.max(0,p.step-1),status:'form'};await replace(env,userId,loaded.row,next);await prompt(env,userId,api,id,next);return true;}
@@ -231,7 +229,7 @@ export async function botChat(update,env,userId,api){
  }
  if(!message)return false;const text=api.navigationCommand((message.text||'').trim());
  if(['/cancel','Отмена'].includes(text)){const active=await pendingForm(env,userId);if(!active)return false;await cancelBotFlow(env,userId,api);if(active.p.args.checkDay)await showBotView(env,userId,api,'expenseCheck',{day:active.p.args.checkDay});else await send(api,env,userId,'Ввод отменён. Ничего не записано.');return true;}
- if(['/start','/menu'].includes(text)){await pauseBotForm(env,userId,api);await send(api,env,userId,'💼 Бюрджет\nВесь бюджет теперь доступен прямо в чате 👇',botKeyboard(env.MINI_APP_URL,(await api.readState(env,userId)).data));await showBotView(env,userId,api,'home');return true;}
+ if(['/start','/menu'].includes(text)){await pauseBotForm(env,userId,api);await configureMiniAppMenu(env,userId,api.telegram);await send(api,env,userId,'💼 Бюрджет\nВыбери действие. Миниаппа — кнопкой возле поля ввода.',botKeyboard(env.MINI_APP_URL,(await api.readState(env,userId)).data));await showBotView(env,userId,api,'home');return true;}
  if(text==='/add'){const active=await pendingForm(env,userId);if(active){await resumeMenu(env,userId,api,active,'tx',{type:'expense'});return true;}}
  if(text==='/add'||text==='/import'){await (text==='/add'?showBotView(env,userId,api,'add'):start(env,userId,api,'import'));return true;}
  if(BOT_SECTIONS[text]){await pauseBotForm(env,userId,api);await showBotView(env,userId,api,BOT_SECTIONS[text]==='reminders'?'settingGroup':BOT_SECTIONS[text],text==='/reminders'?{group:'reminders'}:{});return true;}

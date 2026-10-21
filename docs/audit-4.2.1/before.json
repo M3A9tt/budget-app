@@ -1,0 +1,138 @@
+{
+  "sha": "7e3cbdf3be1e9c7669115481014acec5fb42bbc0",
+  "fixture": {
+    "modules": {
+      "lunch": true
+    },
+    "owner": true
+  },
+  "menuTitle": "🧩 Все разделы",
+  "inlineKeyboard": [
+    [
+      {
+        "text": "🖼 Картинки миниаппы",
+        "callback_data": "audit:0"
+      }
+    ],
+    [
+      {
+        "text": "🍽 Обеды",
+        "callback_data": "audit:1"
+      }
+    ],
+    [
+      {
+        "text": "💳 Счета",
+        "callback_data": "audit:2"
+      }
+    ],
+    [
+      {
+        "text": "🛟 Накопления и вклады",
+        "callback_data": "audit:3"
+      }
+    ],
+    [
+      {
+        "text": "🎯 Цели и покупки",
+        "callback_data": "audit:4"
+      }
+    ],
+    [
+      {
+        "text": "📊 Аналитика",
+        "callback_data": "audit:5"
+      }
+    ],
+    [
+      {
+        "text": "📅 Планы и долги",
+        "callback_data": "audit:6"
+      }
+    ],
+    [
+      {
+        "text": "⚙️ Настройки",
+        "callback_data": "audit:7"
+      }
+    ],
+    [
+      {
+        "text": "📥 Импорт JSON / CSV",
+        "callback_data": "audit:8"
+      }
+    ],
+    [
+      {
+        "text": "💾 Резервные копии",
+        "callback_data": "audit:9"
+      }
+    ],
+    [
+      {
+        "text": "✨ Что нового",
+        "callback_data": "audit:10"
+      }
+    ],
+    [
+      {
+        "text": "❓ Помощь",
+        "callback_data": "audit:11"
+      }
+    ],
+    [
+      {
+        "text": "🛠 Владелец",
+        "callback_data": "audit:12"
+      }
+    ],
+    [
+      {
+        "text": "Миниаппа",
+        "web_app": {
+          "url": "https://budget.example/"
+        }
+      }
+    ],
+    [
+      {
+        "text": "⌂ Главное меню",
+        "callback_data": "audit:14"
+      }
+    ]
+  ],
+  "replyKeyboard": {
+    "keyboard": [
+      [
+        {
+          "text": "💰 Бюджет"
+        },
+        {
+          "text": "✍️ Записать"
+        }
+      ],
+      [
+        {
+          "text": "🕘 История"
+        },
+        {
+          "text": "📅 Платежи"
+        }
+      ],
+      [
+        {
+          "text": "🍽 Обеды"
+        },
+        {
+          "text": "🧩 Ещё"
+        }
+      ]
+    ],
+    "resize_keyboard": true,
+    "is_persistent": false,
+    "one_time_keyboard": false,
+    "input_field_placeholder": "Кофе 180 или выбери действие"
+  },
+  "nativeMiniAppMenuConfigured": false,
+  "menuCalls": []
+}

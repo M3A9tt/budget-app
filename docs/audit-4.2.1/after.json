@@ -1,0 +1,108 @@
+{
+  "sha": "c792c6f4b7547cb1be86a332e140e7f91fa3ebea",
+  "fixture": {
+    "modules": {
+      "lunch": true
+    },
+    "owner": true
+  },
+  "menuTitle": "🧩 Все разделы",
+  "inlineKeyboard": [
+    [
+      {
+        "text": "🍽 Обеды",
+        "callback_data": "audit:0"
+      },
+      {
+        "text": "💳 Счета",
+        "callback_data": "audit:1"
+      },
+      {
+        "text": "🛟 Накопления",
+        "callback_data": "audit:2"
+      }
+    ],
+    [
+      {
+        "text": "🎯 Цели",
+        "callback_data": "audit:3"
+      },
+      {
+        "text": "📊 Аналитика",
+        "callback_data": "audit:4"
+      },
+      {
+        "text": "📅 Платежи",
+        "callback_data": "audit:5"
+      }
+    ],
+    [
+      {
+        "text": "⚙️ Настройки",
+        "callback_data": "audit:6"
+      },
+      {
+        "text": "📱 Миниаппа",
+        "web_app": {
+          "url": "https://budget.example/"
+        }
+      },
+      {
+        "text": "⋯ Инструменты",
+        "callback_data": "audit:8"
+      }
+    ],
+    [
+      {
+        "text": "⌂ Главное меню",
+        "callback_data": "audit:9"
+      }
+    ]
+  ],
+  "replyKeyboard": {
+    "keyboard": [
+      [
+        {
+          "text": "💰 Бюджет"
+        },
+        {
+          "text": "✍️ Записать"
+        },
+        {
+          "text": "🕘 История"
+        }
+      ],
+      [
+        {
+          "text": "📅 Платежи"
+        },
+        {
+          "text": "🍽 Обеды"
+        },
+        {
+          "text": "🧩 Ещё"
+        }
+      ]
+    ],
+    "resize_keyboard": true,
+    "is_persistent": false,
+    "one_time_keyboard": false,
+    "input_field_placeholder": "Кофе 180 или выбери действие"
+  },
+  "nativeMiniAppMenuConfigured": true,
+  "menuCalls": [
+    {
+      "method": "setChatMenuButton",
+      "body": {
+        "chat_id": "111",
+        "menu_button": {
+          "type": "web_app",
+          "text": "📱 Миниаппа",
+          "web_app": {
+            "url": "https://budget.example/"
+          }
+        }
+      }
+    }
+  ]
+}
