@@ -308,6 +308,27 @@ test('Old queued checks are discarded after editing, completion, disable or resc
  }
 });
 
+test('Retried expense reminder refreshes additions and deletions while retaining its rotation attempt',async()=>{
+ const {deliverNotifications}=await import('../server/notification-outbox.js'),{expenseReminder}=await import('../server/notifications.js');
+ const {env,data,db}=fixture(),day=moscowDate(),d=data(1000);d.settings.expenseCheckEnabled=true;
+ d.transactions=[{...purchase,id:'old',date:day,note:'Удалённая покупка'}];
+ const report={id:'check:'+day+':1200',kind:'expense',day,attempt:1,...expenseReminder(d,day,1)};
+ await deliverNotifications(env,'222',day,d,[report],[],async()=>{throw Error('Telegram unavailable');},()=>'',setDayCheck);
+ assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,1);
+ d.transactions=[{...purchase,id:'new',amount:180,date:day,note:'Новая покупка'}];db.prepare('UPDATE user_notification_outbox SET lease_until=0').run();
+ const sent=[];await deliverNotifications(env,'222',day,d,[],await dayChecks(env,'222',day),async(e,m,b)=>sent.push(b),()=>'',setDayCheck);
+ assert.equal(sent.length,1);assert.equal(sent[0].text,expenseReminder(d,day,1).text);assert.match(sent[0].text,/Новая покупка/);assert.doesNotMatch(sent[0].text,/Удалённая покупка/);assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);
+});
+
+test('After-midnight snooze lists expenses for the original day, with original-day history and add controls',async()=>{
+ const {deliverNotifications}=await import('../server/notification-outbox.js'),{expenseReminder}=await import('../server/notifications.js');
+ const {env,data}=fixture(),day='2026-10-21',today='2026-10-22',now=Date.parse('2026-10-21T21:30:00Z'),d=data(1000);d.settings.expenseCheckEnabled=true;
+ d.transactions=[{...purchase,id:'old',date:day,note:'Вчерашний кофе'},{...purchase,id:'new',date:today,note:'Ночная покупка'}];
+ const responses=[{day,kind:'expense',status:'pending',payload:JSON.stringify({nextAt:now})}],sent=[];
+ await deliverNotifications(env,'222',today,d,[{id:'check:'+day+':snooze-'+now,kind:'expense',day,snoozeAt:now,...expenseReminder(d,day)}],responses,async(e,m,b)=>sent.push(b),()=>'',setDayCheck,{now});
+ assert.equal(sent.length,1);assert.match(sent[0].text,/Вчерашний кофе/);assert.doesNotMatch(sent[0].text,/Ночная покупка/);assert.ok(sent[0].reply_markup.inline_keyboard.flat().every(b=>b.callback_data.startsWith('check:'+day+':')));
+});
+
 test('Scheduled visual summary checkpoints photo and retries only full text without mutating finances',async()=>{
  const {env,call,data,db}=fixture(),day=moscowDate(),d=data(1000);await call('222','state','PUT',{expectedRevision:0,data:d});
  const {deliverNotifications}=await import('../server/notification-outbox.js');const {periodSummary}=await import('../server/period-summary.js');

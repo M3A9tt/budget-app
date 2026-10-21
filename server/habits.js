@@ -15,6 +15,9 @@ export async function habitCallback(env,userId,callback,api){
  const payload=JSON.parse(row.payload),send=text=>api.telegram(env,'sendMessage',{chat_id:userId,text});
  const transition=async(status,nextPayload={})=>{const result=await env.DB.prepare("UPDATE user_day_checks SET status=?,payload=? WHERE user_id=? AND day=? AND kind='expense' AND status=? AND payload=?").bind(status,JSON.stringify(nextPayload),userId,day,row.status,row.payload).run();return result.meta.changes===1;};
  const answer=text=>api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text});
+ if(kind==='expense'&&action==='history'){
+  await api.showExpenseHistory(day);await answer('Записи за '+day);return true;
+ }
  const close=async text=>{try{const rows=callback.message.reply_markup?.inline_keyboard;if(rows?.flat().some(b=>b.callback_data?.startsWith('b:'))){await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:callback.message.message_id,reply_markup:{inline_keyboard:rows.map(r=>r.filter(b=>!b.callback_data?.startsWith('check:'+day+':'))).filter(r=>r.length)}});return;}await api.telegram(env,'editMessageText',{chat_id:userId,message_id:callback.message.message_id,text,reply_markup:{inline_keyboard:[]}});}catch{/* Deleted and already edited reminders still accept the persisted answer. */}};
  if(action==='off'){
   await api.mutateState(env,userId,d=>({...d,settings:{...d.settings,[kind==='expense'?'expenseCheckEnabled':'lunchAskEnabled']:false,...(kind==='expense'?{reminders:false}:{})}}));

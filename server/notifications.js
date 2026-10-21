@@ -4,6 +4,7 @@ import {lunchDayRatio,lunchCalendarVerified} from '../src/lunch-budget.js';
 import {clockAt,settingTime,timeMinutes,DEFAULT_ZONE} from '../src/time-settings.js';
 import {moduleEnabled} from '../src/modules.js';
 import {reminderText} from '../src/reminder-settings.js';
+import {expenseCheckSummary} from '../src/expense-check.js';
 export const moscowClock=now=>clockAt(now);
 export const expenseCheckStopped=status=>['done','none','off','editing'].includes(status);
 export function checkSchedule(data,today){
@@ -23,7 +24,7 @@ export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
  const eligible=(legacyMinute===null?slots:[legacyMinute]).filter(due),slot=eligible.length?Math.max(...eligible):null;
  if(s.expenseCheckEnabled===true){
   if(!expenseCheckStopped(expense?.status)&&!payload.nextAt&&slot!==null){
-   reports.push({id:'check:'+today+':'+slot,kind:'expense',day:today,...expenseReminder(data,today,slots.indexOf(slot))});
+   const attempt=Math.max(0,slots.indexOf(slot));reports.push({id:'check:'+today+':'+slot,kind:'expense',day:today,attempt,...expenseReminder(data,today,attempt)});
   }
   // A chosen delay is an instant, while the question retains its original day.
   for(const response of responses.filter(r=>r.kind==='expense'&&!expenseCheckStopped(r.status))){
@@ -45,7 +46,7 @@ export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
  return reports;
 }
 
-export function expenseReminder(data,today,attempt=0){const s=data.settings||{};return {text:'Проверим расходы\nЗа '+today+'\n'+reminderText(s,today,attempt),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},{text:'Сегодня без трат',callback_data:'check:'+today+':none'}],[{text:'Ещё не всё',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}};}
+export function expenseReminder(data,today,attempt=0){const s=data.settings||{},snapshot=expenseCheckSummary(data,today);return {text:'Проверим расходы\nЗа '+today+'\n\n'+snapshot.lines.join('\n')+'\n\n'+reminderText(s,today,Math.max(0,attempt)),reply_markup:{inline_keyboard:[[{text:'Всё записал ✅',callback_data:'check:'+today+':done'},...(!snapshot.count?[{text:'Без трат за этот день',callback_data:'check:'+today+':none'}]:[])],[{text:'Добавить расход',callback_data:'check:'+today+':pending'},{text:'Через час',callback_data:'check:'+today+':later'}],[{text:'Записи за день',callback_data:'check:'+today+':history'}],[{text:'Отключить проверки',callback_data:'check:'+today+':off'}]]}};}
 export function lunchReminder(today){return {text:'Обед сегодня?\nЗа компанию или за свои — выбери ниже.',reply_markup:{inline_keyboard:[[{text:'Заказал · за счёт компании',callback_data:'lunch:'+today+':company'}],[{text:'Купил за свои',callback_data:'lunch:'+today+':own'},{text:'Не заказал',callback_data:'lunch:'+today+':skip'}],[{text:'Отключить вопросы',callback_data:'lunch:'+today+':off'}]]}};}
 
 

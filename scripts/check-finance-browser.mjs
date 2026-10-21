@@ -11,7 +11,7 @@ const today=todayMoscow(),future=new Date(today+'T12:00:00Z');future.setUTCDate(
 let browser;
 try{
 browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--single-process','--no-zygote'],headless:true});
-const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,locale:'ru-RU'});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 let data=structuredClone(EMPTY),revision=1;data.settings={...data.settings,modules:{lunch:true},nextIncomeDate:future.toISOString().slice(0,10)};
 data.accounts=[{id:'sber',name:'Сбер',balance:0,currency:'RUB'},{id:'alpha',name:'Альфа',balance:5405.2,currency:'RUB'},{id:'yandex',name:'Яндекс',balance:694,currency:'RUB'},{id:'edu',name:'Учёба',balance:35086.66,currency:'RUB',accType:'savings'}];
@@ -143,6 +143,20 @@ await skippedCard.getByRole('button',{name:'Проверить и подтвер
 assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeRestoreBalances);assert.equal(data.transactions.length,beforeRestoreCount);assert.deepEqual(data.recurring.find(r=>r.id==='qa-skipped').skippedPeriods,[]);
 for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:900});await checkOverflow('restored plan '+width);}
 await page.setViewportSize({width:390,height:844});await page.screenshot({path:screenshotDir+'/11-restored-plan-390.png',fullPage:true});
+// The remaining-payments wizard previews the exact schedule before any mutation.
+await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'До погашения',exact:true}).click();await page.getByRole('button',{name:/Кредиты, сплит, рассрочки/}).click();
+await page.locator('.installment-create>summary').click();
+await page.getByLabel('За что платишь?',{exact:true}).fill('Телефон — остаток');await page.getByLabel('Осталось заплатить',{exact:true}).fill('9000');await page.getByLabel('Осталось платежей',{exact:true}).fill('3');await page.getByLabel('Как часто',{exact:true}).selectOption('biweekly');await page.getByLabel('Ближайший неоплаченный платёж',{exact:true}).fill(today);
+const beforeWizardBalances=data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeWizardTransactions=data.transactions.length,beforeWizardPlans=data.installments.length;
+for(const width of [320,360,390,430,768,1280]){await page.setViewportSize({width,height:900});await checkOverflow('installment wizard '+width);}
+await page.setViewportSize({width:390,height:900});await page.locator('.installment-create').screenshot({path:screenshotDir+'/12-installment-input-390.png'});
+await page.getByRole('button',{name:'Посмотреть график',exact:true}).click();assert.equal(await page.locator('.installment-preview li').count(),3);assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeWizardBalances);assert.equal(data.transactions.length,beforeWizardTransactions);assert.equal(data.installments.length,beforeWizardPlans);
+await page.getByRole('button',{name:'Назад',exact:true}).click();assert.equal(await page.getByLabel('Осталось заплатить',{exact:true}).inputValue(),'9000');await page.getByRole('button',{name:'Посмотреть график',exact:true}).click();await page.getByLabel('С какого счёта платить',{exact:true}).selectOption('alpha');
+for(const width of [320,360,390,430,768,1280]){await page.setViewportSize({width,height:900});await checkOverflow('installment preview '+width);}
+await page.setViewportSize({width:390,height:900});await page.locator('.installment-create').screenshot({path:screenshotDir+'/13-installment-preview-390.png'});
+await page.getByRole('button',{name:'Создать график',exact:true}).click();await page.locator('.installment-create:not([open])').waitFor();const created=data.installments.find(p=>p.name==='Телефон — остаток');assert.equal(data.installments.length,beforeWizardPlans+1);assert.equal(created.total,9000);assert.deepEqual(created.payments.map(p=>({date:p.date,amount:p.amount})),[0,14,28].map(offset=>({date:past(offset),amount:3000})));assert.equal(data.transactions.length,beforeWizardTransactions);assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeWizardBalances);
+const newCard=page.locator('.installment-card').filter({hasText:'Телефон — остаток'});assert.equal(await newCard.getByRole('button',{name:'Проверить платёж',exact:true}).count(),1);assert.equal(await newCard.locator('.obligation-schedule').getByRole('button',{name:'Проверить платёж',exact:true,includeHidden:true}).count(),2);
+await newCard.getByRole('button',{name:'Проверить платёж',exact:true}).first().click();assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeWizardBalances);await page.getByRole('button',{name:/Записать.*3.?000/}).click();await page.locator('.installment-card').filter({hasText:'Телефон — остаток'}).waitFor();assert.equal(data.accounts.find(a=>a.id==='alpha').balance,beforeWizardBalances.find(a=>a.id==='alpha').balance-3000);assert.equal(data.transactions.filter(t=>created.payments.some(p=>p.id===t.installmentPaymentId)).length,1);
 // Summary images use the same exact-period model as their full text.
 const reportBundle=await build({entryPoints:['server/report-html.jsx'],bundle:true,write:false,format:'esm',platform:'browser',loader:{'.css':'text'}});
 const {renderReportHtml}=await import('data:text/javascript;base64,'+Buffer.from(reportBundle.outputFiles[0].contents).toString('base64'));
@@ -153,5 +167,5 @@ for(const [name,source,from] of [['day',demoData(today),today],['week',demoData(
  const bounds=await page.locator('#report-card').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth,height:e.clientHeight}));assert.equal(bounds.width,640);assert.ok(bounds.scroll<=641);assert.ok(bounds.height<2000);
  await page.locator('#report-card').screenshot({path:screenshotDir+'/summary-'+name+'.png'});
 }
-assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; calendar state, transfer with fee, partial installment/edit; partial JSON repair, grouped decimals, corporate lunch contract, history-only balances, stale backup confirmation; skipped plan recovery; day/week/empty summary cards; no page errors.');
+assert.deepEqual(errors,[]);console.log('PASS: real Chromium: disclosure, zero disclosure, day details, linked deletion/refund, history, analytics drilldowns, planned confirmation, overflow at 320/360/390/430/768/1280px; calendar state, transfer with fee, partial installment/edit; partial JSON repair, grouped decimals, corporate lunch contract, history-only balances, stale backup confirmation; skipped plan recovery; remaining-payment wizard, exact schedule preview, back navigation, single actual debit; day/week/empty summary cards; no page errors.');
 }finally{await browser?.close();await server.close();}

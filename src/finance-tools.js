@@ -22,13 +22,33 @@ export function fundGoal(data,{goalId,from,amount,date}){
  return transferMoney(data,{from,to:g.accountId,amount,date,note:'Накопление: '+g.name});
 }
 export const goalSaved=(data,g)=>g.accountId?data.accounts.find(a=>a.id===g.accountId)?.balance||0:g.saved||0;
-export function createInstallment(data,{name,total,count,firstDate,accountId,cat='other',obligationKind='installment',cadence='monthly'}){
- if(!['installment','split','loan','mortgage'].includes(obligationKind)||!['monthly','weekly','biweekly'].includes(cadence))throw Error('Выберите вид и период платежей');
- const amount=positive(total),n=Number(count),account=data.accounts.find(a=>a.id===accountId);
- if(!name.trim()||!Number.isInteger(n)||n<1||n>600||!validDate(firstDate)||!account)throw Error('Проверьте название, дату, счёт и число платежей (1–600)');
+export function installmentSchedule({total,count,firstDate,cadence='monthly'}){
+ if(!['monthly','weekly','biweekly'].includes(cadence))throw Error('Выбери, как часто будут списываться деньги');
+ const amount=positive(total),n=Number(count);
+ if(!Number.isInteger(n)||n<1||n>600)throw Error('Укажи целое число оставшихся платежей: от 1 до 600');
+ if(!validDate(firstDate))throw Error('Укажи дату ближайшего неоплаченного платежа');
  const cents=Math.round(amount*100);if(cents<n)throw Error('Сумма слишком мала для такого числа платежей');
- const anchor=new Date(firstDate+'T12:00:00Z'),payments=Array.from({length:n},(_,i)=>{const start=new Date(Date.UTC(anchor.getUTCFullYear(),anchor.getUTCMonth()+i,1,12)),day=Math.min(anchor.getUTCDate(),new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth()+1,0)).getUTCDate());start.setUTCDate(day);if(cadence!=='monthly')start.setTime(Date.parse(firstDate+'T12:00:00Z')+i*(cadence==='weekly'?7:14)*86400000);return{id:id(),date:start.toISOString().slice(0,10),amount:(Math.floor(cents/n)+(i<cents%n?1:0))/100};});
- return {...data,installments:[...(data.installments||[]),{id:id(),name:name.trim(),obligationKind,cadence,total:amount,currency:account.currency||'RUB',accountId,cat,payments}]};
+ const anchor=new Date(firstDate+'T12:00:00Z');
+ return Array.from({length:n},(_,i)=>{
+  const start=new Date(anchor);
+  if(cadence==='monthly'){
+   start.setUTCDate(1);start.setUTCMonth(anchor.getUTCMonth()+i);
+   const end=new Date(start);end.setUTCMonth(start.getUTCMonth()+1,0);
+   start.setUTCDate(Math.min(anchor.getUTCDate(),end.getUTCDate()));
+  }else start.setUTCDate(anchor.getUTCDate()+i*(cadence==='weekly'?7:14));
+  const date=start.toISOString().slice(0,10);if(!validDate(date))throw Error('График выходит за допустимый диапазон дат');
+  return {date,amount:(Math.floor(cents/n)+(i<cents%n?1:0))/100};
+ });
+}
+export function createInstallment(data,{id:planId=id(),name,total,count,firstDate,accountId,cat='other',obligationKind='installment',cadence='monthly'}){
+ if(typeof planId!=='string'||!/^[-\w]{1,80}$/.test(planId))throw Error('Некорректный номер графика');
+ if((data.installments||[]).some(p=>p.id===planId))throw Error('Этот график уже создан. Закрой форму и открой его в списке.');
+ const account=data.accounts.find(a=>a.id===accountId);
+ if(!['installment','split','loan','mortgage'].includes(obligationKind))throw Error('Выбери вид графика');
+ if(typeof name!=='string'||!name.trim())throw Error('Напиши, за что платишь');
+ if(!account)throw Error('Выбери счёт, с которого будут списываться платежи');
+ const amount=positive(total),payments=installmentSchedule({total:amount,count,firstDate,cadence}).map(p=>({...p,id:id()}));
+ return {...data,installments:[...(data.installments||[]),{id:planId,name:name.trim(),obligationKind,cadence,total:amount,currency:account.currency||'RUB',accountId,cat,payments}]};
 }
 export function payInstallment(data,{planId,paymentId,date}){
  const plan=(data.installments||[]).find(p=>p.id===planId),payment=plan?.payments.find(p=>p.id===paymentId);

@@ -1,0 +1,130 @@
+{
+  "beforeSha": "b401cbcfa95171bd550d68345584402595753778",
+  "afterSha": "6e03a20b460a24c6522ef4c507d3829f316e8633",
+  "date": "2026-10-21",
+  "viewport": {
+    "width": 390,
+    "height": 1200
+  },
+  "fixture": {
+    "schemaVersion": 2,
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 12000,
+        "currency": "RUB"
+      },
+      {
+        "id": "savings",
+        "name": "Накопления",
+        "balance": 20000,
+        "currency": "RUB",
+        "accType": "savings"
+      }
+    ],
+    "transactions": [
+      {
+        "id": "coffee",
+        "type": "expense",
+        "cat": "food",
+        "date": "2026-10-21",
+        "amount": 180,
+        "currency": "RUB",
+        "accountId": "bank",
+        "note": "Кофе"
+      },
+      {
+        "id": "taxi",
+        "type": "expense",
+        "cat": "transport",
+        "date": "2026-10-21",
+        "amount": 380,
+        "currency": "RUB",
+        "accountId": "bank",
+        "note": "Такси"
+      },
+      {
+        "id": "meal",
+        "type": "lunch",
+        "cat": "lunch",
+        "date": "2026-10-21",
+        "amount": 330,
+        "currency": "RUB",
+        "note": "Обед компании"
+      }
+    ],
+    "installments": [
+      {
+        "id": "laptop",
+        "name": "Ноутбук",
+        "total": 18000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "tech",
+        "obligationKind": "installment",
+        "cadence": "monthly",
+        "payments": [
+          {
+            "id": "laptop1",
+            "date": "2026-10-25",
+            "amount": 6000
+          },
+          {
+            "id": "laptop2",
+            "date": "2026-11-25",
+            "amount": 6000
+          },
+          {
+            "id": "laptop3",
+            "date": "2026-12-25",
+            "amount": 6000
+          }
+        ]
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "2026-11-01",
+      "timeZone": "Europe/Moscow",
+      "modules": {
+        "plans": true,
+        "installments": true,
+        "debts": true
+      },
+      "reminderStyle": "custom",
+      "reminderText": "Всё записал за день? Добавь то, что ещё не попало в бюджет."
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 90,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  },
+  "input": {
+    "name": "Телефон",
+    "total": "9000",
+    "count": "3",
+    "firstDate": "2026-10-28",
+    "cadence": "biweekly",
+    "accountId": "bank",
+    "cat": "tech",
+    "obligationKind": "split"
+  }
+}

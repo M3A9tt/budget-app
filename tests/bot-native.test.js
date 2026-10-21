@@ -32,6 +32,22 @@ function fixture(data=seed()){
  return {env,sqlite,sent,files,update,last,button,press,snapshot,close:()=>{globalThis.fetch=original;sqlite.close();}};
 }
 async function run(fn,data){const f=fixture(data);try{await fn(f);}finally{f.close();}}
+test('Expense reminder history opens only its day and personal expenses without completing the check or changing balances',()=>run(async f=>{
+ const {setDayCheck}=await import('../server/habits.js'),day=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10),d=f.snapshot();
+ d.transactions=[{id:'a',date:day,type:'expense',cat:'food',amount:180,currency:'RUB',note:'Кофе вчера'},{id:'b',date:today,type:'expense',cat:'food',amount:300,note:'Покупка сегодня'},{id:'c',date:day,type:'lunch',cat:'lunch',amount:350,note:'Обед компании'},{id:'d',date:day,type:'income',cat:'income',amount:5000,note:'Зарплата'}];
+ f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));await setDayCheck(f.env,'111',day,'expense','open');
+ const before=f.snapshot();await f.update('','check:'+day+':history');
+ const labels=f.last().reply_markup.inline_keyboard.flat().map(b=>b.text).join('\n');assert.match(labels,/Кофе вчера/);assert.doesNotMatch(labels,/Покупка сегодня|Обед компании|Зарплата/);assert.deepEqual(f.snapshot(),before);
+ assert.equal(f.sqlite.prepare("SELECT status FROM user_day_checks WHERE user_id='111' AND day=?").get(day).status,'open');
+ await f.update('','check:'+day+':history',222);assert.deepEqual(f.snapshot('222'),seed());
+}));
+test('Native installment guide previews dates before confirmation and records only remaining future payments',()=>run(async f=>{
+ await f.update('/payments');await f.press('Кредиты и сплит');await f.press('＋ Обязательство');assert.match(f.last().text,/деньги сейчас не спишутся/);
+ await f.update('Телефон');await f.press('Сплит');await f.press('Каждые 2 недели');assert.match(f.last().text,/из 12 000 уже оплатил 3 000/);
+ await f.update('9000');await f.update('3');assert.match(f.last().text,/а не дата покупки/);await f.update(today);await f.press(/Банк/);
+ assert.match(f.last().text,/9\s000/);assert.match(f.last().text,/Создание графика не списывает/);assert.match(f.last().text,new RegExp(today));assert.equal(f.snapshot().installments.length,0);assert.equal(f.snapshot().accounts[0].balance,10000);
+ const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);const d=f.snapshot();assert.equal(d.installments.length,1);assert.equal(d.installments[0].payments.length,3);assert.equal(d.installments[0].total,9000);assert.equal(d.transactions.length,0);assert.equal(d.accounts[0].balance,10000);
+}));
 test('Native expense wizard writes the shared budget only after confirmation, repeat callback cannot duplicate',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('180');const oldConfirm=f.button('✅ Подтвердить');assert.match(f.last().text,/180/);assert.equal(f.snapshot().transactions.length,0);
  await f.press('💳 Счёт');const oldAccountButton=f.button(/Банк/);await f.press(/Банк/);await f.update('',oldAccountButton);assert.match(f.last().text,/последнего шага/);await f.update('',oldConfirm);assert.equal(f.snapshot().transactions.length,0);

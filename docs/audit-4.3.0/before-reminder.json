@@ -1,0 +1,33 @@
+{
+  "text": "Проверим расходы\nЗа 2026-10-21\nВсё записал за день? Добавь то, что ещё не попало в бюджет.",
+  "reply_markup": {
+    "inline_keyboard": [
+      [
+        {
+          "text": "Всё записал ✅",
+          "callback_data": "check:2026-10-21:done"
+        },
+        {
+          "text": "Сегодня без трат",
+          "callback_data": "check:2026-10-21:none"
+        }
+      ],
+      [
+        {
+          "text": "Ещё не всё",
+          "callback_data": "check:2026-10-21:pending"
+        },
+        {
+          "text": "Через час",
+          "callback_data": "check:2026-10-21:later"
+        }
+      ],
+      [
+        {
+          "text": "Отключить проверки",
+          "callback_data": "check:2026-10-21:off"
+        }
+      ]
+    ]
+  }
+}
