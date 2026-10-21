@@ -1,5 +1,5 @@
 import {parseMoney} from './ledger.js';
-import {plannedOccurrences,planType,plannedPaid} from './planned-model.js';
+import {plannedOccurrences,planType,plannedPaid,validPlannedPeriod} from './planned-model.js';
 export function createPlanned(data,values){
  const account=data.accounts.find(a=>a.id===values.accountId),amount=parseMoney(values.amount),date=values.startDate;
  if(!account||!values.name?.trim()||!Number.isFinite(amount)||amount<=0||!['expense','income'].includes(values.type)||!['daily','weekly','monthly','once'].includes(values.frequency)||!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||Number.isNaN(Date.parse(date))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw Error('Проверь название, сумму, счёт и дату плана');
@@ -11,7 +11,18 @@ export function preparePlanned(data,ruleId,period,today,changed){
  if(!r?.active||!item||plannedPaid(data,r,period))throw Error('План изменился, уже подтверждён или пропущен');
  return{type:planType(r),cat:planType(r)==='income'?'income':r.cat,amount:changed||r.variable?'':String(r.amount),currency:r.currency||'RUB',accountId:r.accountId,date:today,note:r.name,paymentMethod:'unknown',tags:['постоянный'],recurringId:r.id,recurringPeriod:period,plannedDueDate:item.date,saveRecurringAmount:false};
 }
-export function skipPlanned(data,id,period){const r=data.recurring.find(x=>x.id===id);if(!r||plannedPaid(data,r,period))throw Error('План отсутствует или уже подтверждён');return {...data,recurring:data.recurring.map(x=>x.id===id?{...x,skippedPeriods:[...new Set([...(x.skippedPeriods||[]),period])]}:x)};}
+export function skipPlanned(data,id,period){
+ const r=data.recurring.find(x=>x.id===id);
+ if(!r?.active||!validPlannedPeriod(r,period)||plannedPaid(data,r,period))throw Error('План отсутствует, приостановлен, уже подтверждён или период не входит в график');
+ if((r.skippedPeriods||[]).includes(period))return data;
+ return {...data,recurring:data.recurring.map(x=>x.id===id?{...x,skippedPeriods:[...(x.skippedPeriods||[]),period]}:x)};
+}
+export function restorePlanned(data,id,period){
+ const r=data.recurring.find(x=>x.id===id);
+ if(!r||!validPlannedPeriod(r,period,false)||plannedPaid(data,r,period))throw Error('План отсутствует, период неверен или уже подтверждён');
+ if(!(r.skippedPeriods||[]).includes(period))return data;
+ return {...data,recurring:data.recurring.map(x=>x.id===id?{...x,skippedPeriods:x.skippedPeriods.filter(p=>p!==period)}:x)};
+}
 
 export function updatePlanned(data,id,values){
  const old=data.recurring.find(r=>r.id===id);if(!old)throw Error('План отсутствует');

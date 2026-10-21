@@ -123,3 +123,21 @@ test('Recognized source, shared form receipt, financial fact and day answer comm
  const second={...p,revision:current.revision};sqlite.prepare("UPDATE telegram_drafts SET payload=? WHERE id='recognized-2'").run(JSON.stringify(second));await assert.rejects(commitBotAction(env,'111','recognized-2',second,read),/заказ уже закрыт/);assert.equal((await read()).data.transactions.length,1);
  }finally{sqlite.close();}
 });
+
+test('API rejects detached plan edits and malformed restore rows without changing revision, balances or receipts',async()=>{
+ const {call,data,sqlite}=fixture();try{
+ data.recurring=[{id:'plan',name:'ЖКХ',active:true,type:'expense',frequency:'monthly',startDate:'2026-10-01',amount:100,currency:'RUB',accountId:'rub',cat:'housing'}];
+ await call('state','PUT',{expectedRevision:0,data});
+ const response=await call('transactions','POST',{type:'expense',cat:'housing',currency:'RUB',amount:100,date:'2026-10-13',accountId:'rub',recurringId:'plan',recurringPeriod:'2026-10'},{'Idempotency-Key':'plan-paid'});
+ assert.equal(response.status,201);const tx=(await response.json()).transaction;
+ const before=await(await call('state')).json();
+ const detached=await call('transactions','POST',{...tx,recurringId:undefined},{'Idempotency-Key':'plan-detach'});
+ assert.equal(detached.status,400);assert.match((await detached.json()).error,/Связь.*план/);
+ for(const change of [d=>{d.accounts[0].name={bad:true};},d=>{d.history=[null];},d=>{d.recurring[0].skippedPeriods=['2026-13'];}]){
+  const invalid=structuredClone(before.data);change(invalid);
+  const r=await call('state','PUT',{expectedRevision:before.revision,data:invalid},{'Idempotency-Key':'bad-restore'});assert.equal(r.status,400);
+ }
+ assert.deepEqual(await(await call('state')).json(),before);
+ assert.equal(sqlite.prepare("SELECT count(*) n FROM user_idempotency WHERE id IN ('plan-detach','state:bad-restore')").get().n,0);
+ }finally{sqlite.close();}
+});
