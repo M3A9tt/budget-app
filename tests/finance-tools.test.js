@@ -1,13 +1,24 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {EMPTY,dashboard} from '../src/mini-model.js';
 import {putTransaction,deleteTransaction} from '../src/ledger.js';
-import {reconcileAccount,createGoal,fundGoal,goalSaved,createInstallment,payInstallment,paidInstallment,forecast,previewImport,commitImport,csvRows} from '../src/finance-tools.js';
+import {reconcileAccount,createGoal,fundGoal,goalSaved,createInstallment,installmentSchedule,payInstallment,paidInstallment,forecast,previewImport,commitImport,csvRows} from '../src/finance-tools.js';
 import {notificationJobs} from '../server/notifications.js';
 const fixture=()=>({...structuredClone(EMPTY),accounts:[{id:'a',name:'Банк',balance:10000,currency:'RUB'},{id:'b',name:'Копилка',balance:1000,currency:'RUB',accType:'savings'}]});
 const date='2026-10-13';
 test('Reconciliation preserves financial history and records explicit difference',()=>{const d=fixture(),n=reconcileAccount(d,{accountId:'a',balance:'9000,01',date});assert.equal(n.accounts[0].balance,9000.01);assert.equal(n.reconciliations[0].difference,-999.99);assert.equal(n.transactions.length,0);assert.equal(d.accounts[0].balance,10000);});
 test('Goal contribution moves money once and is not an expense',()=>{let d=createGoal(fixture(),{name:'Учёба',target:98000,accountId:'b'});d=fundGoal(d,{goalId:d.goals[0].id,from:'a',amount:2000,date});assert.equal(d.accounts[0].balance,8000);assert.equal(goalSaved(d,d.goals[0]),3000);assert.equal(d.transactions.length,0);assert.equal(d.accounts.reduce((n,a)=>n+a.balance,0),11000);});
 test('Installment cents and month-end dates sum exactly',()=>{const d=createInstallment(fixture(),{name:'Ноутбук',total:100,count:3,firstDate:'2026-01-31',accountId:'a'}),p=d.installments[0];assert.deepEqual(p.payments.map(x=>x.date),['2026-01-31','2026-02-28','2026-03-31']);assert.deepEqual(p.payments.map(x=>x.amount),[33.34,33.33,33.33]);assert.equal(d.accounts[0].balance,10000);});
+test('Schedule preview is the exact saved schedule for every cadence, including cents and leap years',()=>{
+ for(const cadence of ['monthly','biweekly','weekly']){const input={name:'Остаток покупки',total:'100,01',count:3,firstDate:'2028-01-31',cadence,accountId:'a'},preview=installmentSchedule(input),next=createInstallment(fixture(),input);assert.deepEqual(next.installments[0].payments.map(({date,amount})=>({date,amount})),preview);assert.equal(Math.round(preview.reduce((n,p)=>n+p.amount,0)*100),10001);assert.equal(next.transactions.length,0);assert.equal(next.accounts[0].balance,10000);}
+ assert.deepEqual(installmentSchedule({total:300,count:3,firstDate:'2028-01-31'}).map(p=>p.date),['2028-01-31','2028-02-29','2028-03-31']);
+ assert.deepEqual(installmentSchedule({total:9000,count:3,firstDate:'2026-10-21',cadence:'biweekly'}).map(p=>p.date),['2026-10-21','2026-11-04','2026-11-18']);
+ for(const bad of [{count:1.5},{count:0},{count:601},{firstDate:'2026-02-30'},{total:0.01},{cadence:'sometimes'}])assert.throws(()=>installmentSchedule({total:100,count:3,firstDate:date,...bad}));
+ assert.equal(installmentSchedule({total:600,count:600,firstDate:date}).length,600);
+});
+test('Retrying the same installment draft cannot reserve a duplicate obligation after an uncertain response',()=>{
+ const draft={id:'stable-draft',name:'Телефон',total:9000,count:3,firstDate:date,accountId:'a'},d=createInstallment(fixture(),draft);
+ assert.equal(d.installments[0].id,draft.id);assert.throws(()=>createInstallment(d,draft),/уже создан/);assert.throws(()=>createInstallment(d,{...draft,total:12000}),/уже создан/);assert.equal(d.installments.length,1);assert.equal(d.accounts[0].balance,10000);assert.equal(d.transactions.length,0);
+});
 test('Installment payment cannot be doubled; deletion reopens it',()=>{let d=createInstallment(fixture(),{name:'Телефон',total:100,count:2,firstDate:date,accountId:'a'});const p=d.installments[0],args={planId:p.id,paymentId:p.payments[0].id,date};d=payInstallment(d,args);assert.equal(d.accounts[0].balance,9950);assert.throws(()=>payInstallment(d,args));d=deleteTransaction(d,d.transactions[0].id);assert.equal(d.accounts[0].balance,10000);assert.equal(paidInstallment(d,p.payments[0]),false);});
 test('CSV handles decimal comma, escaped quotes, duplicate rows and external IDs',()=>{const text='date;amount;note;type;paymentMethod;externalId\n2026-10-13;-180,50;"Кофе; большой";expense;sbp;one\n2026-10-13;-180,50;"Кофе; большой";expense;sbp;one';const d=fixture(),rows=previewImport(d,text,'a');assert.equal(rows[0].transaction.amount,180.5);assert.equal(rows[1].duplicate,true);assert.equal(csvRows('a;b\n"hello ""there""";2')[1][0],'hello "there"');});
 test('History-only import and deletion never alter reconciled balances',()=>{let d=fixture();const rows=previewImport(d,'date;amount;note\n2026-10-13;-180;Кофе','a');d=commitImport(d,rows);assert.equal(d.accounts[0].balance,10000);assert.equal(d.transactions[0].balanceEffect,'history-only');assert.equal(dashboard(d,date).spent,180);d=deleteTransaction(d,d.transactions[0].id);assert.equal(d.accounts[0].balance,10000);});

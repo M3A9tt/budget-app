@@ -8,6 +8,7 @@ import AccountsPage from './AccountsPage.jsx';
 import AuthGate from './AuthGate.jsx';
 import WishesPage from './Wishes.jsx';
 import './experience.css';
+import './installments.css';
 import {companyLunch} from './lunch-budget.js';
 import TransferHistory from './TransferHistory.jsx';
 import {moduleEnabled,hasPaymentSources} from './modules.js';
