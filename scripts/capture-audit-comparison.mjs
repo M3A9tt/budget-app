@@ -30,9 +30,9 @@ try{
    await page.route('https://telegram.org/**',route=>route.abort());
    await page.route('**/api/v1/**',route=>route.fulfill({json:{revision:1,data:structuredClone(fixture)}}));
    const origin='http://127.0.0.1:'+server.httpServer.address().port;
-   await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'Постоянные',exact:true}).click();
+   await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:/^(Постоянные|Регулярные)$/,exact:true}).click();
    const card=page.locator('.mini-card').filter({has:page.getByText('Оплата интернета',{exact:true})});await card.waitFor();
-   if(label==='after'){await card.locator('.plan-skipped summary').click();await card.getByRole('button',{name:'Вернуть в план 2026-10',exact:true}).waitFor();}
+   if(label==='after'){if(await card.locator('.planned-actions>summary').count())await card.locator('.planned-actions>summary').click();await card.locator('.plan-skipped summary').click();await card.getByRole('button',{name:'Вернуть в план 2026-10',exact:true}).waitFor();}
    else assert.equal(await card.getByRole('button',{name:/Вернуть в план/}).count(),0);
    await page.evaluate(()=>document.fonts.ready);await card.evaluate(el=>el.scrollIntoView({block:'start'}));await card.screenshot({path:join(out,'plans-'+label+'.png'),animations:'disabled'});
    await page.locator('.mini-nav').getByRole('button',{name:'Анализ',exact:true}).click();await page.locator('.report-spending-hero').waitFor();

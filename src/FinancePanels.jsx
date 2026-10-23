@@ -24,7 +24,7 @@ export function GoalTools({data,mutate,busy}){return <>
  <p className="mini-footer-note">Пополнение — перевод между счетами, а не расход. Для цели сначала добавьте счёт типа «Копилка».</p>
  </>;}
 export function PaymentTools({data,mutate,busy,cats,onPrepare,section='all',planFrequency='monthly',onEdit}){return <>
- {section!=='installments'&&(moduleEnabled(data,'plans')||data.recurring.length>0)&&<PlannedOperations defaultFrequency={planFrequency} data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={onPrepare}/>}
+ {section!=='installments'&&(moduleEnabled(data,'plans')||data.recurring.length>0)&&<PlannedOperations defaultFrequency={planFrequency} data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={onPrepare} onEdit={onEdit}/>}
  {section!=='plans'&&(moduleEnabled(data,'installments')||(data.installments||[]).length>0)&&<>
  <h2>Сплиты, рассрочки и кредиты</h2><InstallmentForm data={data} mutate={mutate} busy={busy} cats={cats}/><InstallmentCards data={data} busy={busy} onPrepare={onPrepare} onEdit={onEdit}/></>}
  </>;}

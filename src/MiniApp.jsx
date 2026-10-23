@@ -28,6 +28,7 @@ import './insights.css';
 import './motion.css';
 import './desktop.css';
 import './report.css';
+import './payments.css';
 
 const SavingsPage=lazy(()=>import('./SavingsPage.jsx'));
 const PaymentsPage=lazy(()=>import('./PaymentsPage.jsx'));

@@ -92,7 +92,7 @@ export function applyBotAction(d,op,args={},v={}){
  if(op==='debt')return createDebt(d,v);
  if(op==='repay'||op==='linkDebt')return repayDebt(d,{id:args.id,...v});
  if(op==='debtDate')return setDebtDueDate(d,{id:args.id,...v});
- if(op==='plan')return args.id?updatePlanned(d,args.id,v):createPlanned(d,v);
+ if(op==='plan'){const {dueDay,...input}=v;return args.id?updatePlanned(d,args.id,input):createPlanned(d,input);}
  if(op==='confirmPlan'){const tx=preparePlanned(d,args.id,args.period,today,v.changed);return putTransaction(d,{...tx,...v,amount:v.changed||d.recurring.find(r=>r.id===args.id)?.variable?v.amount:tx.amount});}
  if(op==='skipPlan')return skipPlanned(d,args.id,args.period);
  if(op==='pausePlan'){source(d,args,'id',d.recurring);return {...d,recurring:d.recurring.map(r=>r.id===args.id?{...r,active:!r.active}:r)};}
