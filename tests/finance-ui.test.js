@@ -10,7 +10,7 @@ import {EMPTY,CATEGORIES,dashboard,todayMoscow,money} from '../src/mini-model.js
 import {orderedAccounts,accountTotals} from '../src/account-balances.js';
 import {createPlanned,skipPlanned} from '../src/planned-operations.js';
 import {putTransaction} from '../src/ledger.js';
-const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as AppErrorBoundary} from './src/AppErrorBoundary.jsx';export {default as PlannedOperations} from './src/PlannedOperations.jsx';export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
+const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as AppErrorBoundary} from './src/AppErrorBoundary.jsx';export {default as PlannedOperations} from './src/PlannedOperations.jsx';export {default as PlannedForm} from './src/PlannedForm.jsx';export {default as PaymentsPage} from './src/PaymentsPage.jsx';export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
 const ctx={module:{exports:{}},exports:{},require,Intl,Date,console,structuredClone,window:{scrollTo:()=>{}},crypto:globalThis.crypto};ctx.exports=ctx.module.exports;vm.runInNewContext(bundle,ctx);const ui=ctx.module.exports;
 const state=()=>({...structuredClone(EMPTY),accounts:[{id:'zero',name:'Пустой счёт',balance:0,currency:'RUB'},{id:'small',name:'Малый счёт',balance:100,currency:'RUB'},{id:'fx',name:'Доллары',balance:20,currency:'USD'},{id:'large',name:'Большой счёт',balance:1000,currency:'RUB'},{id:'reserve',name:'Резервный счёт',balance:3000,currency:'RUB',savingsKind:'deposit'}]});
 const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.children?text(x.children):'';
@@ -18,6 +18,23 @@ const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.chi
 const labelText=node=>node.findAllByType('span').map(x=>x.children.filter(c=>typeof c==='string').join('')).join(' ')+node.children.filter(c=>typeof c==='string').join('');
 function mount(name,props){let view;act(()=>{view=TestRenderer.create(React.createElement(ui[name],props));});return view;}
 function click(view,predicate){const target=view.root.findAllByType('button').find(predicate);assert.ok(target,'Expected button');act(()=>target.props.onClick());}
+test('Payments use one-level sections, retain the extra calendar, and open shared drafts without changing money',()=>{
+ const data=state(),today=todayMoscow();data.recurring=[{id:'due',name:'ЖКХ',frequency:'monthly',startDate:today,dueDay:Number(today.slice(-2)),amount:100,currency:'RUB',accountId:'large',cat:'housing',type:'expense',active:true}];const before=structuredClone(data);let draft;
+ const v=mount('PaymentsPage',{data,cats:CATEGORIES,onPrepare:d=>draft=d});
+ const nav=v.root.findByProps({'aria-label':'Разделы платежей'});assert.deepEqual(nav.findAllByType('button').map(b=>text(b)),['Ближайшие','Сплиты и кредиты','Регулярные','Разовые','Долги']);assert.equal(v.root.findAllByProps({className:'payment-source-grid'}).length,0);assert.equal(v.root.findAllByProps({className:'money-calendar '}).length,0);
+ click(v,b=>b.props.className==='upcoming-payment');assert.equal(draft.recurringId,'due');assert.equal(draft.amount,'100');assert.deepEqual(data,before);
+ click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Хватит ли до дохода?'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('Ближайшие 30 дней'));
+ click(v,b=>text(b)==='Регулярные');assert.ok(text(v.toJSON()).includes('ЖКХ'));v.unmount();
+});
+test('Monthly editor exposes amount, day and account first, preserves paid constraints and previews before saving',()=>{
+ let data=createPlanned(state(),{name:'ЖКХ',amount:'100',frequency:'monthly',startDate:todayMoscow(),accountId:'large',cat:'housing',type:'expense'});const rule=data.recurring[0];data=skipPlanned(data,rule.id,todayMoscow().slice(0,7));let saved;
+ const v=mount('PlannedForm',{data,cats:CATEGORIES,initial:data.recurring[0],busy:false,save:async values=>{saved=values;return true;}});
+ const details=v.root.findByType('details');assert.equal(details.props.open,undefined);assert.equal(details.findByProps({name:'frequency'}).props.disabled,true);assert.equal(details.findByProps({name:'type'}).props.disabled,true);
+ assert.ok(!details.findAllByType('input').some(x=>x.props.name==='amount'||x.props.name==='dueDay'));const before=structuredClone(data);
+ act(()=>v.root.findByProps({name:'dueDay'}).props.onChange({target:{value:'28'}}));assert.deepEqual(data,before);assert.ok(text(v.toJSON()).includes('28'));
+ const accounts=v.root.findByProps({name:'accountId'}).findAllByType('option').map(o=>o.props.value);assert.ok(!accounts.includes('fx'));
+ v.unmount();
+});
 test('Shared ordering compares currencies, keeps negative balances and does not mutate storage',()=>{
  const d=state();d.accounts.push({id:'negative',name:'Минус',balance:-20,currency:'RUB'});const before=structuredClone(d);assert.deepEqual(orderedAccounts(d).map(a=>a.id),['reserve','fx','large','small','zero','negative']);assert.deepEqual(d,before);assert.equal(accountTotals(d).spendable,2920);assert.equal(dashboard(d,'2026-10-01').balance,2920);
 });
@@ -85,7 +102,7 @@ test('Skipped periods stay in a supplemental disclosure and returning one preser
  await act(async()=>{await restore.props.onClick();});
  assert.deepEqual(data.accounts,balances);assert.equal(data.transactions.length,0);assert.equal(data.recurring[0].skippedPeriods.length,0);
  assert.ok(!text(view.toJSON()).includes('Пропущенные периоды'));
- assert.ok(text(view.toJSON()).includes('Проверить и подтвердить'));view.unmount();
+ assert.ok(text(view.toJSON()).includes('Отметить оплату'));view.unmount();
 });
 
 

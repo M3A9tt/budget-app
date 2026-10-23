@@ -1,0 +1,18 @@
+[
+  {
+    "revision": "before",
+    "sha": "1a3dfeb6db3342c1314bbbb8e849f3f6a120c143",
+    "dueDay": 1,
+    "variable": false,
+    "balance": 23200,
+    "oldPaid": 6800
+  },
+  {
+    "revision": "after",
+    "sha": "d4b33e5d7b2ab4df7aca58b9038daa0efb1dc1ea",
+    "dueDay": 15,
+    "variable": true,
+    "balance": 23200,
+    "oldPaid": 6800
+  }
+]
