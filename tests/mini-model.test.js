@@ -7,7 +7,7 @@ test('Period totals separate lunches and use historical exchange values',()=>{co
 test('No payday returns no invented daily spending target',()=>assert.equal(dashboard(EMPTY,'2026-10-13').days,null));
 test('Demo data does not mutate defaults and is fictional transient state',()=>{const data=demoData('2026-10-13');assert.ok(data.transactions.every(t=>t.id.startsWith('demo-')));assert.equal(EMPTY.accounts.length,0);assert.equal(data.settings.nextIncomeDate,'2026-10-25');});
 
-test('Without an income date, upcoming planned expenses reserve money for 30 days, not actual balances',()=>{
+test('A dated expected income defines the budget horizon while leaving actual balances unchanged',()=>{
  const data=structuredClone(EMPTY);
  data.accounts=[{id:'bank',balance:10000,currency:'RUB'}];
  data.recurring=[
@@ -17,7 +17,7 @@ test('Without an income date, upcoming planned expenses reserve money for 30 day
   {id:'unknown',name:'Unknown',active:true,type:'expense',frequency:'once',startDate:'2026-10-23',variable:true,amount:0,currency:'RUB',accountId:'bank'}
  ];
  let result=dashboard(data,'2026-10-17');
- assert.equal(result.budgetUntil,'2026-11-16');assert.equal(result.budgetHorizon,'30-days');
+ assert.equal(result.budgetUntil,'2026-10-24');assert.equal(result.budgetHorizon,'payday');
  assert.equal(result.balance,10000);assert.equal(result.plannedExpenses,2200);assert.equal(result.free,7800);assert.equal(result.unknown,1);
  assert.equal(data.accounts[0].balance,10000);assert.equal(data.transactions.length,0);
  data.recurring[0].skippedPeriods=['once'];result=dashboard(data,'2026-10-17');

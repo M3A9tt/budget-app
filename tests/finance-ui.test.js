@@ -23,7 +23,7 @@ test('Payments use one-level sections, retain the extra calendar, and open share
  const v=mount('PaymentsPage',{data,cats:CATEGORIES,onPrepare:d=>draft=d});
  const nav=v.root.findByProps({'aria-label':'Разделы платежей'});assert.deepEqual(nav.findAllByType('button').map(b=>text(b)),['Ближайшие','Сплиты и кредиты','Регулярные','Разовые','Долги']);assert.equal(v.root.findAllByProps({className:'payment-source-grid'}).length,0);assert.equal(v.root.findAllByProps({className:'money-calendar '}).length,0);
  click(v,b=>b.props.className==='upcoming-payment');assert.equal(draft.recurringId,'due');assert.equal(draft.amount,'100');assert.deepEqual(data,before);
- click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Хватит ли до дохода?'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('Ближайшие 30 дней'));
+ click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Календарь денег'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('Ближайшие 30 дней'));
  click(v,b=>text(b)==='Регулярные');assert.ok(text(v.toJSON()).includes('ЖКХ'));v.unmount();
 });
 test('Monthly editor exposes amount, day and account first, preserves paid constraints and previews before saving',()=>{
@@ -34,6 +34,20 @@ test('Monthly editor exposes amount, day and account first, preserves paid const
  act(()=>v.root.findByProps({name:'dueDay'}).props.onChange({target:{value:'28'}}));assert.deepEqual(data,before);assert.ok(text(v.toJSON()).includes('28'));
  const accounts=v.root.findByProps({name:'accountId'}).findAllByType('option').map(o=>o.props.value);assert.ok(!accounts.includes('fx'));
  v.unmount();
+});
+test('Expected income has its own entry and can be drafted with an unknown amount without changing balances',async()=>{
+ const data=state(),before=structuredClone(data);let saved;
+ const menu=mount('PaymentsPage',{data,cats:CATEGORIES});click(menu,b=>b.props.className==='payments-income-entry');assert.ok(text(menu.toJSON()).includes('Здесь деньги, которые ещё должны прийти'));menu.unmount();
+ const v=mount('PlannedForm',{data,cats:CATEGORIES,incomeOnly:true,initial:{frequency:'once'},save:async values=>{saved=values;return true;}});
+ act(()=>v.root.findByProps({name:'name'}).props.onChange({target:{value:'Отпускные'}}));act(()=>v.root.findByProps({name:'accountId'}).props.onChange({target:{value:'large'}}));
+ act(()=>v.root.findByProps({type:'checkbox'}).props.onChange({target:{checked:true}}));assert.equal(v.root.findAllByProps({name:'amount'}).length,0);assert.equal(v.root.findAllByProps({name:'type'}).length,0);
+ await act(async()=>v.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.equal(saved.type,'income');assert.equal(saved.variable,true);assert.equal(saved.name,'Отпускные');assert.deepEqual(data,before);v.unmount();
+});
+test('Calendar month navigation preserves scenario state, exposes actual records and never invents a past balance',()=>{
+ const today=todayMoscow(),data=state();data.transactions=[{id:'fact',type:'income',date:today,amount:100,currency:'RUB',accountId:'large',note:'Поступивший аванс'}];let saved,opened;
+ const v=mount('MoneyCalendar',{data,onStateChange:x=>saved=x,onEdit:t=>opened=t});click(v,b=>b.props.className==='money-event money-fact');assert.equal(opened.id,'fact');
+ const forecast=v.root.findByProps({className:'calendar-forecast'});const toggle={open:true};act(()=>forecast.props.onToggle({target:toggle,currentTarget:toggle}));
+ click(v,b=>b.props['aria-label']==='Предыдущий месяц');assert.notEqual(saved.month,today.slice(0,7));assert.equal(saved.forecast,true);assert.ok(!text(v.toJSON()).includes('Прогноз после плановых событий:'));assert.ok(text(v.toJSON()).includes('Записанные операции и неподтверждённые планы'));click(v,b=>text(b)==='Сегодня');assert.equal(saved.date,today);assert.equal(v.root.findByProps({'aria-current':'date'}).props['aria-pressed'],true);v.unmount();
 });
 test('Shared ordering compares currencies, keeps negative balances and does not mutate storage',()=>{
  const d=state();d.accounts.push({id:'negative',name:'Минус',balance:-20,currency:'RUB'});const before=structuredClone(d);assert.deepEqual(orderedAccounts(d).map(a=>a.id),['reserve','fx','large','small','zero','negative']);assert.deepEqual(d,before);assert.equal(accountTotals(d).spendable,2920);assert.equal(dashboard(d,'2026-10-01').balance,2920);
@@ -77,7 +91,7 @@ test('Calendar review changes no balance before the common form and expected inc
 
 test('Calendar restores horizon, income scenario and chosen date after leaving for a shared form',()=>{
  const today=todayMoscow(),date=new Date(Date.parse(today+'T12:00:00Z')+10*86400000).toISOString().slice(0,10),data=state();data.settings.nextIncomeDate=new Date(Date.parse(today+'T12:00:00Z')+2*86400000).toISOString().slice(0,10);let saved;
- let v=mount('MoneyCalendar',{data,onStateChange:x=>saved=x});click(v,x=>labelText(x)==='Месяц');act(()=>v.root.findByType('input').props.onChange({target:{checked:true}}));click(v,x=>x.props['aria-label']?.startsWith(date+' ·'));
+ let v=mount('MoneyCalendar',{data,onStateChange:x=>saved=x});click(v,x=>labelText(x)==='Месяц');act(()=>v.root.findByType('input').props.onChange({target:{checked:true}}));if(!v.root.findAllByType('button').some(x=>x.props['aria-label']?.startsWith(date+' ·')))click(v,x=>x.props['aria-label']==='Следующий месяц');click(v,x=>x.props['aria-label']?.startsWith(date+' ·'));
  assert.equal(saved.horizon,'30');assert.equal(saved.income,true);assert.equal(saved.date,date);v.unmount();
  v=mount('MoneyCalendar',{data,initialState:saved});assert.equal(v.root.findByType('input').props.checked,true);assert.equal(v.root.findAllByType('button').find(x=>labelText(x)==='Месяц').props['aria-pressed'],true);assert.equal(v.root.findAllByType('button').find(x=>x.props['aria-label']?.startsWith(date+' ·')).props['aria-pressed'],true);v.unmount();
 });
