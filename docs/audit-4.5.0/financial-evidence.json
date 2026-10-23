@@ -1,0 +1,64 @@
+{
+  "comparison": [
+    {
+      "revision": "before",
+      "sha": "a6b976d3c877404b6cd06b7fee86ed1c0e29e964",
+      "budgetUntil": "2026-11-10",
+      "balance": 8000,
+      "obligations": 3700,
+      "available": 4300,
+      "expected30": 36300,
+      "plannedIncome30": 32000,
+      "delayedIncome": 0
+    },
+    {
+      "revision": "after",
+      "sha": "f373dca6a3a078e04845036457540bff2ea077a9",
+      "budgetUntil": "2026-10-30",
+      "balance": 8000,
+      "obligations": 700,
+      "available": 7300,
+      "expected30": 34300,
+      "plannedIncome30": 30000,
+      "delayedIncome": 2000
+    }
+  ],
+  "stages": [
+    {
+      "stage": "Исходный план",
+      "balance": 8000,
+      "budgetUntil": "2026-10-30",
+      "obligations": 700,
+      "available": 7300,
+      "expected30": 34300,
+      "actualIncome": 0
+    },
+    {
+      "stage": "Доход перенесён на 4 ноября",
+      "balance": 8000,
+      "budgetUntil": "2026-11-04",
+      "obligations": 3700,
+      "available": 4300,
+      "expected30": 34300,
+      "actualIncome": 0
+    },
+    {
+      "stage": "Поступление подтверждено",
+      "balance": 13000,
+      "budgetUntil": "2026-11-10",
+      "obligations": 3700,
+      "available": 9300,
+      "expected30": 34300,
+      "actualIncome": 1
+    },
+    {
+      "stage": "Запись поступления удалена",
+      "balance": 8000,
+      "budgetUntil": "2026-11-04",
+      "obligations": 3700,
+      "available": 4300,
+      "expected30": 34300,
+      "actualIncome": 0
+    }
+  ]
+}

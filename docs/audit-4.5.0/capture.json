@@ -1,0 +1,177 @@
+{
+  "beforeSha": "a6b976d3c877404b6cd06b7fee86ed1c0e29e964",
+  "afterSha": "f373dca6a3a078e04845036457540bff2ea077a9",
+  "today": "2026-10-24",
+  "clock": "2026-10-24T09:00:00Z",
+  "viewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "formViewport": {
+    "width": 390,
+    "height": 2000
+  },
+  "fixture": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "coffee",
+        "date": "2026-10-23",
+        "type": "expense",
+        "cat": "food",
+        "amount": 180,
+        "currency": "RUB",
+        "accountId": "bank",
+        "note": "Кофе и булочка",
+        "amountRub": 180,
+        "accountAmount": 180,
+        "revision": 1,
+        "updatedAt": "2026-10-23T21:26:04.449Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 8000,
+        "currency": "RUB"
+      },
+      {
+        "id": "save",
+        "name": "Накопления",
+        "balance": 20000,
+        "currency": "RUB",
+        "accType": "savings"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [
+      {
+        "name": "Задержанная подработка",
+        "amount": 2000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "income",
+        "type": "income",
+        "frequency": "once",
+        "startDate": "2026-10-20",
+        "dueDay": 20,
+        "variable": false,
+        "id": "late",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Отпускные",
+        "amount": 5000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "income",
+        "type": "income",
+        "frequency": "once",
+        "startDate": "2026-10-30",
+        "dueDay": 30,
+        "variable": false,
+        "id": "vacation",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Зарплата",
+        "amount": 25000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "income",
+        "type": "income",
+        "frequency": "monthly",
+        "startDate": "2026-10-01",
+        "dueDay": 10,
+        "variable": false,
+        "id": "salary",
+        "active": true,
+        "skippedPeriods": [
+          "2026-10"
+        ]
+      },
+      {
+        "name": "Интернет",
+        "amount": 700,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "other",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-10-28",
+        "dueDay": 28,
+        "variable": false,
+        "id": "internet",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "ЖКХ",
+        "amount": 3000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "other",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-11-02",
+        "dueDay": 2,
+        "variable": false,
+        "id": "housing",
+        "active": true,
+        "skippedPeriods": []
+      }
+    ],
+    "history": [
+      {
+        "id": "02474fbd-1169-49df-bd30-58113ba43d45",
+        "ts": 1792790764450,
+        "type": "add_tx",
+        "after": {
+          "id": "coffee",
+          "date": "2026-10-23",
+          "type": "expense",
+          "cat": "food",
+          "amount": 180,
+          "currency": "RUB",
+          "accountId": "bank",
+          "note": "Кофе и булочка",
+          "amountRub": 180,
+          "accountAmount": 180,
+          "revision": 1,
+          "updatedAt": "2026-10-23T21:26:04.449Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "2026-11-10",
+      "timeZone": "Europe/Moscow",
+      "modules": {
+        "plans": true,
+        "installments": true,
+        "debts": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}
