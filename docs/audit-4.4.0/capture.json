@@ -1,0 +1,226 @@
+{
+  "beforeSha": "1a3dfeb6db3342c1314bbbb8e849f3f6a120c143",
+  "afterSha": "d4b33e5d7b2ab4df7aca58b9038daa0efb1dc1ea",
+  "date": "2026-10-23",
+  "viewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "fixture": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "type": "expense",
+        "cat": "housing",
+        "amount": 6800,
+        "currency": "RUB",
+        "accountId": "bank",
+        "date": "2026-09-15",
+        "note": "ЖКХ",
+        "paymentMethod": "unknown",
+        "tags": [
+          "постоянный"
+        ],
+        "recurringId": "housing",
+        "recurringPeriod": "2026-09",
+        "plannedDueDate": "2026-09-15",
+        "id": "paid-housing",
+        "amountRub": 6800,
+        "accountAmount": 6800,
+        "revision": 1,
+        "updatedAt": "2026-10-23T20:46:08.257Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 23200,
+        "currency": "RUB"
+      },
+      {
+        "id": "cash",
+        "name": "Наличные",
+        "balance": 1000,
+        "currency": "RUB"
+      },
+      {
+        "id": "savings",
+        "name": "Накопления",
+        "balance": 20000,
+        "currency": "RUB",
+        "accType": "savings"
+      }
+    ],
+    "debts": [
+      {
+        "id": "friend",
+        "person": "Илья",
+        "type": "my",
+        "amount": 1500,
+        "currency": "RUB",
+        "dueDate": "2026-10-29",
+        "payments": []
+      }
+    ],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [
+      {
+        "name": "ЖКХ",
+        "amount": 6840.44,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "monthly",
+        "startDate": "2026-09-01",
+        "dueDay": 15,
+        "variable": false,
+        "id": "housing",
+        "active": true,
+        "skippedPeriods": [],
+        "lastCreated": "2026-09"
+      },
+      {
+        "name": "Интернет",
+        "amount": 700,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "monthly",
+        "startDate": "2026-10-01",
+        "dueDay": 27,
+        "variable": false,
+        "id": "internet",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Зарплата",
+        "amount": 35000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "income",
+        "type": "income",
+        "frequency": "once",
+        "startDate": "2026-11-01",
+        "dueDay": 1,
+        "variable": false,
+        "id": "salary",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Ремонт велосипеда",
+        "amount": 1800,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "other",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-10-30",
+        "dueDay": 30,
+        "variable": false,
+        "id": "repair",
+        "active": true,
+        "skippedPeriods": []
+      }
+    ],
+    "history": [
+      {
+        "id": "0641d43b-6a9c-4f7b-a1eb-92c614f1c7ad",
+        "ts": 1792788368258,
+        "type": "add_tx",
+        "after": {
+          "type": "expense",
+          "cat": "housing",
+          "amount": 6800,
+          "currency": "RUB",
+          "accountId": "bank",
+          "date": "2026-09-15",
+          "note": "ЖКХ",
+          "paymentMethod": "unknown",
+          "tags": [
+            "постоянный"
+          ],
+          "recurringId": "housing",
+          "recurringPeriod": "2026-09",
+          "plannedDueDate": "2026-09-15",
+          "id": "paid-housing",
+          "amountRub": 6800,
+          "accountAmount": 6800,
+          "revision": 1,
+          "updatedAt": "2026-10-23T20:46:08.257Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "2026-11-01",
+      "modules": {
+        "plans": true,
+        "installments": true,
+        "debts": true
+      },
+      "timeZone": "Europe/Moscow"
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    },
+    "installments": [
+      {
+        "id": "phone",
+        "name": "Телефон",
+        "total": 9000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "tech",
+        "obligationKind": "split",
+        "cadence": "biweekly",
+        "payments": [
+          {
+            "id": "phone1",
+            "date": "2026-10-25",
+            "amount": 3000
+          },
+          {
+            "id": "phone2",
+            "date": "2026-11-08",
+            "amount": 3000
+          },
+          {
+            "id": "phone3",
+            "date": "2026-11-22",
+            "amount": 3000
+          }
+        ]
+      }
+    ]
+  },
+  "edit": {
+    "id": "housing",
+    "name": "ЖКХ",
+    "amount": 6700,
+    "accountId": "bank",
+    "cat": "housing",
+    "type": "expense",
+    "frequency": "monthly",
+    "startDate": "2026-09-01",
+    "dueDay": 28
+  }
+}

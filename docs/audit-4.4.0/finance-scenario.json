@@ -1,0 +1,34 @@
+[
+  {
+    "stage": "До редактирования",
+    "balance": 23200,
+    "obligations": 13840.44,
+    "available": 10359.56,
+    "oldPaid": 6800,
+    "linkedOctober": 0
+  },
+  {
+    "stage": "Сумма 6700, число 28",
+    "balance": 23200,
+    "obligations": 13700,
+    "available": 10500,
+    "oldPaid": 6800,
+    "linkedOctober": 0
+  },
+  {
+    "stage": "Оплата подтверждена",
+    "balance": 16500,
+    "obligations": 7000,
+    "available": 10500,
+    "oldPaid": 6800,
+    "linkedOctober": 1
+  },
+  {
+    "stage": "Оплата удалена",
+    "balance": 23200,
+    "obligations": 13700,
+    "available": 10500,
+    "oldPaid": 6800,
+    "linkedOctober": 0
+  }
+]
