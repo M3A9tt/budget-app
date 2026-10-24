@@ -1,6 +1,6 @@
 .desktop-nav-brand,.desktop-nav-help,.desktop-context,.desktop-entry-aside{display:none}
 .desktop-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.desktop-table-wrap{overflow-x:auto;border:1px solid var(--mini-line);border-radius:20px;background:var(--mini-panel)}
+.desktop-table-wrap{position:relative;min-width:0;max-width:100%;overflow-x:auto;border:1px solid var(--mini-line);border-radius:20px;background:var(--mini-panel)}
 .desktop-transactions{width:100%;border-collapse:collapse;font-size:12px;text-align:left;min-width:760px}
 .desktop-transactions th{font-size:10px;font-weight:600;letter-spacing:.04em;color:#9da9c2;background:#202638;padding:17px 15px;white-space:nowrap}
 .desktop-transactions td{padding:17px 15px;border-top:1px solid #30364a;color:#bcc5d9;vertical-align:middle}

@@ -1,3 +1,4 @@
+import {budgetState} from '../src/budget-view.js';
 import {moduleEnabled} from '../src/modules.js';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server.browser';
@@ -10,7 +11,8 @@ import {todayMoscow} from '../src/mini-model.js';
 import mini from '../src/mini.css';
 import insights from '../src/insights.css';
 import experience from '../src/experience.css';
-const noop=()=>{},css=[mini,insights,experience].join('\n').replace(/@import\s+(?:url\([^;]+\)|[^;]+);/gi,'');
+import clarity from '../src/clarity.css';
+const noop=()=>{},css=[mini,insights,experience,clarity].join('\n').replace(/@import\s+(?:url\([^;]+\)|[^;]+);/gi,'');
 export const CARD_CSS=css+`
 html,body{margin:0;background:#10131d;color:#f2f3f5;width:640px;overflow:visible;font-family:Manrope,'Segoe UI',Arial,sans-serif}
 *{animation:none!important;transition:none!important;scroll-behavior:auto!important;caret-color:transparent!important}
@@ -19,7 +21,7 @@ html,body{margin:0;background:#10131d;color:#f2f3f5;width:640px;overflow:visible
 .report-brand strong{color:#b4ec8b;font-size:23px}.report-heading{font-size:28px;line-height:1.2;margin:0 0 18px;letter-spacing:-.7px}.report-body{display:grid;gap:18px}
 .report-foot{font-size:12px;color:#a0a9bc;border-top:1px solid #30364b;padding-top:14px;margin-top:20px;line-height:1.5}
 .report-body .ins-card{margin:0}.report-body .ins-card h2{font-size:20px}.report-body .ins-stat-line strong{font-size:32px}.report-body .ins-hint{font-size:12px}
-#report-card .ins-card-head>button,#report-card .ins-link,#report-card .ins-daily>button,#report-card .ins-allocation-labels small,#report-card .home-savings-widget>.mini-between>button,#report-card .home-savings-widget>.mini-text-button,#report-card .ins-goal>svg{display:none}
+#report-card .budget-links,#report-card .ins-card-head>button,#report-card .ins-link,#report-card .ins-daily>button,#report-card .ins-allocation-labels small,#report-card .home-savings-widget>.mini-between>button,#report-card .home-savings-widget>.mini-text-button,#report-card .ins-goal>svg{display:none}
 #report-card.report-analytics .ins-hint,#report-card.report-categories .ins-category-body small span{display:none}#report-card button{pointer-events:none}#report-card .ins-day,#report-card .ins-category,#report-card .ins-goal{text-align:left}
 #report-card .lunch-toolbar,#report-card .lunch-month>.icon-button,#report-card .lunch-month input,#report-card .lunch-legend{display:none}
 #report-card .lunch-table-scroll{overflow:visible}#report-card .lunch-table{width:100%;min-width:0;font-size:14px}#report-card .lunch-table th,#report-card .lunch-table td{padding:9px 7px}#report-card .lunch-metrics strong{font-size:21px}#report-card .lunch-metrics small{font-size:12px}#report-card .lunch-caption{font-size:12px}
@@ -33,7 +35,7 @@ html,body{margin:0;background:#10131d;color:#f2f3f5;width:640px;overflow:visible
 `;
 function SummaryCard({data,params}){
  const r=periodSummaryData(data,params.from,params.to,params.title);
- return <><section className="summary-hero"><span className="summary-label">Записанные личные расходы</span><div className="summary-total">{money(r.expense)}</div><div className="summary-stats"><div><span>Поступило</span><strong>{money(r.income)}</strong></div><div><span>Доходы − расходы</span><strong>{money(r.income-r.expense)}</strong></div></div><p className="summary-note">Учтено операций: {r.count}. Переводы между своими счетами и обеды компании не входят в расходы.</p></section><section className="summary-section"><h2>На что ушли деньги</h2>{r.categories.length?r.categories.map(c=><div key={c.id}><div className="summary-row"><span>{c.name}</span><strong>{money(c.value)}</strong></div><div className="summary-bar"><i style={{width:c.value/r.expense*100+'%'}}/></div></div>):<p className="summary-note">Личных расходов за эти даты не записано.</p>}{r.lunch>0&&<p className="summary-note">Обеды за счёт компании · {money(r.lunch)}</p>}</section><section className="summary-section"><div className="summary-label">Доступно сейчас после известных платежей</div><div className="summary-total" style={{fontSize:42}}>{money(r.free)}</div><p className="summary-note">На повседневных счетах {money(r.actual)}. Накопления отдельно. Это текущие остатки, а не итог выбранного периода.</p></section></>;
+ return <><section className="summary-hero"><span className="summary-label">Записанные личные расходы</span><div className="summary-total">{money(r.expense)}</div><div className="summary-stats"><div><span>Поступило</span><strong>{money(r.income)}</strong></div><div><span>Доходы − расходы</span><strong>{money(r.income-r.expense)}</strong></div></div><p className="summary-note">Учтено операций: {r.count}. Переводы между своими счетами и обеды компании не входят в расходы.</p></section><section className="summary-section"><h2>На что ушли деньги</h2>{r.categories.length?r.categories.map(c=><div key={c.id}><div className="summary-row"><span>{c.name}</span><strong>{money(c.value)}</strong></div><div className="summary-bar"><i style={{width:c.value/r.expense*100+'%'}}/></div></div>):<p className="summary-note">Личных расходов за эти даты не записано.</p>}{r.lunch>0&&<p className="summary-note">Обеды за счёт компании · {money(r.lunch)}</p>}</section><section className="summary-section"><div className="summary-label">{budgetState({free:r.free,balance:r.actual,unknown:r.unknown}).heading}</div><div className="summary-total" style={{fontSize:42}}>{money(Math.abs(r.free))}</div><p className="summary-note">На повседневных счетах {money(r.actual)}. Накопления отдельно. Это текущие остатки, а не итог выбранного периода.</p></section></>;
 }
 export function ReportCard({data,params,createdAt}){
  const today=todayMoscow(data.settings.timeZone),titles={budget:'Твой бюджет',analytics:`Расходы · ${params.days} дней`,categories:`На что уходят деньги · ${params.days} дней`,forecast:'Прогноз остатка',lunch:'Обеды · '+params.month,savings:'Накопления и цели',summary:params.title};
