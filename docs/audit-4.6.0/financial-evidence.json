@@ -1,0 +1,308 @@
+[
+  {
+    "revision": "before",
+    "sha": "83feca385d040f8888e8a1774c152dcd44ace082",
+    "balance": 15000,
+    "obligations": 15500,
+    "free": -500,
+    "savings": 20000,
+    "total": 2850,
+    "income": 2000,
+    "net": -850,
+    "previous": 4750,
+    "delta": -1900,
+    "previousFrom": "2026-09-07",
+    "previousTo": "2026-09-30",
+    "septemberTotal": 4950,
+    "septemberPrevious": 30
+  },
+  {
+    "revision": "after",
+    "sha": "72a04df8fba15e271de2fe13f474ffe74c4c7e11",
+    "balance": 15000,
+    "obligations": 15500,
+    "free": -500,
+    "savings": 20000,
+    "total": 2850,
+    "income": 2000,
+    "net": -850,
+    "previous": 950,
+    "delta": 1900,
+    "previousFrom": "2026-09-01",
+    "previousTo": "2026-09-24",
+    "septemberTotal": 4950,
+    "septemberPrevious": 55,
+    "groups": [
+      {
+        "id": "purchase",
+        "name": "Обычные покупки",
+        "value": 2300,
+        "count": 4
+      },
+      {
+        "id": "regular",
+        "name": "Платежи по плану",
+        "value": 200,
+        "count": 1
+      },
+      {
+        "id": "installment",
+        "name": "Сплиты и кредиты",
+        "value": 300,
+        "count": 1
+      },
+      {
+        "id": "debt",
+        "name": "Возвраты долгов",
+        "value": 50,
+        "count": 1
+      }
+    ],
+    "custom": {
+      "from": "2026-09-01",
+      "to": "2026-09-15",
+      "days": 15,
+      "total": 70,
+      "previous": 0,
+      "delta": 70,
+      "daily": [
+        {
+          "date": "2026-09-01",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-02",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-03",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-04",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-05",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-06",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-07",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-08",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-09",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-10",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-11",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-12",
+          "parts": [
+            {
+              "id": "food",
+              "name": "Еда",
+              "icon": "food",
+              "color": "#91dc75",
+              "value": 70
+            }
+          ],
+          "value": 70
+        },
+        {
+          "date": "2026-09-13",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-14",
+          "parts": [],
+          "value": 0
+        },
+        {
+          "date": "2026-09-15",
+          "parts": [],
+          "value": 0
+        }
+      ],
+      "cats": [
+        {
+          "id": "food",
+          "name": "Еда",
+          "icon": "food",
+          "color": "#91dc75",
+          "value": 70
+        }
+      ],
+      "fixed": 0,
+      "flex": 70,
+      "months": [
+        {
+          "key": "2026-06",
+          "end": "2026-06-15",
+          "value": 0,
+          "count": 0
+        },
+        {
+          "key": "2026-07",
+          "end": "2026-07-15",
+          "value": 0,
+          "count": 0
+        },
+        {
+          "key": "2026-08",
+          "end": "2026-08-15",
+          "value": 0,
+          "count": 0
+        },
+        {
+          "key": "2026-09",
+          "end": "2026-09-15",
+          "value": 70,
+          "count": 1
+        }
+      ],
+      "activeDays": 1,
+      "period": "custom",
+      "previousFrom": "2026-08-17",
+      "previousTo": "2026-08-31",
+      "previousDays": 15,
+      "comparison": "previous-period",
+      "accountId": "zero",
+      "range": {
+        "period": "custom",
+        "from": "2026-09-01",
+        "to": "2026-09-15",
+        "accountId": "zero"
+      },
+      "today": "2026-10-24",
+      "income": 200,
+      "previousIncome": 0,
+      "net": 130,
+      "count": 1,
+      "incomeCount": 1,
+      "previousCount": 0,
+      "recordedDays": 2,
+      "previousRecordedDays": 0,
+      "categories": [
+        {
+          "id": "food",
+          "name": "Еда",
+          "icon": "food",
+          "color": "#91dc75",
+          "value": 70,
+          "previous": 0,
+          "change": 70,
+          "count": 1,
+          "examples": [
+            "Покупка со старого счёта"
+          ]
+        }
+      ],
+      "categoryRows": [
+        {
+          "id": "food",
+          "name": "Еда",
+          "icon": "food",
+          "color": "#91dc75",
+          "value": 70,
+          "previous": 0,
+          "change": 70,
+          "count": 1,
+          "examples": [
+            "Покупка со старого счёта"
+          ]
+        }
+      ],
+      "changes": [
+        {
+          "id": "food",
+          "name": "Еда",
+          "icon": "food",
+          "color": "#91dc75",
+          "value": 70,
+          "previous": 0,
+          "change": 70,
+          "count": 1,
+          "examples": [
+            "Покупка со старого счёта"
+          ]
+        }
+      ],
+      "groups": [
+        {
+          "id": "purchase",
+          "name": "Обычные покупки",
+          "value": 70,
+          "count": 1
+        },
+        {
+          "id": "regular",
+          "name": "Платежи по плану",
+          "value": 0,
+          "count": 0
+        },
+        {
+          "id": "installment",
+          "name": "Сплиты и кредиты",
+          "value": 0,
+          "count": 0
+        },
+        {
+          "id": "debt",
+          "name": "Возвраты долгов",
+          "value": 0,
+          "count": 0
+        }
+      ],
+      "largest": [
+        {
+          "id": "Покупка со старого счёта",
+          "date": "2026-09-12",
+          "amount": 70,
+          "currency": "RUB",
+          "type": "expense",
+          "cat": "food",
+          "accountId": "zero",
+          "balanceEffect": "history-only",
+          "note": "Покупка со старого счёта"
+        }
+      ],
+      "filter": {
+        "from": "2026-09-01",
+        "to": "2026-09-15",
+        "accountId": "zero"
+      },
+      "previousFilter": {
+        "from": "2026-08-17",
+        "to": "2026-08-31",
+        "accountId": "zero"
+      }
+    }
+  }
+]
