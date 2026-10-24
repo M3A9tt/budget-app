@@ -1,0 +1,372 @@
+{
+  "beforeSha": "83feca385d040f8888e8a1774c152dcd44ace082",
+  "afterSha": "72a04df8fba15e271de2fe13f474ffe74c4c7e11",
+  "today": "2026-10-24",
+  "clock": "2026-10-24T09:00:00Z",
+  "viewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "budgetViewport": {
+    "width": 390,
+    "height": 2000
+  },
+  "desktopViewport": {
+    "width": 1280,
+    "height": 1000
+  },
+  "fictional": true,
+  "fixture": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "Продукты",
+        "date": "2026-10-05",
+        "amount": 300,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Продукты"
+      },
+      {
+        "id": "Покупки наличными",
+        "date": "2026-10-20",
+        "amount": 400,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "cash",
+        "balanceEffect": "history-only",
+        "note": "Покупки наличными"
+      },
+      {
+        "id": "Транспорт",
+        "date": "2026-10-22",
+        "amount": 100,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "transport",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Транспорт"
+      },
+      {
+        "id": "Жильё в октябре",
+        "date": "2026-10-15",
+        "amount": 200,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "housing",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Жильё в октябре",
+        "recurringId": "rent",
+        "recurringPeriod": "2026-10"
+      },
+      {
+        "id": "Платёж за ноутбук",
+        "date": "2026-10-10",
+        "amount": 300,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "tech",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Платёж за ноутбук",
+        "installmentPaymentId": "oct-part"
+      },
+      {
+        "id": "Возврат долга",
+        "date": "2026-10-18",
+        "amount": 50,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "other",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Возврат долга",
+        "debtId": "debt"
+      },
+      {
+        "id": "Монитор",
+        "date": "2026-10-23",
+        "amount": 1500,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "tech",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Монитор"
+      },
+      {
+        "id": "Подработка",
+        "date": "2026-10-24",
+        "amount": 2000,
+        "currency": "RUB",
+        "type": "income",
+        "cat": "income",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Подработка"
+      },
+      {
+        "id": "Обед компании",
+        "date": "2026-10-21",
+        "amount": 400,
+        "currency": "RUB",
+        "type": "lunch",
+        "cat": "lunch",
+        "accountId": "",
+        "balanceEffect": "history-only",
+        "note": "Обед компании"
+      },
+      {
+        "id": "Сентябрьские продукты",
+        "date": "2026-09-05",
+        "amount": 200,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Сентябрьские продукты"
+      },
+      {
+        "id": "Сентябрь наличными",
+        "date": "2026-09-20",
+        "amount": 250,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "cash",
+        "balanceEffect": "history-only",
+        "note": "Сентябрь наличными"
+      },
+      {
+        "id": "Проезд в сентябре",
+        "date": "2026-09-08",
+        "amount": 80,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "transport",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Проезд в сентябре"
+      },
+      {
+        "id": "Жильё в сентябре",
+        "date": "2026-09-15",
+        "amount": 100,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "housing",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Жильё в сентябре",
+        "recurringId": "rent",
+        "recurringPeriod": "2026-09"
+      },
+      {
+        "id": "Прошлый платёж за ноутбук",
+        "date": "2026-09-10",
+        "amount": 250,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "tech",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Прошлый платёж за ноутбук",
+        "installmentPaymentId": "sep-part"
+      },
+      {
+        "id": "Покупка со старого счёта",
+        "date": "2026-09-12",
+        "amount": 70,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "zero",
+        "balanceEffect": "history-only",
+        "note": "Покупка со старого счёта"
+      },
+      {
+        "id": "Покупка в конце сентября",
+        "date": "2026-09-30",
+        "amount": 4000,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Покупка в конце сентября"
+      },
+      {
+        "id": "Возврат на старый счёт",
+        "date": "2026-09-10",
+        "amount": 200,
+        "currency": "RUB",
+        "type": "income",
+        "cat": "income",
+        "accountId": "zero",
+        "balanceEffect": "history-only",
+        "note": "Возврат на старый счёт"
+      },
+      {
+        "id": "Начало августа",
+        "date": "2026-08-01",
+        "amount": 25,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Начало августа"
+      },
+      {
+        "id": "Конец августа",
+        "date": "2026-08-30",
+        "amount": 30,
+        "currency": "RUB",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "bank",
+        "balanceEffect": "history-only",
+        "note": "Конец августа"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 12000,
+        "currency": "RUB"
+      },
+      {
+        "id": "cash",
+        "name": "Наличные",
+        "balance": 3000,
+        "currency": "RUB"
+      },
+      {
+        "id": "save",
+        "name": "Накопления",
+        "balance": 20000,
+        "currency": "RUB",
+        "accType": "savings"
+      },
+      {
+        "id": "zero",
+        "name": "Счёт с историей",
+        "balance": 0,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [
+      {
+        "id": "debt",
+        "person": "Знакомый",
+        "type": "my",
+        "amount": 50,
+        "currency": "RUB",
+        "dueDate": "2026-10-18",
+        "payments": []
+      }
+    ],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [
+      {
+        "id": "own-transfer",
+        "from": "bank",
+        "to": "save",
+        "amount": 3000,
+        "date": "2026-10-18",
+        "currency": "RUB",
+        "balanceEffect": "history-only"
+      }
+    ],
+    "recurring": [
+      {
+        "id": "future",
+        "name": "Предстоящая покупка",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-10-28",
+        "amount": 10000,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "other",
+        "active": true
+      },
+      {
+        "id": "rent",
+        "name": "Жильё",
+        "type": "expense",
+        "frequency": "monthly",
+        "startDate": "2026-09-01",
+        "dueDay": 15,
+        "amount": 200,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "housing",
+        "active": false
+      }
+    ],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "timeZone": "Europe/Moscow",
+      "modules": {
+        "plans": true,
+        "installments": true,
+        "debts": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    },
+    "installments": [
+      {
+        "id": "split",
+        "name": "Ноутбук",
+        "total": 6050,
+        "currency": "RUB",
+        "accountId": "bank",
+        "cat": "tech",
+        "obligationKind": "split",
+        "payments": [
+          {
+            "id": "sep-part",
+            "date": "2026-09-10",
+            "amount": 250
+          },
+          {
+            "id": "oct-part",
+            "date": "2026-10-10",
+            "amount": 300
+          },
+          {
+            "id": "nov-part",
+            "date": "2026-11-01",
+            "amount": 5500
+          }
+        ]
+      }
+    ]
+  }
+}
