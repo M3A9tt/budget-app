@@ -1,0 +1,187 @@
+{
+  "beforeSha": "e5197becd24ba7969acfd6a32c67261ad20506c2",
+  "afterSha": "5b4e35d1cf897d288dffcd2b541adb5e998b0502",
+  "today": "2026-10-25",
+  "clock": "2026-10-25T09:00:00Z",
+  "viewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "dayViewport": {
+    "width": 390,
+    "height": 1800
+  },
+  "fictional": true,
+  "empty": {
+    "schemaVersion": 2,
+    "transactions": [],
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 1000,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "timeZone": "Europe/Moscow",
+      "modules": {
+        "lunch": true
+      },
+      "lunchAskEnabled": true,
+      "lunchAskDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "dailyReport": false,
+      "weeklyReport": false,
+      "monthlyReport": false
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  },
+  "meal": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "meal",
+        "type": "lunch",
+        "cat": "lunch",
+        "date": "2026-10-25",
+        "amount": 350,
+        "note": "Суп и горячее",
+        "currency": "RUB",
+        "amountRub": 350,
+        "accountAmount": 0,
+        "revision": 1,
+        "updatedAt": "2026-10-25T15:33:07.801Z"
+      },
+      {
+        "id": "topup",
+        "type": "expense",
+        "cat": "food",
+        "date": "2026-10-25",
+        "amount": 50,
+        "accountId": "bank",
+        "lunchId": "meal",
+        "note": "Доплата за обед",
+        "currency": "RUB",
+        "amountRub": 50,
+        "accountAmount": 50,
+        "revision": 1,
+        "updatedAt": "2026-10-25T15:33:07.802Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 950,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [],
+    "history": [
+      {
+        "id": "a4b01f6b-e672-4e93-838c-65e4c9ec1f53",
+        "ts": 1792942387802,
+        "type": "add_tx",
+        "after": {
+          "id": "topup",
+          "type": "expense",
+          "cat": "food",
+          "date": "2026-10-25",
+          "amount": 50,
+          "accountId": "bank",
+          "lunchId": "meal",
+          "note": "Доплата за обед",
+          "currency": "RUB",
+          "amountRub": 50,
+          "accountAmount": 50,
+          "revision": 1,
+          "updatedAt": "2026-10-25T15:33:07.802Z"
+        }
+      },
+      {
+        "id": "2e708bff-6ae7-413a-b9cd-44994275a145",
+        "ts": 1792942387802,
+        "type": "add_tx",
+        "after": {
+          "id": "meal",
+          "type": "lunch",
+          "cat": "lunch",
+          "date": "2026-10-25",
+          "amount": 350,
+          "note": "Суп и горячее",
+          "currency": "RUB",
+          "amountRub": 350,
+          "accountAmount": 0,
+          "revision": 1,
+          "updatedAt": "2026-10-25T15:33:07.801Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "timeZone": "Europe/Moscow",
+      "modules": {
+        "lunch": true
+      },
+      "lunchAskEnabled": true,
+      "lunchAskDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "dailyReport": false,
+      "weeklyReport": false,
+      "monthlyReport": false
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}

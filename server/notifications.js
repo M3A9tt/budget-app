@@ -1,6 +1,6 @@
 import {duePayments,paymentCallback} from '../src/due-payments.js';
 import {money} from '../src/mini-model.js';
-import {lunchDayRatio,lunchCalendarVerified} from '../src/lunch-budget.js';
+import {lunchReminderDay,lunchCalendarVerified} from '../src/lunch-schedule.js';
 import {clockAt,settingTime,timeMinutes,DEFAULT_ZONE} from '../src/time-settings.js';
 import {moduleEnabled} from '../src/modules.js';
 import {reminderText} from '../src/reminder-settings.js';
@@ -35,7 +35,7 @@ export function notificationJobs(data,now,responses=[],{catchUp=false}={}){
   }
  }
  const hasLunch=data.transactions.some(t=>t.date===today&&(t.type==='lunch'||t.cat==='lunch'));
- if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&due(timeMinutes(settingTime(s,'lunchAsk',11)))&&(s.lunchAskDays||s.lunchWorkDays||[1,2,3,4,5]).includes(local.getUTCDay())&&lunchDayRatio(data,today)>0&&!hasLunch&&!lunch?.status){
+ if(moduleEnabled(data,'lunch')&&s.lunchAskEnabled===true&&due(timeMinutes(settingTime(s,'lunchAsk',11)))&&lunchReminderDay(data,today)&&!hasLunch&&!lunch?.status){
   const reminder=lunchReminder(today);if(!lunchCalendarVerified(data,today))reminder.text+='\n⚠️ Календарь года ещё не проверен: рабочий день и лимит предварительные.';reports.push({id:'lunch-ask:'+today,kind:'lunch',day:today,...reminder});
  }
  if(moduleEnabled(data,'plans')&&s.plannedReminders===true&&due(timeMinutes(settingTime(s,'plannedReminder',18)))){const due=duePayments(data,today);if(due.length)reports.push({id:'planned:'+today,openPayments:true,...paymentReminder(due)});}
