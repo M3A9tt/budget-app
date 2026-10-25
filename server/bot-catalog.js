@@ -17,6 +17,7 @@ import {prepareImportAccounts,importAccountSources,resolveImportAccount} from '.
 import {reminderSettingsFromDraft} from '../src/reminder-settings.js';
 import {MODULES,setModule} from '../src/modules.js';
 import {validZone} from '../src/time-settings.js';
+import {setLunchWorkday} from '../src/lunch-schedule.js';
 const text=(key,label,extra={})=>({key,label,type:'text',...extra}),num=(key,label,extra={})=>text(key,label,{type:'money',...extra}),date=(key,label,extra={})=>text(key,label,{type:'date',...extra}),choice=(key,label,choices,extra={})=>text(key,label,{type:'choice',choices,...extra});
 const yesno=[[true,'Да'],[false,'Нет']],currencies=d=>Object.keys(d.rates).map(x=>[x,x]),accounts=(d,filter=()=>true)=>orderedAccounts(d).filter(filter).map(a=>[a.id,a.name+' · '+a.currency]),cats=d=>CATEGORIES.concat(d.customCats||[]).map(c=>[c.id,c.name]);
 const source=(d,a,key,list)=>{const row=list.find(x=>x.id===a[key]);if(!row)throw Error('Запись больше не существует');return row;};
@@ -48,7 +49,7 @@ export function fieldsFor(d,op,args={},values={}){
  if(op==='limit')return [choice('cat','Категория',cats(d)),num('amount','Лимит, ₽ (0 — убрать)')];
  if(op==='category')return [text('name','Название категории')];
  if(op==='rate')return [choice('currency','Валюта',currencies(d).filter(([c])=>c!=='RUB')),num('rate','Рублей за единицу валюты')];
- if(op==='dayOff')return [date('date','Дата',{default:today}),choice('ratio','Доля рабочего дня',[[0,'Выходной / отпуск'],[0.5,'Половина дня'],[1,'Полный день'],['reset','По календарю']])];
+ if(op==='dayOff')return [date('date','Дата',{default:today}),choice('ratio','Работал в этот день?',[[1,'Да · полный день'],[0.5,'Да · полдня'],[0,'Нет · выходной / отпуск'],['reset','Как в обычном графике']],{hint:'Можно отметить работу в выходной или праздник. Лимит на обед добавится один раз за эту дату.'})];
  if(op==='calculator')return [text('items','Блюда: каждое с новой строки, например Суп;150;1',{type:'items'})];
  if(op==='setting'){const s=Object.values(SETTING_GROUPS).flat().find(([k])=>k===args.key);if(!s)throw Error('Настройка не найдена');let options=s[2]==='bool'?yesno:s[2]==='style'?[['calm','Спокойный'],['funny','С юмором'],['rough','Пожёстче'],['custom','Свой текст']]:s[2]==='calendar'?[['ru-production','Производственный РФ'],['weekly','Свой недельный график']]:null;return [text('value',s[1],{type:options?'choice':s[2],...(options?{choices:options}:{}),optional:['text','date'].includes(s[2]),default:d.settings[args.key]??''})];}
  if(op==='importRow'){const type=values.type||'expense';return [choice('type','Тип',[['expense','Расход'],['income','Доход'],['transfer','Перевод'],['lunch','Обед компании']]),date('date','Дата'),num('amount','Сумма'),choice('currency','Валюта',currencies(d)),...(type==='lunch'?[]:type==='transfer'?[choice('from','Откуда',accounts(d)),choice('to','Куда',accounts(d)),num('fee','Комиссия',{default:0})]:[choice('account','Счёт',accounts(d)),...(type==='expense'?[choice('category','Категория',cats(d))]:[])]),text('note','Описание',{optional:true,default:''})];}
@@ -106,7 +107,7 @@ export function applyBotAction(d,op,args={},v={}){
  if(op==='module')return setModule(d,args.key,args.enabled);
  if(op==='homeLayout')return customizeHome(d,args);
  if(op==='setting'){const settings=reminderSettingsFromDraft({...d.settings,[args.key]:v.value});return {...d,settings:{...settings,...(args.key==='expenseCheckEnabled'&&v.value?{checkStartedDate:today}:{}),reminders:false}};}
- if(op==='dayOff'){const mod={...d.lunchDayMod},off=(d.lunchDayOff||[]).filter(x=>x!==v.date);delete mod[v.date];if(v.ratio!=='reset')mod[v.date]=v.ratio;return {...d,lunchDayOff:off,lunchDayMod:mod};}
+ if(op==='dayOff')return setLunchWorkday(d,v.date,v.ratio==='reset'?'calendar':v.ratio);
  if(op==='import')return commitBotImport(d,v,args);
  if(op==='restore'){if(v.ack!=='ВОССТАНОВИТЬ')throw Error('Напиши ВОССТАНОВИТЬ для подтверждения');const b=JSON.parse(v.content);if(!b.settings||!b.rates||!Array.isArray(b.accounts)||!Array.isArray(b.transactions))throw Error('Нужен полный бэкап');return migrateData(b,EMPTY);}
  throw Error('Действие не найдено');
