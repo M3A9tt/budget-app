@@ -1,0 +1,50 @@
+[
+  {
+    "revision": "before",
+    "sha": "e5197becd24ba7969acfd6a32c67261ad20506c2",
+    "emptySundayVisible": 0,
+    "before": {
+      "budget": 8800,
+      "accrued": 6800,
+      "spent": 350,
+      "own": 50,
+      "confirmedDifference": -350
+    },
+    "afterMark": {
+      "budget": 9200,
+      "accrued": 7200,
+      "spent": 350,
+      "own": 50,
+      "confirmedDifference": 50,
+      "dayLimit": 400,
+      "dayDifference": 50,
+      "personalBalance": 950
+    },
+    "reminderWithoutMeal": 0,
+    "reminderWithMeal": 0
+  },
+  {
+    "revision": "after",
+    "sha": "5b4e35d1cf897d288dffcd2b541adb5e998b0502",
+    "emptySundayVisible": 1,
+    "before": {
+      "budget": 8800,
+      "accrued": 6800,
+      "spent": 350,
+      "own": 50,
+      "confirmedDifference": -350
+    },
+    "afterMark": {
+      "budget": 9200,
+      "accrued": 7200,
+      "spent": 350,
+      "own": 50,
+      "confirmedDifference": 50,
+      "dayLimit": 400,
+      "dayDifference": 50,
+      "personalBalance": 950
+    },
+    "reminderWithoutMeal": 1,
+    "reminderWithMeal": 0
+  }
+]
