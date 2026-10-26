@@ -32,6 +32,17 @@ function fixture(data=seed()){
  return {env,sqlite,sent,files,update,last,button,press,snapshot,close:()=>{globalThis.fetch=original;sqlite.close();}};
 }
 async function run(fn,data){const f=fixture(data);try{await fn(f);}finally{f.close();}}
+test('Bot history includes transfers, filters both account endpoints and opens neutral movement details',()=>run(async f=>{
+ const {transferMoney}=await import('../src/ledger.js');
+ const data=transferMoney(f.snapshot(),{id:'visible-move',date:today,from:'bank',to:'reserve',amount:500,fee:5,note:'На учёбу'});
+ f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(data));
+ const before=f.snapshot();await f.update('/history');f.button(/Банк → Наличный резерв/);await f.press('Переводы');
+ const labels=f.last().reply_markup.inline_keyboard.flat().map(b=>b.text).join('\n');assert.match(labels,/Банк → Наличный резерв/);assert.doesNotMatch(labels,/Комиссия за перевод/);
+ await f.press(/Банк → Наличный резерв/);assert.match(f.last().text,/Перевод между счетами/);assert.match(f.last().text,/На учёбу/);assert.match(f.last().text,/учтена в расходах/);assert.deepEqual(f.snapshot(),before);
+ for(const accountId of ['bank','reserve'])assert.ok(botView(before,'history',{accountId}).actions.some(a=>a.view==='movement'&&a.args.id==='visible-move'));
+ assert.ok(botView(before,'history',{query:'Наличный резерв'}).actions.some(a=>a.view==='movement'&&a.args.id==='visible-move'));
+ assert.ok(botView(before,'history',{type:'expense'}).actions.every(a=>a.view!=='movement'));
+}));
 test('Expense reminder history opens only its day and personal expenses without completing the check or changing balances',()=>run(async f=>{
  const {setDayCheck}=await import('../server/habits.js'),day=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10),d=f.snapshot();
  d.transactions=[{id:'a',date:day,type:'expense',cat:'food',amount:180,currency:'RUB',note:'Кофе вчера'},{id:'b',date:today,type:'expense',cat:'food',amount:300,note:'Покупка сегодня'},{id:'c',date:day,type:'lunch',cat:'lunch',amount:350,note:'Обед компании'},{id:'d',date:day,type:'income',cat:'income',amount:5000,note:'Зарплата'}];

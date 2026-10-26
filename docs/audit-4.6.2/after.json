@@ -1,0 +1,189 @@
+{
+  "sha": "1685b438361ec623e455cf891074820a91e48eb6",
+  "date": "2026-10-26",
+  "fixture": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "income",
+        "date": "2026-10-26",
+        "type": "income",
+        "cat": "income",
+        "accountId": "card",
+        "amount": 1000,
+        "note": "Подработка",
+        "currency": "RUB",
+        "amountRub": 1000,
+        "accountAmount": 1000,
+        "revision": 1,
+        "updatedAt": "2026-10-26T05:40:02.187Z"
+      },
+      {
+        "id": "coffee",
+        "date": "2026-10-26",
+        "type": "expense",
+        "cat": "food",
+        "accountId": "card",
+        "amount": 120,
+        "note": "Кофе",
+        "currency": "RUB",
+        "amountRub": 120,
+        "accountAmount": 120,
+        "revision": 1,
+        "updatedAt": "2026-10-26T05:40:02.188Z"
+      },
+      {
+        "type": "expense",
+        "cat": "other",
+        "amount": 5,
+        "currency": "RUB",
+        "note": "Комиссия за перевод · Отложил на семестр",
+        "date": "2026-10-26",
+        "tags": [
+          "комиссия"
+        ],
+        "accountId": "card",
+        "balanceEffect": "normal",
+        "id": "ccf87acd-8241-4736-aed3-1123bd84bf99",
+        "amountRub": 5,
+        "accountAmount": 5,
+        "revision": 1,
+        "updatedAt": "2026-10-26T05:40:02.188Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "card",
+        "name": "Основная карта",
+        "balance": 5875,
+        "currency": "RUB"
+      },
+      {
+        "id": "save",
+        "name": "Накопления на учёбу",
+        "balance": 5000,
+        "currency": "RUB",
+        "accType": "savings"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [
+      {
+        "id": "move-to-savings",
+        "from": "card",
+        "to": "save",
+        "amount": 5000,
+        "fee": 5,
+        "currency": "RUB",
+        "note": "Отложил на семестр",
+        "date": "2026-10-26",
+        "balanceEffect": "normal",
+        "updatedAt": "2026-10-26T05:40:02.188Z"
+      },
+      {
+        "id": "imported-move",
+        "from": "save",
+        "to": "card",
+        "amount": 300,
+        "fee": 0,
+        "currency": "RUB",
+        "note": "Старая выписка",
+        "date": "2026-10-25",
+        "balanceEffect": "history-only",
+        "updatedAt": "2026-10-26T05:40:02.188Z"
+      }
+    ],
+    "recurring": [],
+    "history": [
+      {
+        "id": "27d617f6-a9c4-4307-aef3-f0eccda280b3",
+        "ts": 1792993202188,
+        "type": "add_tx",
+        "after": {
+          "type": "expense",
+          "cat": "other",
+          "amount": 5,
+          "currency": "RUB",
+          "note": "Комиссия за перевод · Отложил на семестр",
+          "date": "2026-10-26",
+          "tags": [
+            "комиссия"
+          ],
+          "accountId": "card",
+          "balanceEffect": "normal",
+          "id": "ccf87acd-8241-4736-aed3-1123bd84bf99",
+          "amountRub": 5,
+          "accountAmount": 5,
+          "revision": 1,
+          "updatedAt": "2026-10-26T05:40:02.188Z"
+        }
+      },
+      {
+        "id": "04c803e2-fdb9-4935-8603-929e915effb7",
+        "ts": 1792993202188,
+        "type": "add_tx",
+        "after": {
+          "id": "coffee",
+          "date": "2026-10-26",
+          "type": "expense",
+          "cat": "food",
+          "accountId": "card",
+          "amount": 120,
+          "note": "Кофе",
+          "currency": "RUB",
+          "amountRub": 120,
+          "accountAmount": 120,
+          "revision": 1,
+          "updatedAt": "2026-10-26T05:40:02.188Z"
+        }
+      },
+      {
+        "id": "1873d5ed-783d-4fe1-89d2-e9cf67285dde",
+        "ts": 1792993202187,
+        "type": "add_tx",
+        "after": {
+          "id": "income",
+          "date": "2026-10-26",
+          "type": "income",
+          "cat": "income",
+          "accountId": "card",
+          "amount": 1000,
+          "note": "Подработка",
+          "currency": "RUB",
+          "amountRub": 1000,
+          "accountAmount": 1000,
+          "revision": 1,
+          "updatedAt": "2026-10-26T05:40:02.187Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "timeZone": "Europe/Moscow"
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  },
+  "checks": {
+    "visibleTransfers": 2,
+    "dayNetRub": 875,
+    "expenseRub": 125,
+    "incomeRub": 1000
+  }
+}
