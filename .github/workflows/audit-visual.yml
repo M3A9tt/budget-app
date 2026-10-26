@@ -4,6 +4,7 @@ on:
     paths:
       - 'scripts/capture-audit-comparison.mjs'
       - 'scripts/capture-transfer-history.mjs'
+      - 'scripts/check-backup-download-browser.mjs'
       - '.github/workflows/audit-visual.yml'
       - 'docs/MODERNIZATION-4.2.0.md'
   workflow_dispatch:
@@ -37,6 +38,10 @@ jobs:
         run: node scripts/capture-transfer-history.mjs
         env:
           AUDIT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-audit-comparison/transfers
+      - name: Verify native backup download and compare revisions
+        run: node scripts/check-backup-download-browser.mjs
+        env:
+          AUDIT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-audit-comparison/backup
       - uses: actions/upload-artifact@v4
         with:
           name: audit-before-after

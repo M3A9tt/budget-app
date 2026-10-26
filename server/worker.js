@@ -1,4 +1,5 @@
 import {periodSummary} from './period-summary.js';
+import {createBackupDownload,backupFile} from './backup-download.js';
 export {periodSummary} from './period-summary.js';
 import {sendSummary} from './summary-delivery.js';
 import {lunchEntryArgs} from './lunch-entry.js';
@@ -186,6 +187,7 @@ export default {
   async fetch(request,env) {
     const url=new URL(request.url);
     try {
+    if(url.pathname==='/api/v1/backup/file')return await backupFile(request,env);
     if(url.pathname==='/api/v1/releases/check-picture'){
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);
       try{const storage=await checkPersistence(env,latestRelease.id),picture=await getPicture(env,'__fictional_render_check__',{revision:1,data:demoData()},{kind:'budget'});return json({releaseId:latestRelease.id,storage,...pngInfo(picture.bytes)});}catch{return json({error:'Screenshot smoke check failed'},503);}
@@ -215,6 +217,7 @@ export default {
       if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await readJsonObject(request),telegram,periodSummary));}
       if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await readJsonObject(request),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
+      if(request.method==='POST'&&url.pathname==='/api/v1/backup/download')return json(await createBackupDownload(env,userId,await readState(env,userId),await readJsonObject(request),url.origin));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
         const text=await readRequestText(request);
         const input=parseJsonObject(text),key=request.headers.get('Idempotency-Key');

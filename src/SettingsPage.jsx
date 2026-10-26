@@ -17,7 +17,7 @@ import {useSettingsDraft} from './settings-draft.js';
 import {latestRelease} from './release-notes.js';
 const groupIcons={modules:'settings',reminders:'bell',budget:'wallet',import:'file',backup:'shield',categories:'tag',feedback:'message',telemetry:'chart',admin:'shield'};
 const groups=[['modules','Модули и главная','Модули, главная и быстрый ввод'],['reminders','Твой ритм','Время, вопросы и сводки Telegram'],['budget','Бюджет и лимиты','Дата дохода и лимиты категорий'],['import','Импорт операций','JSON из ChatGPT и выписки CSV'],['backup','Резервные копии','Сохранить данные или восстановить копию'],['categories','Свои категории','Добавить категорию для покупок'],['feedback','Обратная связь','Сообщить об ошибке или предложить идею']];
-export default function SettingsPage({data,cats,mutate,busy,demo,onUpdates,isOwner=false,onSavings}){
+export default function SettingsPage({data,revision,cats,mutate,busy,demo,onUpdates,isOwner=false,onSavings}){
  const [section,setSection]=useState(''),[importType,setImportType]=useState('json');
  const menu=[...groups,['telemetry','Улучшать Бюрджет','Статистика действий и качество распознавания'],...(isOwner?[['admin','Панель владельца','Действия пользователей и экспорт JSON']]:[])];
  const open=id=>{setSection(id);window.scrollTo?.({top:0,behavior:'instant'});};
@@ -26,7 +26,7 @@ export default function SettingsPage({data,cats,mutate,busy,demo,onUpdates,isOwn
  {section==='reminders'&&<><TestMessages demo={demo} busy={busy}/><NotificationPanel data={data} mutate={mutate} busy={busy}/></>}
  {section==='budget'&&<><Planner onSavings={onSavings} settings={data.settings} mutate={mutate} busy={busy}/>{moduleEnabled(data,'limits')&&<BudgetPanel data={data} cats={cats} mutate={mutate} busy={busy}/>}</>}
  {section==='import'&&<><div className="mini-tabs">{[['json','JSON из чата'],['csv','Выписка CSV']].map(([id,label])=><button className={importType===id?'selected':''} key={id} onClick={()=>setImportType(id)}>{label}</button>)}</div>{importType==='json'?<JsonImportPanel data={data} mutate={mutate} busy={busy}/>:<ImportPanel data={data} mutate={mutate} busy={busy}/>}</>}
- {section==='backup'&&<BackupPanel data={data} mutate={mutate} busy={busy} demo={demo}/>}
+ {section==='backup'&&<BackupPanel revision={revision} data={data} mutate={mutate} busy={busy} demo={demo}/>}
  {section==='categories'&&<LegacyTools data={data} mutate={mutate} busy={busy}/>}
  {section==='telemetry'&&<div className="mini-card"><h3>Помочь сделать удобнее</h3><p className="mini-small mini-muted">Считаем открытия разделов и нажатия. Без сумм, покупок, текста и имён счетов. Результаты видит только владелец.</p><label className="mini-check"><input type="checkbox" disabled={busy} checked={data.settings.telemetryEnabled!==false} onChange={e=>{const telemetryEnabled=e.target.checked;mutate(d=>({...d,settings:{...d.settings,telemetryEnabled}}),'Статистика '+(telemetryEnabled?'включена':'отключена'));}}/>Делиться статистикой действий</label></div>}
  {section==='admin'&&isOwner&&<><TelemetryPanel/><LunchModeration demo={demo}/></>}
