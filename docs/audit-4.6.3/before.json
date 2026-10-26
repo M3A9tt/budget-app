@@ -1,0 +1,44 @@
+{
+  "sha": "79c7053ead0af898f8c35ad6edf6f3569edae7a2",
+  "date": "2026-10-26",
+  "fixture": {
+    "schemaVersion": 2,
+    "transactions": [],
+    "accounts": [
+      {
+        "id": "bank",
+        "name": "Основной счёт",
+        "balance": 777,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": ""
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  },
+  "environment": "Chromium with a simulated Telegram bridge and blocked blob navigation; real Worker and SQLite",
+  "nativeCalls": 0,
+  "blockedBlobCalls": 2
+}

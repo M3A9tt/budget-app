@@ -12,6 +12,36 @@ function fixture(){
   const data={transactions:[],accounts:[{id:'rub',name:'Сбер',currency:'RUB',balance:10000}],rates:{RUB:1,USD:92}};
   return {call,data,sqlite,env};
 }
+test('Native backup export requires authentication and returns an attachment for the exact caller revision',async()=>{
+ const {call,data,sqlite,env}=fixture();try{
+ await call('state','PUT',{expectedRevision:0,data});const state=await(await call('state')).json();
+ assert.equal((await worker.fetch(new Request('https://test.invalid/api/v1/backup/download',{method:'POST',body:JSON.stringify({revision:1,beforeRestore:false})}),env)).status,401);
+ assert.equal((await call('backup/download','POST',{revision:0,beforeRestore:false})).status,409);
+ const prepared=await(await call('backup/download','POST',{revision:1,beforeRestore:false,userId:'999'})).json();
+ assert.equal(prepared.revision,1);assert.ok(!prepared.url.includes(env.API_TOKEN));
+ const downloaded=await worker.fetch(new Request(prepared.url),env);
+ assert.equal(downloaded.status,200);assert.match(downloaded.headers.get('Content-Disposition'),/^attachment; filename="burget-backup-/);
+ assert.match(downloaded.headers.get('Cache-Control'),/no-store/);assert.equal(downloaded.headers.get('Access-Control-Allow-Origin'),'https://web.telegram.org');assert.equal(downloaded.headers.get('X-Content-Type-Options'),'nosniff');
+ assert.deepEqual(await downloaded.json(),state.data);assert.equal((await(await call('state')).json()).revision,1);
+ const head=await worker.fetch(new Request(prepared.url,{method:'HEAD'}),env);assert.equal(head.status,200);assert.equal(await head.text(),'');
+ assert.equal((await worker.fetch(new Request(prepared.url,{method:'POST'}),env)).status,405);
+ assert.equal((await worker.fetch(new Request('https://test.invalid/api/v1/backup/file'),env)).status,401);
+ }finally{sqlite.close();}
+});
+test('A prepared backup keeps its revision when another device writes; tampered or expired links fail closed',async()=>{
+ const {call,data,sqlite,env}=fixture();try{
+ await call('state','PUT',{expectedRevision:0,data});const before=await(await call('state')).json();
+ const prepared=await(await call('backup/download','POST',{revision:1,beforeRestore:true})).json();
+ await call('transactions','POST',{type:'expense',cat:'food',amount:100,currency:'RUB',date:'2026-10-12',accountId:'rub'},{'Idempotency-Key':'after-link'});
+ const response=await worker.fetch(new Request(prepared.url),env);assert.equal(response.status,200);assert.deepEqual(await response.json(),before.data);assert.match(response.headers.get('Content-Disposition'),/before-restore/);
+ const changed=new URL(prepared.url),[payload,signature]=changed.searchParams.get('token').split('.'),ticket=JSON.parse(atob(payload.replaceAll('-','+').replaceAll('_','/')));ticket.userId='222';
+ changed.searchParams.set('token',btoa(JSON.stringify(ticket)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')+'.'+signature);
+ assert.equal((await worker.fetch(new Request(changed),env)).status,401);
+ const {backupFile}=await import('../server/backup-download.js');
+ await assert.rejects(backupFile(new Request(prepared.url),env,prepared.expiresAt+1),e=>e.status===410);
+ const latest=await(await call('state')).json();assert.equal(latest.revision,2);assert.equal(latest.data.accounts[0].balance,9900);
+ }finally{sqlite.close();}
+});
 test('D1 SQL import preserves account balance and rejects conflicting revision',async()=>{const {call,data}=fixture();assert.equal((await call('state','PUT',{expectedRevision:0,data})).status,200);const snapshot=await (await call('state')).json();assert.equal(snapshot.data.accounts[0].balance,10000);assert.equal(snapshot.revision,1);assert.equal((await call('state','PUT',{expectedRevision:0,data})).status,409);});
 test('D1 SQL idempotent purchase atomically changes balance once',async()=>{const {call,data}=fixture();await call('state','PUT',{expectedRevision:0,data});const tx={type:'expense',cat:'food',currency:'USD',amount:10,date:'2026-10-12',accountId:'rub'};const first=await (await call('transactions','POST',tx,{'Idempotency-Key':'same-request'})).json();const second=await (await call('transactions','POST',tx,{'Idempotency-Key':'same-request'})).json();assert.equal(first.transaction.id,second.transaction.id);const snapshot=await (await call('state')).json();assert.equal(snapshot.data.transactions.length,1);assert.equal(snapshot.data.accounts[0].balance,9080);assert.equal(snapshot.revision,2);});
 test('Idempotency key cannot be reused with different payload',async()=>{const {call,data}=fixture();await call('state','PUT',{expectedRevision:0,data});const tx={type:'expense',cat:'food',currency:'RUB',amount:10,date:'2026-10-12',accountId:'rub'};await call('transactions','POST',tx,{'Idempotency-Key':'key'});assert.equal((await call('transactions','POST',{...tx,amount:100},{'Idempotency-Key':'key'})).status,409);const snapshot=await (await call('state')).json();assert.equal(snapshot.data.accounts[0].balance,9990);});
