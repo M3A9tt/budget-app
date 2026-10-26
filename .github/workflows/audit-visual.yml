@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/capture-audit-comparison.mjs'
+      - 'scripts/capture-transfer-history.mjs'
       - '.github/workflows/audit-visual.yml'
       - 'docs/MODERNIZATION-4.2.0.md'
   workflow_dispatch:
@@ -32,6 +33,10 @@ jobs:
         env:
           AUDIT_BEFORE_REF: ${{ inputs.before_ref || '4755826e182350c88abaac17c6070b8700b98afb' }}
           AUDIT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-audit-comparison
+      - name: Compare transfer visibility in real revisions
+        run: node scripts/capture-transfer-history.mjs
+        env:
+          AUDIT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-audit-comparison/transfers
       - uses: actions/upload-artifact@v4
         with:
           name: audit-before-after

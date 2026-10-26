@@ -167,7 +167,7 @@ export function transferMoney(data, {id,from,to,amount,fee=0,note='',date,extern
   const prior=id&&(data.transfers||[]).find(t=>t.id===id);
   if(prior){if(prior.from===from&&prior.to===to&&prior.amount===a&&(prior.fee||0)===f&&(prior.note||'')===note&&prior.date===date&&(prior.balanceEffect||'normal')===balanceEffect&&prior.externalId===externalId&&(prior.externalAccountId||prior.from)===(externalAccountId||from)&&(prior.currency||'RUB')===(source.currency||'RUB'))return data;throw Error('Этот перевод уже сохранён с другими данными. Проверь историю переводов');}
   let next = {...data, accounts:balanceEffect==='history-only'?data.accounts:data.accounts.map(x => x.id === from ? {...x,balance:roundMoney(x.balance-a)} : x.id === to ? {...x,balance:roundMoney(x.balance+a)} : x),
-    transfers:[...(data.transfers||[]),{id:id||newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,...(externalAccountId!==undefined?{externalAccountId}:{}),balanceEffect}]};
+    transfers:[...(data.transfers||[]),{id:id||newId(),from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,...(externalAccountId!==undefined?{externalAccountId}:{}),balanceEffect,updatedAt:new Date().toISOString()}]};
   if (f) next = putTransaction(next,{type:'expense',cat:'other',amount:f,currency:source.currency||'RUB',note:'Комиссия за перевод'+(note?' · '+note:''),date,tags:['комиссия'],accountId:from,balanceEffect});
   return next;
 }

@@ -33,3 +33,11 @@
 .plan-skipped button { min-height: 44px; }
 
 .lunch-extra-entry{display:flex;align-items:center;gap:8px;min-height:44px;text-align:left}.lunch-workday-date{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#9ba9a1;font-size:12px;margin:0 0 18px}.lunch-workday-date input{min-width:0;max-width:180px;color-scheme:dark;border:1px solid #ffffff18;background:#ffffff04;border-radius:12px;padding:10px;color:#d4dfd5;font:inherit}.lunch-workday-prompt,.lunch-workday-status{border:1px solid #b4ed8930;background:#b4ed8908;border-radius:16px;padding:16px;margin:0 0 18px}.lunch-workday-prompt h3{font-size:16px;margin:0}.lunch-workday-prompt p,.lunch-workday-status p{color:#a9b5ae;font-size:12px;line-height:1.6;margin:10px 0}.lunch-workday-status>span{display:flex;align-items:center;gap:8px;color:#c4eab5;font-size:14px}.lunch-workday-prompt .mini-suggestions{display:flex;flex-wrap:wrap;gap:8px}.lunch-workday-prompt button{min-height:44px}.lunch-workday-status>button{min-height:40px;text-align:left}
+
+/* Transfers share the activity feed but have no purchase edit/repeat action. */
+.mini-transfer .mini-tx-icon{color:#8ec8ed;background:#8ec8ed18}
+.mini-transfer .mini-tx-center small{line-height:1.6;overflow-wrap:anywhere}
+.mini-transfer .mini-tx-sum{color:#a9cbe0;flex-shrink:0;max-width:44%;overflow-wrap:anywhere}
+.desktop-transfer strong{font-size:12px;font-weight:600}
+.desktop-transfer small{display:block;color:#9da9ba;font-size:11px;line-height:1.6;margin-top:5px}
+.desktop-transactions .desktop-transfer .desktop-number{color:#a9cbe0}
