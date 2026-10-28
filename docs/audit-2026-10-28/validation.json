@@ -1,0 +1,168 @@
+{
+  "date": "2026-10-28",
+  "baseline": "c074475ca06a6f46dfde31254c97abad035e9834",
+  "version": "4.6.3",
+  "node": "v24.22.1",
+  "tests": {
+    "total": 454,
+    "pass": 454,
+    "fail": 0
+  },
+  "appBuild": "passed",
+  "workerBundle": {
+    "status": "passed",
+    "bytes": 1448089
+  },
+  "existingChromiumSuite": "passed",
+  "auditBrowserProbes": "passed",
+  "auditModelAndServerProbes": "passed",
+  "dependencyAudit": {
+    "all": {
+      "info": 0,
+      "low": 0,
+      "moderate": 2,
+      "high": 1,
+      "critical": 0,
+      "total": 3
+    },
+    "production": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "packages": {
+      "miniflare": {
+        "severity": "moderate",
+        "direct": false,
+        "range": "4.20250906.1 - 5.20261019.2-beta",
+        "fixAvailable": {
+          "name": "wrangler",
+          "version": "4.154.0",
+          "isSemVerMajor": false
+        },
+        "via": [
+          "undici"
+        ]
+      },
+      "undici": {
+        "severity": "high",
+        "direct": false,
+        "range": "7.0.0 - 7.30.0",
+        "fixAvailable": {
+          "name": "wrangler",
+          "version": "4.154.0",
+          "isSemVerMajor": false
+        },
+        "via": [
+          {
+            "title": "undici vulnerable to Denial of Service via unbounded memory in the EventSource parser",
+            "url": "https://github.com/advisories/GHSA-4qv8-2p9j-2685",
+            "range": ">=7.0.0 <7.30.1"
+          },
+          {
+            "title": "undici vulnerable to Subresource Integrity bypass via non-lowercase algorithm tokens",
+            "url": "https://github.com/advisories/GHSA-f72v-6w45-q472",
+            "range": ">=7.15.0 <7.30.1"
+          },
+          {
+            "title": "undici vulnerable to Denial of Service via unhandled error on excessive content-encodings",
+            "url": "https://github.com/advisories/GHSA-xjj6-f33q-929c",
+            "range": ">=7.18.0 <7.30.1"
+          },
+          {
+            "title": "undici vulnerable to cache poisoning and cross-user disclosure via cross-origin redirects",
+            "url": "https://github.com/advisories/GHSA-4w7w-5xrc-9h26",
+            "range": ">=7.0.0 <7.30.1"
+          },
+          {
+            "title": "undici vulnerable to TLS certificate validation bypass via dropped tls options in Agent",
+            "url": "https://github.com/advisories/GHSA-2m5v-pch6-74hx",
+            "range": ">=7.0.0 <7.30.1"
+          },
+          {
+            "title": "undici vulnerable to Denial of Service via TLS 1.2 certificate-changing renegotiation",
+            "url": "https://github.com/advisories/GHSA-qrxm-fqhp-jwvm",
+            "range": ">=7.0.0 <7.30.1"
+          },
+          {
+            "title": "undici WebSocket client vulnerable to Denial of Service via unbounded automatic PONG buffering",
+            "url": "https://github.com/advisories/GHSA-9fm3-97px-rjf6",
+            "range": ">=7.0.0 <7.30.1"
+          },
+          {
+            "title": "undici vulnerable to Denial of Service via unhandled exception in the decompress interceptor",
+            "url": "https://github.com/advisories/GHSA-55wc-3pg8-jfw6",
+            "range": ">=7.15.0 <7.30.1"
+          }
+        ]
+      },
+      "wrangler": {
+        "severity": "moderate",
+        "direct": true,
+        "range": "<=0.0.0-31bfd374c || 4.36.0 - 4.152.0",
+        "fixAvailable": {
+          "name": "wrangler",
+          "version": "4.154.0",
+          "isSemVerMajor": false
+        },
+        "via": [
+          "miniflare"
+        ]
+      }
+    },
+    "installedChain": {
+      "wrangler": {
+        "version": "4.151.3",
+        "resolved": "https://registry.npmjs.org/wrangler/-/wrangler-4.151.3.tgz",
+        "overridden": false,
+        "dependencies": {
+          "miniflare": {
+            "version": "5.20261019.1-beta",
+            "resolved": "https://registry.npmjs.org/miniflare/-/miniflare-5.20261019.1-beta.tgz",
+            "overridden": false,
+            "dependencies": {
+              "undici": {
+                "version": "7.29.1",
+                "resolved": "https://registry.npmjs.org/undici/-/undici-7.29.1.tgz",
+                "overridden": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "circularImportGroups": [
+    [
+      "src/account-balances.js",
+      "src/wishes.js",
+      "src/ledger.js"
+    ]
+  ],
+  "sourceFiles": {
+    "src": 94,
+    "server": 31,
+    "tests": 58
+  },
+  "buildChunks": {
+    "main": {
+      "filename": "index-D2RtgC-l.js",
+      "bytes": 392404,
+      "gzipBytes": 118909
+    },
+    "classicLazy": {
+      "filename": "App-C7E3S7Tt.js",
+      "bytes": 600290,
+      "gzipBytes": 158051
+    },
+    "releaseNotes": {
+      "filename": "release-notes-rp1Y5iQA.js",
+      "bytes": 72401,
+      "gzipBytes": 17661
+    }
+  },
+  "scope": "Fictional local profiles and in-memory SQLite only. No production financial writes, live-user inspection or external penetration testing."
+}
