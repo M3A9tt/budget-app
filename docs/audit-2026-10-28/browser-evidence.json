@@ -1,0 +1,36 @@
+{
+  "sourceSha": "c074475ca06a6f46dfde31254c97abad035e9834",
+  "date": "2026-10-28",
+  "viewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "fictional": true,
+  "observations": [
+    {
+      "id": "auth-diagnostic",
+      "serverStatus": 503,
+      "displayed": "Сеанс входа завершился",
+      "actualErrorVisible": false
+    },
+    {
+      "id": "blocking-sdk",
+      "sdkHeldMs": 2000,
+      "appReadyWhileSdkBlocked": false
+    },
+    {
+      "id": "draft-persistence",
+      "beforeReload": "180",
+      "afterReload": "",
+      "financialWrites": 0
+    },
+    {
+      "id": "historical-reconciliation-ui",
+      "beforeBalance": 900,
+      "selectedDate": "2026-10-01",
+      "enteredSnapshot": 1000,
+      "afterBalance": 1000,
+      "preservedExpense": 100
+    }
+  ]
+}

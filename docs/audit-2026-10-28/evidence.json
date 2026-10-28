@@ -1,0 +1,161 @@
+{
+  "baseline": "c074475ca06a6f46dfde31254c97abad035e9834",
+  "date": "2026-10-28",
+  "fictional": true,
+  "node": "v24.22.1",
+  "observations": [
+    {
+      "id": "historical-reconciliation",
+      "laterExpense": 100,
+      "before": 900,
+      "snapshotDate": "2026-10-01",
+      "snapshotAmount": 1000,
+      "after": 1000,
+      "recordStillPresent": true,
+      "expectedIfHistoricalSnapshot": 900
+    },
+    {
+      "id": "negative-legacy-debt-payment",
+      "accepted": true,
+      "debtFaceValue": 100,
+      "legacyRepayment": -900,
+      "displayedRemaining": 1000
+    },
+    {
+      "id": "inconsistent-installment-restore",
+      "accepted": true,
+      "declaredTotal": 100,
+      "paymentSum": 300,
+      "obligations": 300
+    },
+    {
+      "id": "duplicate-category-contract",
+      "accepted": true,
+      "homeExpense": 100,
+      "homeCategorySum": 200,
+      "analyticsCategorySum": 100,
+      "homeCategoryNames": [
+        "Еда",
+        "Ещё еда"
+      ]
+    },
+    {
+      "id": "income-horizon-policy",
+      "balance": 1000,
+      "bill": {
+        "date": "2026-10-30",
+        "amount": 2000
+      },
+      "income": {
+        "date": "2026-10-29",
+        "amount": 1
+      },
+      "before": {
+        "free": -1000,
+        "until": "2026-11-27"
+      },
+      "after": {
+        "free": 1000,
+        "until": "2026-10-29"
+      },
+      "classification": "Product policy risk; dates are shown, no balance mutation"
+    },
+    {
+      "id": "partial-installment-parity",
+      "botConfirmationFields": [
+        "date"
+      ],
+      "miniAppSupportsPartialAmount": true,
+      "scheduledAmount": 300
+    },
+    {
+      "id": "repeat-linked-payment",
+      "before": {
+        "balance": 700,
+        "obligations": 300,
+        "free": 400
+      },
+      "after": {
+        "balance": 400,
+        "obligations": 300,
+        "free": 100
+      },
+      "repeatedExpenseLinked": false,
+      "expectedIfNextInstallmentPaid": {
+        "balance": 400,
+        "obligations": 0,
+        "free": 400
+      }
+    },
+    {
+      "id": "lunch-answer-divergence",
+      "miniAppSkippedAnswerStored": true,
+      "sqlAnswers": [],
+      "questionsAfterSkipped": 1,
+      "ownLunchRecorded": true,
+      "questionsAfterOwnLunch": 1
+    },
+    {
+      "id": "future-import-contract",
+      "date": "2099-01-01",
+      "csvAccepted": true,
+      "csvMode": "history-only",
+      "jsonAccepted": false,
+      "jsonError": "Будущие операции оформите как планы, а не банковскую историю"
+    },
+    {
+      "id": "profile-capacity",
+      "limitBytes": 1500000,
+      "firstRejectedFixtureCount": 3981,
+      "rows": [
+        {
+          "count": 1000,
+          "bytes": 432938,
+          "accepted": true,
+          "validateAndReportMs": 20.44
+        },
+        {
+          "count": 3000,
+          "bytes": 1148938,
+          "accepted": true,
+          "validateAndReportMs": 31.34
+        },
+        {
+          "count": 5000,
+          "bytes": 1864938,
+          "accepted": false,
+          "validateAndReportMs": 45.05
+        },
+        {
+          "count": 10000,
+          "bytes": 3654938,
+          "accepted": false,
+          "validateAndReportMs": 82.75
+        }
+      ],
+      "maximumSnapshotPayloadBytesAtLimit": 75000000,
+      "warning": "Synthetic fixture; the threshold and timings depend on record fields and hardware"
+    },
+    {
+      "id": "summary-api-range-error",
+      "validStatus": 200,
+      "tooLongStatus": 503,
+      "body": {
+        "error": "Сервер временно недоступен. Повтори запрос; операцию — с тем же ключом."
+      }
+    },
+    {
+      "id": "notification-delivery-ambiguity",
+      "externalSends": 2,
+      "logicalJobCount": 1,
+      "scenario": "Telegram accepted a send; the local receipt transaction failed; a retry sent it again",
+      "classification": "Confirmed fault-injection scenario, not a claim that it happened in production"
+    },
+    {
+      "id": "cron-catchup-window",
+      "dailyReportAt2100": true,
+      "jobsAt2115": 1,
+      "jobsAt2116": 0
+    }
+  ]
+}
