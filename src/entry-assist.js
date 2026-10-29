@@ -11,7 +11,9 @@ export function entryDefaults(data,type,today,categories){
 export function repeatEntry(data,tx,today,categories){
  if(tx.installmentPaymentId||tx.recurringId){
   const plan=(data.installments||[]).find(p=>p.payments.some(x=>x.id===tx.installmentPaymentId));
-  const next=scheduledEvents(data,today,moveDate(today,3660)).find(e=>tx.recurringId?e.source==='plan'&&e.sourceId===tx.recurringId:e.source==='installment'&&e.sourceId===plan?.id);
+  const rule=tx.recurringId&&data.recurring.find(r=>r.id===tx.recurringId),scope={...data,recurring:rule?[rule]:[],installments:plan?[plan]:[],debts:[]};
+  const end=[moveDate(today,['daily','weekly'].includes(rule?.frequency)?30:3660),rule?.frequency==='once'?rule.startDate:'',...(plan?.payments||[]).map(p=>p.date)].sort().at(-1);
+  const next=scheduledEvents(scope,today,end).find(e=>tx.recurringId?e.source==='plan':e.source==='installment');
   if(!next)throw Error('Неоплаченных платежей нет. Открой график, чтобы проверить историю.');
   return prepareEvent(data,next,today);
  }

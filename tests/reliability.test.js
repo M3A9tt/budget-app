@@ -160,3 +160,8 @@ test('Concurrent manual summary opens create one message, and reopening edits th
  const {env,sqlite}=dbFixture(),sent=[],api={readState:async()=>({revision:1,data:plan()}),telegram:async(e,method,body)=>{sent.push({method,body});return {message_id:body.message_id||10};}};
  try{await Promise.all([showBotView(env,'111',api,'attention'),showBotView(env,'111',api,'attention')]);assert.equal(sent.filter(x=>x.method==='sendMessage').length,1);await showBotView(env,'111',api,'attention');assert.equal(sent.filter(x=>x.method==='sendMessage').length,1);assert.equal(sent.filter(x=>x.method==='editMessageText').length,1);}finally{sqlite.close();}
 });
+test('Repeat and a targeted reminder do not expand an unrelated long daily schedule over ten years',()=>{
+ const old=new Date(Date.now()-9000*86400000).toISOString().slice(0,10);let d=createPlanned(base(),{id:'daily',name:'Давний ежедневный',type:'expense',amount:1,accountId:'a',frequency:'daily',startDate:old});
+ d=createInstallment(d,{id:'s',name:'Сплит',total:600,count:2,firstDate:'2026-10-14',cadence:'biweekly',accountId:'a'});d=payInstallment(d,{planId:'s',paymentId:d.installments[0].payments[0].id,date:'2026-10-14'});const draft=repeatEntry(d,d.transactions[0],day,CATEGORIES);assert.equal(draft.amount,'300');
+ const eventId='installment:'+d.installments[0].payments[1].id;d=setPaymentReminder(d,eventId,'2026-10-29','10:00',now);assert.equal(paymentReminderEvents(d,Date.parse('2026-10-29T07:00Z')).length,1);
+});

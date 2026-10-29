@@ -2,17 +2,17 @@
   "date": "2026-10-29",
   "baseline": "de7a07076471ec3ed1d02092b1a37bfb12fc917f",
   "release": "4.7.0",
-  "runtimeSourceSHA256": "20a89d38c16a3c42e233cd2ca7407ed56033096e91cf218fbeb6e8bdceb771ac",
+  "runtimeSourceSHA256": "6d73b00f76bde0bbe4f11cbc3edcff9d2355e97e66c67c7207f17ca2ff767b99",
   "tests": {
-    "total": 482,
-    "pass": 482,
+    "total": 483,
+    "pass": 483,
     "fail": 0
   },
   "appBuild": "passed",
   "workerBundle": "passed",
   "releaseGuard": "passed",
-  "fullFinancialChromium": "passed",
-  "newReliabilityChromium": "passed",
+  "fullFinancialChromium": "passed at source checkpoint; rerun on final GitHub head required",
+  "newReliabilityChromium": "passed at source checkpoint; rerun on final GitHub head required",
   "baselineChromium": "passed",
   "npmAudit": {
     "info": 0,
