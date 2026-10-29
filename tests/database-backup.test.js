@@ -7,7 +7,8 @@ import {tmpdir} from 'node:os';
 import {DatabaseSync} from 'node:sqlite';
 import {encryptBackup,decryptBackup,backupKeyId,fileDigest} from '../scripts/backup-crypto.mjs';
 import {verifyDatabaseExport} from '../scripts/database-recovery.mjs';
-import {createDatabaseBackup} from '../scripts/create-db-backup.mjs';
+import {createDatabaseBackup,exportFailure} from '../scripts/create-db-backup.mjs';
+import {verifyStoredBackup} from '../scripts/check-db-backup-artifact.mjs';
 const keys=generateKeyPairSync('rsa',{modulusLength:3072,publicKeyEncoding:{type:'spki',format:'pem'},privateKeyEncoding:{type:'pkcs8',format:'pem'}});
 const profile={accounts:[{id:'a',currency:'RUB',balance:900.01},{id:'usd',currency:'USD',balance:3.27}],transactions:[{id:'p',amount:99.99,amountRub:99.99,accountAmount:99.99,recurringId:'rent',recurringPeriod:'2026-10'}],recurring:[{id:'rent',amount:99.99}],installments:[{id:'s',payments:[{id:'i',amount:100,paidAmount:30}]}],history:[{id:'h',before:{amount:11.23}}],privateField:'Не публиковать'};
 const quoted=x=>"'"+String(x).replaceAll("'","''")+"'";
@@ -41,6 +42,10 @@ test('Automated copy uploads only an encrypted database and a safe manifest; exp
  const dir=await mkdtemp(join(tmpdir(),'burget-backup-test-'));try{
   const manifest=await createDatabaseBackup({directory:join(dir,'out'),exportDatabase:async path=>{const fixture=await sqlFixture(dir);await writeFile(path,await readFile(fixture));}});
   assert.deepEqual((await readdir(join(dir,'out'))).sort(),['database.burget.enc','manifest.json']);assert.equal(manifest.sha256,await fileDigest(join(dir,'out','database.burget.enc')));assert.equal(manifest.verification.integrity,'ok');assert.ok(!JSON.stringify(manifest).includes('111'));assert.ok(!JSON.stringify(manifest).includes(profile.privateField));
+  assert.equal((await verifyStoredBackup(join(dir,'out','manifest.json'),join(dir,'out'))).integrity,'ok');
+  await writeFile(join(dir,'out','database.burget.enc'),'damaged stored transfer');await assert.rejects(verifyStoredBackup(join(dir,'out','manifest.json'),join(dir,'out')),/checksum/);
+  const failure=exportFailure({status:1,stdout:'https://private-export.invalid/secret-token',stderr:'Authentication failure [code: 10000]\nPRIVATE FINANCIAL SQL'});
+  assert.equal(failure.backupCode,'CLOUDFLARE_10000');assert.ok(!JSON.stringify(failure).includes('private-export'));assert.ok(!JSON.stringify(failure).includes('PRIVATE FINANCIAL'));
   let plain;await assert.rejects(createDatabaseBackup({directory:join(dir,'failed'),exportDatabase:async path=>{plain=path;await writeFile(path,'private export');throw Error('export unavailable');}}));await assert.rejects(readFile(plain));
  }finally{await rm(dir,{recursive:true,force:true});}
 });

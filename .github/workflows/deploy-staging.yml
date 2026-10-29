@@ -13,6 +13,11 @@ on:
       - 'scripts/check-release.mjs'
       - 'scripts/configure-staging.mjs'
       - 'scripts/announce-release.mjs'
+      - 'scripts/*db-backup*.mjs'
+      - 'scripts/backup-crypto.mjs'
+      - 'scripts/database-recovery.mjs'
+      - 'config/backup-public-key.pem'
+      - '.github/workflows/database-backup.yml'
       - '.github/workflows/deploy-staging.yml'
   workflow_dispatch:
 permissions:
