@@ -9,3 +9,11 @@ server/wrangler.staging.jsonc
 
 # Local Wrangler packaging checks
 worker-dry-run/
+
+# Private recovery material and plaintext exports never belong in source control.
+**/*private*.pem
+*.burget.enc
+database-backup/
+restored*.sql
+database-backup*.sql
+Burget_Recovery_Key_*.zip

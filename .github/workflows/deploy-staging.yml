@@ -23,8 +23,12 @@ concurrency:
 jobs:
   verify:
     uses: ./.github/workflows/checks.yml
-  deploy:
+  safety_backup:
     needs: verify
+    uses: ./.github/workflows/database-backup.yml
+    secrets: inherit
+  deploy:
+    needs: [verify, safety_backup]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15

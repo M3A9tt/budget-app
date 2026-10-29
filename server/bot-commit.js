@@ -1,3 +1,4 @@
+import {recordOperation} from './operations.js';
 import {queueCorrection} from './lunch-learning.js';
 import {lunchReminderAnswered} from './lunch-entry.js';
 import {backupBefore,trimBackups,encodeState,readReceipt} from './state-persistence.js';
@@ -5,7 +6,7 @@ import {migrateData,validateStateChange} from '../src/ledger.js';
 import {EMPTY} from '../src/mini-model.js';
 import {applyBotAction} from './bot-catalog.js';
 // Session receipt, state CAS, pre-change backup and consumed marker commit atomically.
-export async function commitBotAction(env,userId,id,p,readState){
+async function commitBotActionInner(env,userId,id,p,readState){
  const key='bot:'+id;
  const stored=async()=>{const prior=await readReceipt(env,userId,key);return prior?{...prior.result,duplicate:true}:null;};
  const prior=await stored();if(prior)return prior;
@@ -32,4 +33,10 @@ export async function commitBotAction(env,userId,id,p,readState){
   trimBackups(env,userId)
  ]);
  if(rows[2].meta.changes!==1){const completed=await stored();if(completed)return completed;throw Error('Карточка изменилась или уже выполнена. Открой раздел заново.');}if(recognized?.parsed)try{await queueCorrection(env,userId,recognized.sourceId,recognized.parsed,{amount:Number(p.values.amount),note:p.values.note},next.settings.lunchLearningEnabled!==false);}catch{/* Optional learning never changes financial success. */}return result;
+}
+
+export async function commitBotAction(env,userId,id,p,readState){
+ const started=Date.now();
+ try{const result=await commitBotActionInner(env,userId,id,p,readState);await recordOperation(env,'save','ok',Date.now()-started);return result;}
+ catch(error){await recordOperation(env,'save',/Данные изменились/.test(error.message)?'conflict':'unavailable',Date.now()-started);throw error;}
 }
