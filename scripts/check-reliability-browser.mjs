@@ -24,11 +24,11 @@ try{
  const launch=()=>chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--single-process','--no-zygote'],headless:true});browser=await launch();
  const context=await browser.newContext({viewport:{width:390,height:1000},locale:'ru-RU'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://telegram.org/**',route=>route.fulfill({body:'',contentType:'application/javascript'}));
- let data=structuredClone(fixture),revision=1,status=200;
+ let data=structuredClone(fixture),revision=1,status=200,userId='fictional-qa';
  await page.route('**/api/v1/**',async route=>{
   if(route.request().method()==='PUT'){const payload=route.request().postDataJSON();assert.equal(payload.expectedRevision,revision);data=payload.data;revision++;return route.fulfill({json:{revision}});}
   if(status!==200)return route.fulfill({status,json:{error:'Сервер временно недоступен'}});
-  return route.fulfill({json:{revision,data,userId:'fictional-qa',isOwner:false}});
+  return route.fulfill({json:{revision,data,userId,isOwner:false}});
  });
  await page.goto(origin);await page.locator('.budget-clear').waitFor();
  await page.screenshot({path:path.join(dir,label+'-home.png'),fullPage:true});
@@ -58,6 +58,7 @@ try{
  await page.locator('.mini-nav').getByRole('button',{name:'Записать',exact:true}).click();await page.locator('#amount').waitFor();await page.locator('#amount').fill('180');await page.getByLabel('Комментарий',{exact:true}).fill('Незавершённый ввод');await page.screenshot({path:path.join(dir,label+'-draft-before-reload.png'),fullPage:true});const savedCount=data.transactions.length;await page.reload();await page.locator('.budget-clear').waitFor();
  if(!before){await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.locator('#amount').waitFor();assert.equal(await page.locator('#amount').inputValue(),'180');assert.equal(await page.getByLabel('Комментарий',{exact:true}).inputValue(),'Незавершённый ввод');}else{await page.locator('.mini-nav').getByRole('button',{name:'Записать',exact:true}).click();await page.locator('#amount').waitFor();assert.equal(await page.locator('#amount').inputValue(),'');}
  assert.equal(data.transactions.length,savedCount);await page.screenshot({path:path.join(dir,label+'-draft-after-reload.png'),fullPage:true});results.push({scenario:'draft-reload',preserved:!before,financialWrites:0});
+ if(!before){userId='fictional-other';await page.getByRole('button',{name:'Обновить данные',exact:true}).click();await page.locator('.budget-clear').waitFor();assert.equal(await page.locator('#amount').count(),0);assert.equal(await page.getByRole('heading',{name:'Новая запись',exact:true}).count(),0);results.push({scenario:'profile-change',oldDraftCleared:true});}
  await context.close();
  if(!before){
   await browser.close();browser=await launch();const failure=await browser.newContext({viewport:{width:390,height:1000}});await failure.addInitScript(()=>window.Telegram={WebApp:{initData:'fictional',platform:'android',ready(){},expand(){}}});const p=await failure.newPage();await p.route('https://telegram.org/**',r=>r.fulfill({body:''}));await p.route('**/api/v1/state',r=>r.fulfill({status:503,json:{error:'Сервер временно недоступен'}}));await p.goto(origin);await p.getByText('Сервер временно недоступен',{exact:true}).waitFor();assert.equal(await p.getByText(/Сеанс входа завершился/).count(),0);await p.screenshot({path:path.join(dir,'after-auth-503.png'),fullPage:true});await failure.close();
