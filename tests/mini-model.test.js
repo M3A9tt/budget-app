@@ -12,7 +12,7 @@ test('A dated expected income defines the budget horizon while leaving actual ba
  data.accounts=[{id:'bank',balance:10000,currency:'RUB'}];
  data.recurring=[
   {id:'rent',name:'Rent',active:true,type:'expense',frequency:'once',startDate:'2026-10-22',amount:2200,currency:'RUB',accountId:'bank'},
-  {id:'salary',name:'Salary',active:true,type:'income',frequency:'once',startDate:'2026-10-24',amount:12000,currency:'RUB',accountId:'bank'},
+  {id:'salary',name:'Salary',active:true,type:'income',budgetAnchor:true,frequency:'once',startDate:'2026-10-24',amount:12000,currency:'RUB',accountId:'bank'},
   {id:'later',name:'Later',active:true,type:'expense',frequency:'once',startDate:'2026-11-20',amount:500,currency:'RUB',accountId:'bank'},
   {id:'unknown',name:'Unknown',active:true,type:'expense',frequency:'once',startDate:'2026-10-23',variable:true,amount:0,currency:'RUB',accountId:'bank'}
  ];

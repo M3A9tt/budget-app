@@ -1,4 +1,4 @@
-import {plannedOccurrences,planType} from './planned-model.js';
+import {plannedOccurrences,planType,billingPeriod} from './planned-model.js';
 import {installmentRemaining,installmentRemainders} from './installment-state.js';
 import {debtRemaining} from './debt-state.js';
 import {accountTotals,isSavingAccount} from './account-balances.js';
@@ -9,13 +9,13 @@ export const moveDate=(date,days)=>{const d=new Date(date+'T12:00:00Z');d.setUTC
 export function scheduledEvents(data,today,end=today,from=''){
  const events=[],index=installmentRemainders(data),rate=currency=>data.rates?.[currency||'RUB']||1;
  const add=e=>{if(e.date>end||from&&e.date<from)return;const currency=e.currency||'RUB';events.push({...e,currency,overdue:e.date<today,amountRub:e.amount===null?null:round(e.amount*rate(currency)),spendable:!isSavingAccount(data.accounts.find(a=>a.id===e.accountId))});};
- for(const {rule:r,date,period,originalDate} of plannedOccurrences(data,today,end,from))add({id:`plan:${r.id}:${period}`,source:'plan',sourceId:r.id,period,date,originalDate,name:r.name,type:planType(r),amount:r.variable?null:r.amount,currency:r.currency,accountId:r.accountId,kind:planType(r)==='income'?'Ожидаемый доход':r.frequency==='once'?'Разовый платёж':'Регулярный платёж'});
+ for(const {rule:r,date,period,originalDate,remaining} of plannedOccurrences(data,today,end,from))add({id:`plan:${r.id}:${period}`,source:'plan',sourceId:r.id,period,billingPeriod:billingPeriod(r,period),date,originalDate,name:r.name,type:planType(r),amount:r.variable?null:remaining,currency:r.currency,accountId:r.accountId,kind:planType(r)==='income'?'Ожидаемый доход':r.frequency==='once'?'Разовый платёж':'Регулярный платёж'});
  for(const p of data.installments||[])for(const x of p.payments){const amount=installmentRemaining(data,x,index);if(amount>0)add({id:'installment:'+x.id,source:'installment',sourceId:p.id,paymentId:x.id,date:x.date,name:p.name,type:'expense',amount,currency:p.currency,accountId:p.accountId,kind:({loan:'Кредит',mortgage:'Ипотека',split:'Сплит'})[p.obligationKind]||'Рассрочка'});}
  for(const d of data.debts||[]){const amount=debtRemaining(d,data);if(d.dueDate&&amount>0)add({id:'debt:'+d.id,source:'debt',sourceId:d.id,date:d.dueDate,name:d.person,type:d.type==='tome'?'income':'expense',amount,currency:d.currency,kind:d.type==='tome'?'Возврат тебе':'Возврат долга'});}
  return events.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='expense'?-1:1)-(b.type==='expense'?-1:1)||String(a.name||'').localeCompare(String(b.name||''))||a.id.localeCompare(b.id));
 }
 export function budgetWindow(data,today){
- const planned=plannedOccurrences({...data,recurring:data.recurring.filter(r=>planType(r)==='income')},today,moveDate(today,366),today).find(p=>planType(p.rule)==='income'&&p.date>today&&!p.rule.variable&&p.rule.amount>0&&!isSavingAccount(data.accounts.find(a=>a.id===p.rule.accountId))),payday=planned?.date||data.settings?.nextIncomeDate,hasPayday=/^\d{4}-\d{2}-\d{2}$/.test(payday||'')&&payday>today;
+ const planned=plannedOccurrences({...data,recurring:data.recurring.filter(r=>planType(r)==='income')},today,moveDate(today,366),today).find(p=>planType(p.rule)==='income'&&(p.rule.budgetAnchor===true||data.settings?.budgetIncomeId===p.rule.id)&&p.date>today&&!p.rule.variable&&p.rule.amount>0&&!isSavingAccount(data.accounts.find(a=>a.id===p.rule.accountId))),payday=planned?.date||data.settings?.nextIncomeDate,hasPayday=/^\d{4}-\d{2}-\d{2}$/.test(payday||'')&&payday>today;
  return {until:hasPayday?payday:moveDate(today,30),days:hasPayday?Math.round((Date.parse(payday+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000):null,exclusive:hasPayday,horizon:hasPayday?'payday':'30-days',incomeSource:planned?'plan':hasPayday?'manual':null,incomeName:planned?.rule.name||''};
 }
 export function spendingPlan(data,today){

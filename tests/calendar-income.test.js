@@ -13,7 +13,7 @@ import {botView} from '../server/bot-views.js';
 import {fieldsFor,applyBotAction} from '../server/bot-catalog.js';
 import {todayMoscow} from '../src/mini-model.js';
 const today='2026-10-24',base=()=>({...structuredClone(EMPTY),accounts:[{id:'a',name:'Карта',balance:1000,currency:'RUB'},{id:'s',name:'Накопления',balance:2000,currency:'RUB',accType:'savings'}],settings:{...EMPTY.settings,nextIncomeDate:'2026-11-10'}});
-const income={id:'salary',name:'Зарплата',type:'income',frequency:'monthly',startDate:'2026-10-01',dueDay:25,amount:5000,accountId:'a'};
+const income={id:'salary',name:'Зарплата',type:'income',budgetAnchor:true,frequency:'monthly',startDate:'2026-10-01',dueDay:25,amount:5000,accountId:'a'};
 test('A moved income updates the shared horizon, calendar and reminders, then confirms once without double forecasting',()=>{
  let d=createPlanned(base(),income);
  d=createPlanned(d,{id:'rent',name:'Аренда',type:'expense',frequency:'once',startDate:'2026-10-26',amount:1200,accountId:'a'});
@@ -51,7 +51,7 @@ test('A future original period can be brought forward and remains separate from 
  assert.throws(()=>updatePlanned(d,'salary',{...income,frequency:'weekly'}),/отдельный/);
 });
 test('Month grids align Monday, retain leap days and show facts instead of fabricated historical balances',()=>{
- const d=base();d.transactions=[{id:'past',date:'2028-02-29',type:'expense',amount:10,note:'Продукты',currency:'RUB',accountId:'a'},{id:'future',date:'2028-03-03',type:'income',amount:100,currency:'RUB',accountId:'a'}];
+ const d=base();d.transactions=[{id:'past',date:'2028-02-29',type:'expense',amount:10,note:'Продукты',currency:'RUB',accountId:'a'},{id:'future',date:'2028-03-03',type:'income',budgetAnchor:true,amount:100,currency:'RUB',accountId:'a'}];
  const m=calendarMonth(d,'2028-03-01','2028-02');assert.equal(m.days.length,42);assert.equal(new Date(m.start+'T12:00:00Z').getUTCDay(),1);assert.equal(m.days.filter(p=>p.inMonth).length,29);assert.equal(m.days.find(p=>p.date==='2028-02-29').transactions[0].id,'past');assert.equal(m.days.find(p=>p.date==='2028-03-03').transactions.length,0);assert.equal(shiftMonth('2026-12',1),'2027-01');assert.equal(shiftMonth('2026-01',-1),'2025-12');
 });
 test('Invalid overrides and stale moves are rejected at the common storage boundary',()=>{

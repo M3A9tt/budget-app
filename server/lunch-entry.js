@@ -1,7 +1,8 @@
+import {lunchDayStatus} from '../src/lunch-day-state.js';
 import {validDate} from '../src/finance-tools.js';
 
 export const lunchReminderKey=day=>'lunch-day:'+day; // Read old receipts only.
-export const lunchReminderAnswered=(data,day)=>data.transactions.some(t=>t.date===day&&(t.type==='lunch'||t.cat==='lunch'||t._lunchCheckDay===day));
+export const lunchReminderAnswered=(data,day)=>!['unanswered','absence'].includes(lunchDayStatus(data,day));
 
 // A reminder answers one existing day question; manual meals remain independent.
 export function lunchEntryArgs(day,type,prefill={}){

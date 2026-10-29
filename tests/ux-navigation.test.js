@@ -12,7 +12,7 @@ function app(){
  useRef(value){const i=index++;return slots[i]??(slots[i]={current:value});},useMemo:fn=>fn(),useEffect:()=>{},
  useLayoutEffect(fn,deps){const i=index++,old=slots[i];if(!old||deps.some((d,n)=>!Object.is(d,old.deps[n]))){old?.cleanup?.();slots[i]={deps};layouts.push(()=>slots[i].cleanup=fn());}}};
  const window={__BUDGET_DEMO__:true,location:{search:''},matchMedia:()=>({matches:false}),get scrollY(){return scroll;},scrollTo:({top})=>scroll=top,addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}};
- const context={module:{exports:{}},exports:{},require:()=>React,window,location:window.location,Intl,Date,URLSearchParams,structuredClone,crypto,console,setTimeout:()=>0};context.exports=context.module.exports;vm.runInNewContext(code,context);
+ const context={module:{exports:{}},exports:{},require:()=>React,window,location:window.location,Intl,Date,TextEncoder,URLSearchParams,structuredClone,TextEncoder,crypto,console,setTimeout:()=>0};context.exports=context.module.exports;vm.runInNewContext(code,context);
  const render=()=>{index=0;tree=context.module.exports.default();while(layouts.length)layouts.shift()();return tree;};
  const find=(predicate,node=tree)=>{if(!node)return;if(Array.isArray(node)){for(const n of node){const result=find(predicate,n);if(result)return result;}}else if(typeof node==='object'){if(predicate(node))return node;return find(predicate,node.children);}};
  const text=node=>Array.isArray(node)?node.map(text).join(''):typeof node==='object'&&node?text(node.children):node??'';

@@ -4,9 +4,10 @@ function plannedValues(data,values){
  const account=data.accounts.find(a=>a.id===values.accountId),amount=values.type==='income'&&values.variable===true?0:parseMoney(values.amount),date=values.startDate;
  if(!account||!values.name?.trim()||!Number.isFinite(amount)||(amount<=0&&!(values.type==='income'&&values.variable===true))||!['expense','income'].includes(values.type)||!['daily','weekly','monthly','once'].includes(values.frequency)||!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||Number.isNaN(Date.parse(date))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw Error('Проверь название, сумму, счёт и дату плана');
  if(['daily','weekly'].includes(values.frequency)&&Math.floor((Date.parse(new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date())+'T12:00:00Z')-Date.parse(date+'T12:00:00Z'))/86400000)/(values.frequency==='daily'?1:7)>9900)throw Error('Уточните начало плана: слишком много прошлых периодов');
+ const billingMonthOffset=Number(values.billingMonthOffset??0);if(![0,-1].includes(billingMonthOffset))throw Error('Период оплаты: текущий или предыдущий месяц');
  const dueDay=values.frequency==='monthly'?Number(values.dueDay??date.slice(-2)):Number(date.slice(-2));
  if(!Number.isInteger(dueDay)||dueDay<1||dueDay>31)throw Error('Число ежемесячного платежа — от 1 до 31');
- return {name:values.name.trim(),amount,currency:account.currency||'RUB',accountId:account.id,cat:values.type==='income'?'income':values.cat||'other',type:values.type,frequency:values.frequency,startDate:date,dueDay,variable:values.variable===true};
+ return {name:values.name.trim(),amount,currency:account.currency||'RUB',accountId:account.id,cat:values.type==='income'?'income':values.cat||'other',type:values.type,frequency:values.frequency,startDate:date,dueDay,variable:values.variable===true,budgetAnchor:values.budgetAnchor===true,billingMonthOffset};
 }
 export function createPlanned(data,values){
  const checked=plannedValues(data,values),id=values.id||crypto.randomUUID();
@@ -19,7 +20,7 @@ export function preparePlanned(data,ruleId,period,today,changed){
  if(!r?.active||!validPlannedPeriod(r,period)||plannedPaid(data,r,period))throw Error('План изменился, уже подтверждён или пропущен');
  const item=plannedOccurrences({...data,recurring:[r]},today,[r.dateOverrides?.[period]||'',r.frequency==='once'?r.startDate:['daily','weekly'].includes(r.frequency)?period:period+'-31'].sort().at(-1)).find(i=>i.period===period);
  if(!r?.active||!item||plannedPaid(data,r,period))throw Error('План изменился, уже подтверждён или пропущен');
- return{type:planType(r),cat:planType(r)==='income'?'income':r.cat,amount:changed||r.variable?'':String(r.amount),currency:r.currency||'RUB',accountId:r.accountId,date:today,note:r.name,paymentMethod:'unknown',tags:['постоянный'],recurringId:r.id,recurringPeriod:period,plannedDueDate:item.date,saveRecurringAmount:false};
+ return{type:planType(r),cat:planType(r)==='income'?'income':r.cat,amount:changed||r.variable?'':String(item.remaining??r.amount),currency:r.currency||'RUB',accountId:r.accountId,date:today,note:r.name,paymentMethod:'unknown',tags:['постоянный'],recurringId:r.id,recurringPeriod:period,plannedDueDate:item.date,saveRecurringAmount:false};
 }
 export function skipPlanned(data,id,period){
  const r=data.recurring.find(x=>x.id===id);
@@ -37,7 +38,7 @@ export function restorePlanned(data,id,period){
 export const hasPlannedHistory=(data,rule)=>data.transactions.some(t=>t.recurringId===rule.id)||!!rule.lastCreated||(rule.skippedPeriods||[]).length>0||Object.keys(rule.dateOverrides||{}).length>0;
 export function updatePlanned(data,id,values){
  const old=data.recurring.find(r=>r.id===id);if(!old)throw Error('План отсутствует');
- const checked=plannedValues(data,{...values,dueDay:values.dueDay??(values.startDate===old.startDate?old.dueDay:undefined),variable:values.variable??old.variable});
+ const checked=plannedValues(data,{...values,dueDay:values.dueDay??(values.startDate===old.startDate?old.dueDay:undefined),variable:values.variable??old.variable,budgetAnchor:values.budgetAnchor??old.budgetAnchor,billingMonthOffset:values.billingMonthOffset??old.billingMonthOffset});
  const hasFacts=hasPlannedHistory(data,old);
  if(hasFacts&&(planType(old)!==checked.type||(old.currency||'RUB')!==checked.currency||(old.frequency||'monthly')!==checked.frequency))throw Error('У плана уже есть оплаты, пропуски или переносы. Для другого типа, валюты или периодичности создай отдельный план');
  const next={...old,...checked,id:old.id,active:old.active!==false,lastCreated:old.lastCreated||'',skippedPeriods:old.skippedPeriods||[]};
@@ -58,5 +59,6 @@ export function reschedulePlanned(data,id,period,date,today){
  if(!rule?.active||!validPlannedPeriod(rule,period)||!item)throw Error('План изменился, уже подтверждён или пропущен');
  const dateOverrides={...rule.dateOverrides};if(date===item.originalDate)delete dateOverrides[period];else dateOverrides[period]=date;
  const next={...rule,dateOverrides};validatePlannedOverrides(next);
- return {...data,recurring:data.recurring.map(r=>r.id===id?next:r)};
+ const paymentReminders={...data.paymentReminders};delete paymentReminders['plan:'+id+':'+period];
+ return {...data,paymentReminders,recurring:data.recurring.map(r=>r.id===id?next:r)};
 }

@@ -1,0 +1,37 @@
+{
+  "today": "2026-10-29",
+  "fictional": true,
+  "baseline": false,
+  "results": [
+    {
+      "scenario": "housing-move",
+      "balancesUnchanged": true,
+      "anchor": 29,
+      "date": "2026-10-31"
+    },
+    {
+      "scenario": "repeat-installment",
+      "linkedPayments": 2,
+      "accountBalance": 915
+    },
+    {
+      "scenario": "transfer-edit-and-reverse",
+      "balances": [
+        1520,
+        0
+      ],
+      "fees": 0
+    },
+    {
+      "scenario": "draft-reload",
+      "preserved": true,
+      "financialWrites": 0
+    },
+    {
+      "scenario": "auth-and-sdk",
+      "diagnostic503": true,
+      "shellBeforeSDK": true
+    }
+  ],
+  "pageErrors": []
+}

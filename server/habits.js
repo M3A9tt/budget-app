@@ -42,7 +42,7 @@ export async function habitCallback(env,userId,callback,api){
   }else{
    if(!await transition(action)){await answer('Ответ уже изменился. Используй последнее сообщение.');return true;}await close('Учёт за '+day+' завершён ✅'+(action==='none'?' Трат не было.':''));
   }
- }else if(row.status==='skipped'||lunchReminderAnswered(state.data,day)){await answer('Ответ уже сохранён. Изменить его можно в «Обедах» и «Истории».');return true;}
+ }else if((row.status==='skipped'&&state.data.lunchAnswers?.[day]?.status!=='unanswered')||lunchReminderAnswered(state.data,day)){await answer('Ответ уже сохранён. Изменить его можно в «Обедах» и «Истории».');return true;}
  else if(action==='company'){
   await api.openLunch(day,'company');
  }else if(action==='own'){

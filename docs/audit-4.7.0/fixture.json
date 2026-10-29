@@ -1,0 +1,236 @@
+{
+  "today": "2026-10-29",
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "type": "expense",
+        "cat": "other",
+        "amount": 300,
+        "currency": "RUB",
+        "accountId": "a",
+        "date": "2026-10-15",
+        "note": "Проверочный сплит",
+        "installmentPaymentId": "7cf6b85d-0a42-4b06-8e0b-35365e99c500",
+        "tags": [
+          "рассрочка"
+        ],
+        "id": "d1d3f9d3-8574-4801-9995-3dcc6191aa8a",
+        "amountRub": 300,
+        "accountAmount": 300,
+        "revision": 1,
+        "updatedAt": "2026-10-29T07:54:31.487Z"
+      },
+      {
+        "id": "coffee",
+        "type": "expense",
+        "cat": "food",
+        "amount": 180,
+        "date": "2026-10-28",
+        "accountId": "a",
+        "note": "Кофе",
+        "currency": "RUB",
+        "amountRub": 180,
+        "accountAmount": 180,
+        "revision": 1,
+        "updatedAt": "2026-10-29T07:54:31.490Z"
+      },
+      {
+        "transferId": "move",
+        "type": "expense",
+        "cat": "other",
+        "amount": 5,
+        "currency": "RUB",
+        "note": "Комиссия за перевод · На наличные",
+        "date": "2026-10-29",
+        "tags": [
+          "комиссия"
+        ],
+        "accountId": "a",
+        "balanceEffect": "normal",
+        "id": "207f783d-82e4-4b01-979d-a19fb2084a60",
+        "amountRub": 5,
+        "accountAmount": 5,
+        "revision": 1,
+        "updatedAt": "2026-10-29T07:54:31.492Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "a",
+        "name": "Основная карта",
+        "balance": 1415,
+        "currency": "RUB"
+      },
+      {
+        "id": "b",
+        "name": "Наличные",
+        "balance": 100,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [
+      {
+        "id": "move",
+        "revision": 1,
+        "from": "a",
+        "to": "b",
+        "amount": 100,
+        "fee": 5,
+        "currency": "RUB",
+        "note": "На наличные",
+        "date": "2026-10-29",
+        "balanceEffect": "normal",
+        "updatedAt": "2026-10-29T07:54:31.492Z"
+      }
+    ],
+    "recurring": [
+      {
+        "name": "ЖКХ",
+        "amount": 200,
+        "currency": "RUB",
+        "accountId": "a",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "monthly",
+        "startDate": "2026-10-29",
+        "dueDay": 29,
+        "variable": false,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "housing",
+        "active": true,
+        "skippedPeriods": []
+      }
+    ],
+    "history": [
+      {
+        "id": "883f3f5c-306a-4c0a-969e-0b84a8ca9deb",
+        "ts": 1793260471492,
+        "type": "add_tx",
+        "after": {
+          "transferId": "move",
+          "type": "expense",
+          "cat": "other",
+          "amount": 5,
+          "currency": "RUB",
+          "note": "Комиссия за перевод · На наличные",
+          "date": "2026-10-29",
+          "tags": [
+            "комиссия"
+          ],
+          "accountId": "a",
+          "balanceEffect": "normal",
+          "id": "207f783d-82e4-4b01-979d-a19fb2084a60",
+          "amountRub": 5,
+          "accountAmount": 5,
+          "revision": 1,
+          "updatedAt": "2026-10-29T07:54:31.492Z"
+        }
+      },
+      {
+        "id": "955c874e-4716-4851-a3e5-e1db2b2fd947",
+        "ts": 1793260471490,
+        "type": "add_tx",
+        "after": {
+          "id": "coffee",
+          "type": "expense",
+          "cat": "food",
+          "amount": 180,
+          "date": "2026-10-28",
+          "accountId": "a",
+          "note": "Кофе",
+          "currency": "RUB",
+          "amountRub": 180,
+          "accountAmount": 180,
+          "revision": 1,
+          "updatedAt": "2026-10-29T07:54:31.490Z"
+        }
+      },
+      {
+        "id": "f1ddf63f-7e09-4d1e-8b76-e182d454d729",
+        "ts": 1793260471488,
+        "type": "add_tx",
+        "after": {
+          "type": "expense",
+          "cat": "other",
+          "amount": 300,
+          "currency": "RUB",
+          "accountId": "a",
+          "date": "2026-10-15",
+          "note": "Проверочный сплит",
+          "installmentPaymentId": "7cf6b85d-0a42-4b06-8e0b-35365e99c500",
+          "tags": [
+            "рассрочка"
+          ],
+          "id": "d1d3f9d3-8574-4801-9995-3dcc6191aa8a",
+          "amountRub": 300,
+          "accountAmount": 300,
+          "revision": 1,
+          "updatedAt": "2026-10-29T07:54:31.487Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "timeZone": "Europe/Moscow",
+      "modules": {
+        "lunch": true,
+        "plans": true,
+        "installments": true
+      },
+      "dailyReport": false,
+      "weeklyReport": false,
+      "monthlyReport": false
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    },
+    "lunchAnswers": {
+      "2026-10-29": {
+        "status": "skipped",
+        "reason": "Не заказал"
+      }
+    },
+    "installments": [
+      {
+        "id": "split",
+        "name": "Проверочный сплит",
+        "obligationKind": "installment",
+        "cadence": "biweekly",
+        "total": 600,
+        "currency": "RUB",
+        "accountId": "a",
+        "cat": "other",
+        "payments": [
+          {
+            "date": "2026-10-15",
+            "amount": 300,
+            "id": "7cf6b85d-0a42-4b06-8e0b-35365e99c500"
+          },
+          {
+            "date": "2026-10-29",
+            "amount": 300,
+            "id": "72495fba-340d-49f9-b076-45f0fceb61c4"
+          }
+        ]
+      }
+    ]
+  }
+}

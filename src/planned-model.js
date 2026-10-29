@@ -1,13 +1,16 @@
+export function billingPeriod(rule,period){if((rule.frequency||'monthly')!=='monthly'||!/^\d{4}-\d{2}$/.test(period||''))return period;const date=new Date(period+'-01T12:00Z');date.setUTCMonth(date.getUTCMonth()+(rule.billingMonthOffset||0));return date.toISOString().slice(0,7);}
 export const planType=r=>r.type||'expense';
 export const planPeriod=(r,date)=>r.frequency==='once'?'once':['daily','weekly'].includes(r.frequency)?date:date.slice(0,7);
 function paymentPeriods(data){
  const rules=new Map(data.recurring.map(r=>[r.id,r])),index=new Map();
- for(const t of data.transactions){const r=rules.get(t.recurringId);if(!r||t.type!==planType(r))continue;let periods=index.get(r.id);if(!periods){periods=new Set();index.set(r.id,periods);}periods.add(t.recurringPeriod||planPeriod(r,t.date));}
+ for(const t of data.transactions){const r=rules.get(t.recurringId);if(!r||t.type!==planType(r))continue;let periods=index.get(r.id);if(!periods){periods=new Map();index.set(r.id,periods);}const key=t.recurringPeriod||planPeriod(r,t.date),state=periods.get(key)||{amount:0,final:false};state.amount+=Math.round(t.amount*100);state.final ||= t.recurringPartial!==true;periods.set(key,state);}
  return index;
 }
-export function plannedPaid(data,r,period,index){
- if(index){const periods=index.get(r.id);return !!periods?.has(period)||(!periods?.size&&r.lastCreated===period);}
- const linked=data.transactions.filter(t=>t.recurringId===r.id&&t.type===planType(r));return linked.some(t=>(t.recurringPeriod||planPeriod(r,t.date))===period)||(!linked.length&&r.lastCreated===period);
+export function plannedRemaining(data,r,period,index=paymentPeriods(data)){
+ const state=index.get(r.id)?.get(period);if(state?.final)return 0;return r.variable?null:Math.max(0,(Math.round(r.amount*100)-(state?.amount||0))/100);
+}
+export function plannedPaid(data,r,period,index=paymentPeriods(data)){
+ const periods=index.get(r.id),state=periods?.get(period);return !!state&&(state.final||!r.variable&&state.amount>=Math.round(r.amount*100))||!periods?.size&&r.lastCreated===period;
 }
 export function validPlannedPeriod(rule,period,checkSchedule=true){
  const frequency=rule.frequency||'monthly';
@@ -28,7 +31,7 @@ export function validatePlannedOverrides(rule){
  for(const [period,date] of Object.entries(dates))if(!validPlannedPeriod(rule,period,false)||typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T12:00:00Z'))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw Error('Неверная дата переноса плана');
 }
 export function validatePlannedLinks(data){
- const rules=new Map((data.recurring||[]).map(r=>[r.id,r])),seen=new Set();
+ const rules=new Map((data.recurring||[]).map(r=>[r.id,r])),seen=new Map();
  for(const r of rules.values()){validatePlannedOverrides(r);if((r.skippedPeriods||[]).some(period=>!validPlannedPeriod(r,period,false)))throw Error('Неверный пропущенный период плана');}
  for(const tx of data.transactions){
   if(!tx.recurringId)continue;
@@ -36,7 +39,12 @@ export function validatePlannedLinks(data){
   const period=tx.recurringPeriod||planPeriod(rule,tx.date);
   // A changed future schedule must not invalidate the already recorded dates.
   if(!validPlannedPeriod(rule,period,false)||tx.type!==planType(rule)||(rule.skippedPeriods||[]).includes(period))throw Error('Неверный или пропущенный период плана');
-  const key=JSON.stringify([rule.id,period]);if(seen.has(key))throw Error('Этот период уже подтверждён. Сначала проверьте существующую оплату');seen.add(key);
+  const key=JSON.stringify([rule.id,period]),prior=seen.get(key)||{final:0,partial:0};
+  if(tx.recurringPartial!==undefined&&typeof tx.recurringPartial!=='boolean')throw Error('Неверная отметка частичного дохода');
+  if(tx.recurringPartial===true&&(tx.type!=='income'||(tx.currency||'RUB')!==(rule.currency||'RUB')))throw Error('Частичное поступление должно быть доходом в валюте плана');
+  if(tx.recurringPartial===true)prior.partial+=Math.round(tx.amount*100);else prior.final++;
+  if(prior.final>1||planType(rule)!=='income'&&seen.has(key))throw Error('Этот период уже подтверждён. Сначала проверьте существующую оплату');
+  if(!rule.variable&&prior.partial>Math.round(rule.amount*100))throw Error('Части дохода превышают ожидаемую сумму. Подтверди новую окончательную сумму отдельно');seen.set(key,prior);
  }
  return data;
 }
@@ -44,7 +52,7 @@ export function plannedOccurrences(data,today,end=today,from=''){
  const items=[],paid=paymentPeriods(data);
  for(const r of data.recurring.filter(r=>r.active)){
   const skipped=new Set(r.skippedPeriods||[]),seen=new Set();
-  const add=originalDate=>{const period=planPeriod(r,originalDate),date=r.dateOverrides?.[period]||originalDate;if(seen.has(period))return;seen.add(period);if(date<=end&&(!from||date>=from)&&!plannedPaid(data,r,period,paid)&&!skipped.has(period))items.push({rule:r,period,date,originalDate,overdue:date<today});};
+  const add=originalDate=>{const period=planPeriod(r,originalDate),date=r.dateOverrides?.[period]||originalDate;if(seen.has(period))return;seen.add(period);if(date<=end&&(!from||date>=from)&&!plannedPaid(data,r,period,paid)&&!skipped.has(period))items.push({rule:r,period,date,originalDate,remaining:plannedRemaining(data,r,period,paid),overdue:date<today});};
   // Moved occurrences can enter the visible range from a later original period.
   for(const period of Object.keys(r.dateOverrides||{}))if(validPlannedPeriod(r,period)){
    const original=r.frequency==='once'?r.startDate:['daily','weekly'].includes(r.frequency)?period:period+'-'+String(Math.min(r.dueDay||Number((r.startDate||today).slice(-2)),new Date(Number(period.slice(0,4)),Number(period.slice(5,7)),0).getDate())).padStart(2,'0');

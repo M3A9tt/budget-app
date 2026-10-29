@@ -23,4 +23,4 @@ export function validateHome(settings){
  if(!layout||typeof layout!=='object'||Array.isArray(layout)||Object.keys(layout).some(k=>!['order','hidden'].includes(k))||!Array.isArray(layout.order)||layout.order.length!==ids.length||new Set(layout.order).size!==ids.length||layout.order.some(id=>!ids.includes(id))||!Array.isArray(layout.hidden)||new Set(layout.hidden).size!==layout.hidden.length||layout.hidden.some(id=>!ids.includes(id)||id==='actions'))throw Error('Неверная настройка главной страницы');
 }
 
-export function initialProfile(defaults){const data=structuredClone(defaults);data.settings.modules=Object.fromEntries(MODULES.map(([id])=>[id,false]));return customizeHome(data,{preset:'simple'});}
+export function initialProfile(defaults){const data=structuredClone(defaults);data.settings.notificationMode='manual';data.settings.modules=Object.fromEntries(MODULES.map(([id])=>[id,false]));return customizeHome(data,{preset:'simple'});}

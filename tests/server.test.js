@@ -12,7 +12,7 @@ test('Authentication storage failures return a safe retryable response',async t=
  const r=await worker.fetch(new Request('https://example.org/api/v1/state',{headers:{Cookie:'__Host-budget_session=secret-session'}}),env);
  assert.equal(r.status,503);assert.equal(r.headers.get('Cache-Control'),'no-store');
  const text=await r.text();assert.ok(!text.includes('PRIVATE_DATABASE_DETAIL'));assert.ok(!text.includes('secret'));
- assert.equal(logs.length,1);assert.deepEqual(JSON.parse(logs[0]),{event:'request_failed',method:'GET',path:'/api/v1/state'});
+ assert.equal(logs.length,1);const log=JSON.parse(logs[0]);assert.equal(log.event,'request_failed');assert.equal(log.method,'GET');assert.equal(log.path,'/api/v1/state');assert.equal(log.reference.length,36);assert.ok(log.durationMs>=0);
 });
 
 test('Invalid webhook and release JSON has a structured client error',async()=>{

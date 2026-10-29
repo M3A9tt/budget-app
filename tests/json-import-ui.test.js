@@ -9,7 +9,7 @@ import TestRenderer,{act} from 'react-test-renderer';
 import {EMPTY} from '../src/mini-model.js';
 
 const require=createRequire(import.meta.url),bundle=buildSync({entryPoints:[fileURLToPath(new URL('../src/JsonImportPanel.jsx',import.meta.url))],bundle:true,write:false,format:'cjs',platform:'node',external:['react']}).outputFiles[0].text;
-const scope={module:{exports:{}},exports:{},require,Intl,Date,crypto,structuredClone,console};scope.exports=scope.module.exports;vm.runInNewContext(bundle,scope);
+const scope={module:{exports:{}},exports:{},require,Intl,Date,TextEncoder,crypto,structuredClone,TextEncoder,console};scope.exports=scope.module.exports;vm.runInNewContext(bundle,scope);
 const Panel=scope.module.exports.default;
 const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.children?text(x.children):'';
 const document=operations=>JSON.stringify({format:'burget-operations',version:1,operations});

@@ -1,0 +1,13 @@
+{
+  "today": "2026-10-29",
+  "fictional": true,
+  "baseline": true,
+  "results": [
+    {
+      "scenario": "draft-reload",
+      "preserved": false,
+      "financialWrites": 0
+    }
+  ],
+  "pageErrors": []
+}
