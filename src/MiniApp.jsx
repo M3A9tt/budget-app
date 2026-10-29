@@ -88,7 +88,7 @@ export default function MiniApp(){
     }catch(e){if(e.uncertain){try{const fresh=await apiRequest('state');fresh.data=migrateData(fresh.data,EMPTY);ref.current=fresh;setState(fresh);if(JSON.stringify(fresh.data)===JSON.stringify(nextData)){notify(message);return true;}}catch{}}setError(e.status===409?'Данные изменились в боте или на другом устройстве. Обновите список и повторите действие.':e.message+(e.reference?' · Код обращения: '+e.reference:''));return false;}
     finally{busyRef.current=false;setBusy(false);}
   }
-  useEffect(()=>{if(!loaded)return;const owner=demo?'demo':state.userId;if(owner&&draftOwner.current!==owner){draftOwner.current=owner;setRecover(loadEntryDraft(owner));}},[loaded,state.userId]);
+  useEffect(()=>{if(!loaded)return;const owner=demo?'demo':state.userId;if(owner&&draftOwner.current!==owner){if(draftOwner.current){savedDraft.current=null;entryAttempt.current=null;setDraft(null);setQuick('');setPage('overview');}draftOwner.current=owner;setRecover(loadEntryDraft(owner));}},[loaded,state.userId]);
   useEffect(()=>{if(loaded&&draftOwner.current&&(draft||savedDraft.current))saveEntryDraft(draftOwner.current,draft||savedDraft.current);},[draft,loaded]);
   const scrollKey=page==='more'?'more:'+tab:page;
   useLayoutEffect(()=>{window.scrollTo({top:scrollPositions.current.get(scrollKey)||0,behavior:'instant'});const record=()=>scrollPositions.current.set(scrollKey,window.scrollY);window.addEventListener('scroll',record,{passive:true});return()=>window.removeEventListener('scroll',record);},[scrollKey]);
