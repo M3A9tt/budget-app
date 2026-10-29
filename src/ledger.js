@@ -31,16 +31,16 @@ const positive = value => {
   return n;
 };
 const newId = () => crypto.randomUUID();
-function rate(data, currency) {
+export function rate(data, currency) {
   if (!currency || currency === 'RUB') return 1;
   const r = data.rates?.[currency];
-  if (!Number.isFinite(r) || r <= 0) throw new Error('Нет курса для ' + currency);
+  if (!Number.isFinite(r) || r <= 0) throw Object.assign(new Error('Нет курса для ' + currency),{code:'MISSING_EXCHANGE_RATE'});
   return r;
 }
 export function historicalRub(tx, fallback) {
   return Number.isFinite(tx.amountRub) ? tx.amountRub : roundMoney(fallback(tx.amount, tx.currency || 'RUB'));
 }
-export const transactionRub = (data,tx) => historicalRub(tx,(amount,currency)=>amount*(data.rates?.[currency]||1));
+export const transactionRub = (data,tx) => historicalRub(tx,(amount,currency)=>amount*rate(data,currency));
 function delta(data, tx) {
   if (tx.balanceEffect === 'history-only' || !tx.accountId || tx.type === 'lunch' || tx.cat === 'lunch') return 0;
   const account = data.accounts.find(a => a.id === tx.accountId);

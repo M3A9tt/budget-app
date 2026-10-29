@@ -2,12 +2,12 @@ import {plannedOccurrences,planType,billingPeriod} from './planned-model.js';
 import {installmentRemaining,installmentRemainders} from './installment-state.js';
 import {debtRemaining} from './debt-state.js';
 import {accountTotals,isSavingAccount} from './account-balances.js';
-import {roundMoney as round} from './ledger.js';
+import {roundMoney as round,rate as exchangeRate} from './ledger.js';
 export const moveDate=(date,days)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
 // One unpaid event list for the dashboard, calendar, projection and reminders.
 // Native amounts remain available for confirmation; RUB amounts are presentation.
 export function scheduledEvents(data,today,end=today,from=''){
- const events=[],index=installmentRemainders(data),rate=currency=>data.rates?.[currency||'RUB']||1;
+ const events=[],index=installmentRemainders(data),rate=currency=>exchangeRate(data,currency);
  const add=e=>{if(e.date>end||from&&e.date<from)return;const currency=e.currency||'RUB';events.push({...e,currency,overdue:e.date<today,amountRub:e.amount===null?null:round(e.amount*rate(currency)),spendable:!isSavingAccount(data.accounts.find(a=>a.id===e.accountId))});};
  for(const {rule:r,date,period,originalDate,remaining} of plannedOccurrences(data,today,end,from))add({id:`plan:${r.id}:${period}`,source:'plan',sourceId:r.id,period,billingPeriod:billingPeriod(r,period),date,originalDate,name:r.name,type:planType(r),amount:r.variable?null:remaining,currency:r.currency,accountId:r.accountId,kind:planType(r)==='income'?'Ожидаемый доход':r.frequency==='once'?'Разовый платёж':'Регулярный платёж'});
  for(const p of data.installments||[])for(const x of p.payments){const amount=installmentRemaining(data,x,index);if(amount>0)add({id:'installment:'+x.id,source:'installment',sourceId:p.id,paymentId:x.id,date:x.date,name:p.name,type:'expense',amount,currency:p.currency,accountId:p.accountId,kind:({loan:'Кредит',mortgage:'Ипотека',split:'Сплит'})[p.obligationKind]||'Рассрочка'});}
