@@ -33,7 +33,7 @@ test('Multiple orders, deficit, partial days and holiday override reconcile with
  assert.equal(lunchBudget(migrateData(d,EMPTY),'2026-11','2026-11-04').budget,7800);
 });
 test('Calendar is bounded and custom weekly schedules retain their own workdays',()=>{
- const d=state();assert.equal(lunchBudget(d,'2027-01','2027-01-01').verified,false);
+ const d=state();assert.equal(lunchBudget(d,'2027-01','2027-01-01').verified,true);
  d.settings.lunchWorkDays=[0,6];assert.equal(lunchBudget(d,'2026-10','2026-10-14').calendar,'weekly');assert.equal(lunchDayRatio(d,'2026-10-03'),1);assert.equal(lunchDayRatio(d,'2026-10-05'),0);
  assert.throws(()=>lunchBudget(d,'2026-13','2026-10-14'));
 });

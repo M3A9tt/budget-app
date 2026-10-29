@@ -1,3 +1,9 @@
+export async function waitTelegramSDK(timeout=6000){
+ const isLaunch=()=>/tgWebApp(Data|Version|Platform)=/.test(location.hash+location.search);
+ if(telegramClient()||!isLaunch())return telegramClient();
+ const start=Date.now();while(Date.now()-start<timeout){await new Promise(resolve=>setTimeout(resolve,50));if(telegramClient())return telegramClient();}
+ const error=new Error('Telegram не загрузился. Проверь соединение и повтори подключение.');error.code='SDK_TIMEOUT';throw error;
+}
 export function telegramClient(){return typeof window!=='undefined'?window.Telegram?.WebApp:null;}
 const pendingState=new Map();
 async function request(path,options,initData){
@@ -9,10 +15,10 @@ async function request(path,options,initData){
    if(signal.aborted)throw cause;
    const error=new Error(response.ok?'Сервер вернул нечитаемый ответ. Обновите данные перед повтором действия.':'Сервер временно недоступен. Попробуйте обновить данные.');error.status=response.status;throw error;
   }
-  if(!response.ok){const error=new Error(typeof result?.error==='string'?result.error:'Не удалось выполнить запрос');error.status=response.status;throw error;}
+  if(!response.ok){const error=new Error(typeof result?.error==='string'?result.error:'Не удалось выполнить запрос');error.status=response.status;error.reference=result.reference;throw error;}
   return result;
  }catch(error){
-  if(controller.signal.aborted)throw new Error('Сервер не ответил за 15 секунд. Проверьте соединение и обновите данные.',{cause:error});
+  if(controller.signal.aborted){const e=new Error('Сервер не ответил за 15 секунд. Проверьте соединение и обновите данные.',{cause:error});e.code='TIMEOUT';throw e;}
   if(error instanceof TypeError&&!error.status)throw new Error('Не удалось связаться с сервером. Проверьте интернет и обновите данные.',{cause:error});
   throw error;
  }finally{clearTimeout(timer);}

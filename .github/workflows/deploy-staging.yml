@@ -21,7 +21,10 @@ concurrency:
   group: budget-staging-deploy
   cancel-in-progress: false
 jobs:
+  verify:
+    uses: ./.github/workflows/checks.yml
   deploy:
+    needs: verify
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -40,6 +43,12 @@ jobs:
         run: node scripts/check-release.mjs
       - run: npm test
       - run: npm run build
+      - name: Install Chromium
+        run: npx --no-install playwright-core install --with-deps chromium
+      - name: Verify financial UI before deploy
+        run: npm run test:browser
+      - name: Verify new reliability scenarios
+        run: npm run test:reliability
       - name: Configure existing staging Worker
         env:
           STAGING_FRIEND_IDS: ${{ vars.TELEGRAM_ALLOWED_IDS }}

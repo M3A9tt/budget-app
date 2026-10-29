@@ -1,5 +1,6 @@
 name: Budget checks
 on:
+  workflow_call:
   pull_request:
   push:
     branches: ["main", "codex/**"]
@@ -19,6 +20,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Production dependency audit
+        run: npm audit --omit=dev
       - run: npm test
       - run: npm run build
       - run: npm run worker:check
@@ -30,6 +33,9 @@ jobs:
         run: npm run test:browser
         env:
           BROWSER_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa
+      - name: Check reliability scenarios in Chromium
+        if: runner.os == 'Linux'
+        run: npm run test:reliability
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4

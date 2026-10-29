@@ -1,3 +1,4 @@
+import {assertProfileCapacity} from './profile-capacity.js';
 import {importIdentity} from './import-identity.js';
 import {cashTimeline} from './finance-events.js';
 import {installmentRemaining,paidInstallment,installmentRemainders} from './installment-state.js';
@@ -7,7 +8,8 @@ const id=()=>crypto.randomUUID();
 export function validDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;}
 const positive=v=>{const n=parseMoney(v);if(!Number.isFinite(n)||n<=0)throw Error('Нужна положительная сумма');return n;};
 export function reconcileAccount(data,{accountId,balance,date,note=''}){
- if(date>new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date()))throw Error('Сверка — фактический остаток, выбери сегодняшнюю или прошлую дату');
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date());
+ if(date!==today)throw Error('Сверка уточняет остаток сейчас. Выбери сегодняшнюю дату; прошлый снимок нельзя присваивать текущему счёту.');
  const a=data.accounts.find(a=>a.id===accountId),actual=parseMoney(balance);if(!a||!Number.isFinite(actual)||!validDate(date))throw Error('Проверьте счёт, остаток и дату');
  return {...data,accounts:data.accounts.map(x=>x.id===a.id?{...x,balance:actual,reconciledAt:date}:x),reconciliations:[...(data.reconciliations||[]),{id:id(),accountId,before:a.balance,after:actual,difference:roundMoney(actual-a.balance),date,note,createdAt:new Date().toISOString()}]};
 }
@@ -50,10 +52,10 @@ export function createInstallment(data,{id:planId=id(),name,total,count,firstDat
  const amount=positive(total),payments=installmentSchedule({total:amount,count,firstDate,cadence}).map(p=>({...p,id:id()}));
  return {...data,installments:[...(data.installments||[]),{id:planId,name:name.trim(),obligationKind,cadence,total:amount,currency:account.currency||'RUB',accountId,cat,payments}]};
 }
-export function payInstallment(data,{planId,paymentId,date}){
+export function payInstallment(data,{planId,paymentId,date,amount,accountId}){
  const plan=(data.installments||[]).find(p=>p.id===planId),payment=plan?.payments.find(p=>p.id===paymentId);
  if(!payment||paidInstallment(data,payment))throw Error('Платёж отсутствует или уже проведён');
- return putTransaction(data,{type:'expense',cat:plan.cat,amount:installmentRemaining(data,payment),currency:plan.currency,accountId:plan.accountId,date,note:plan.name,installmentPaymentId:payment.id,tags:['рассрочка']});
+ return putTransaction(data,{type:'expense',cat:plan.cat,amount:amount===undefined?installmentRemaining(data,payment):positive(amount),currency:plan.currency,accountId:accountId||plan.accountId,date,note:plan.name,installmentPaymentId:payment.id,tags:['рассрочка']});
 }
 export function forecast(data,today,days=30){
  if(!Number.isInteger(days)||days<1||days>366)throw Error('Прогноз — от 1 до 366 дней');
@@ -91,12 +93,12 @@ export function previewImport(data,text,accountId){
 export function commitImport(data,rows,{affectBalances=false}={}){
  if(rows.some(r=>r.error))throw Error('Исправьте ошибки выписки до импорта');
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date());
- if(affectBalances&&rows.some(r=>(!r.duplicate||r.force)&&(r.transfer||r.transaction)?.date>today))throw Error('Будущие операции оставьте планами; они не должны менять текущие остатки');
+ if(rows.some(r=>(!r.duplicate||r.force)&&(r.transfer||r.transaction)?.date>today))throw Error('Будущие операции оформите как планы, а не банковскую историю');
  let next=data;const identity=importIdentity(data);
  for(const row of rows.filter(r=>!r.duplicate||r.force&&!r.referenceDuplicate)){
   const fields=row.transfer||row.transaction,status=row.transfer?identity.transfer(fields):identity.transaction(fields);
   if(status.referenceDuplicate||status.duplicate&&!row.force)continue;
   next=row.transfer?transferMoney(next,{...fields,balanceEffect:affectBalances?'normal':'history-only'}):putTransaction(next,{...fields,balanceEffect:affectBalances?'normal':'history-only'});
  }
- return next;
+ return assertProfileCapacity(next);
 }

@@ -40,7 +40,7 @@ test('Expected income has its own entry and can be drafted with an unknown amoun
  const menu=mount('PaymentsPage',{data,cats:CATEGORIES});click(menu,b=>b.props.className==='payments-income-entry');assert.ok(text(menu.toJSON()).includes('Здесь деньги, которые ещё должны прийти'));menu.unmount();
  const v=mount('PlannedForm',{data,cats:CATEGORIES,incomeOnly:true,initial:{frequency:'once'},save:async values=>{saved=values;return true;}});
  act(()=>v.root.findByProps({name:'name'}).props.onChange({target:{value:'Отпускные'}}));act(()=>v.root.findByProps({name:'accountId'}).props.onChange({target:{value:'large'}}));
- act(()=>v.root.findByProps({type:'checkbox'}).props.onChange({target:{checked:true}}));assert.equal(v.root.findAllByProps({name:'amount'}).length,0);assert.equal(v.root.findAllByProps({name:'type'}).length,0);
+ act(()=>v.root.findByProps({name:'variable'}).props.onChange({target:{checked:true}}));assert.equal(v.root.findAllByProps({name:'amount'}).length,0);assert.equal(v.root.findAllByProps({name:'type'}).length,0);
  await act(async()=>v.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.equal(saved.type,'income');assert.equal(saved.variable,true);assert.equal(saved.name,'Отпускные');assert.deepEqual(data,before);v.unmount();
 });
 test('Calendar month navigation preserves scenario state, exposes actual records and never invents a past balance',()=>{

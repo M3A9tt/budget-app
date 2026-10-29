@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-29",
+  "baseline": "de7a07076471ec3ed1d02092b1a37bfb12fc917f",
+  "release": "4.7.0",
+  "runtimeSourceSHA256": "20a89d38c16a3c42e233cd2ca7407ed56033096e91cf218fbeb6e8bdceb771ac",
+  "tests": {
+    "total": 482,
+    "pass": 482,
+    "fail": 0
+  },
+  "appBuild": "passed",
+  "workerBundle": "passed",
+  "releaseGuard": "passed",
+  "fullFinancialChromium": "passed",
+  "newReliabilityChromium": "passed",
+  "baselineChromium": "passed",
+  "npmAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "productionAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "fictionalDataOnly": true,
+  "productionFinancialWrites": false,
+  "physicalPhonesTested": false,
+  "storageMigrationExecuted": false
+}

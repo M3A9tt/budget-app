@@ -1,3 +1,5 @@
+import {prepareEvent} from './event-actions.js';
+import {scheduledEvents,moveDate} from './finance-events.js';
 import {isSavingAccount} from './account-balances.js';
 export const sortedEntries=transactions=>[...transactions].sort((a,b)=>b.date.localeCompare(a.date)||(b.updatedAt||b.id||'').localeCompare(a.updatedAt||a.id||''));
 export function entryDefaults(data,type,today,categories){
@@ -7,6 +9,12 @@ export function entryDefaults(data,type,today,categories){
  return {type,cat:type==='lunch'?'lunch':type==='income'?'income':validCat(prior?.cat)?prior.cat:'food',amount:'',note:'',currency:type==='lunch'?'RUB':account?.currency||'RUB',date:today,accountId:type==='lunch'?undefined:account?.id||'',paymentMethod:type==='lunch'?'unknown':prior?.paymentMethod||'unknown',tags:[]};
 }
 export function repeatEntry(data,tx,today,categories){
+ if(tx.installmentPaymentId||tx.recurringId){
+  const plan=(data.installments||[]).find(p=>p.payments.some(x=>x.id===tx.installmentPaymentId));
+  const next=scheduledEvents(data,today,moveDate(today,3660)).find(e=>tx.recurringId?e.source==='plan'&&e.sourceId===tx.recurringId:e.source==='installment'&&e.sourceId===plan?.id);
+  if(!next)throw Error('Неоплаченных платежей нет. Открой график, чтобы проверить историю.');
+  return prepareEvent(data,next,today);
+ }
  const validCat=categories.some(c=>c.id===tx.cat),account=data.accounts.find(a=>a.id===tx.accountId);
  return {...(tx.debtId?{debtId:tx.debtId}:{}),type:tx.type,cat:tx.type==='lunch'?'lunch':tx.type==='income'?'income':validCat?tx.cat:'other',amount:String(tx.amount),note:tx.note||'',currency:tx.currency||'RUB',date:today,accountId:tx.type==='lunch'?undefined:account?.id||'',paymentMethod:tx.paymentMethod||'unknown',tags:[]};
 }

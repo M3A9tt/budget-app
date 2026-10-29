@@ -5,6 +5,7 @@ export const REMINDER_TEXTS={
  rough:['Так, бля, деньги сами себя не посчитают. Всё за день записал?','Хватит делать вид, что кофе был бесплатным. Занеси расходы 😏','Будущий ты охренеет от пустой истории. Выручи его: запиши сегодняшний день.']
 };
 export function validateReminderSettings(s){
+ if(s.notificationMode!==undefined&&!['manual','digest','legacy'].includes(s.notificationMode))throw Error('Выбери режим уведомлений');
  const int=(key,min,max)=>{if(s[key]!==undefined&&(!Number.isInteger(s[key])||s[key]<min||s[key]>max))throw Error('Проверьте время и число повторов');};
  for(const key of ['reportHour','checkHour','lunchAskHour','plannedReminderHour'])int(key,0,23);
  for(const key of ['report','check','lunchAsk','plannedReminder'])if(s[key+'Time']!==undefined)timeMinutes(s[key+'Time']);

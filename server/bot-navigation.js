@@ -1,6 +1,6 @@
 import {moduleEnabled} from '../src/modules.js';
-export const BOT_BUTTONS={home:'💰 Бюджет',add:'✍️ Записать',history:'🕘 История',payments:'📅 Платежи',lunch:'🍽 Обеды',more:'🧩 Ещё',app:'📱 Миниаппа',summary:'📊 Сводки',reminders:'🔔 Напоминания'};
-export function botKeyboard(appUrl,data){return {keyboard:[[BOT_BUTTONS.home,BOT_BUTTONS.add,BOT_BUTTONS.history],[BOT_BUTTONS.payments,data&&!moduleEnabled(data,'lunch')?'💳 Счета':BOT_BUTTONS.lunch,BOT_BUTTONS.more]].map(row=>row.map(text=>({text}))),resize_keyboard:true,is_persistent:false,one_time_keyboard:false,input_field_placeholder:'Кофе 180 или выбери действие'};}
+export const BOT_BUTTONS={attention:'📌 Что требует внимания',home:'💰 Бюджет',add:'✍️ Записать',history:'🕘 История',payments:'📅 Платежи',lunch:'🍽 Обеды',more:'🧩 Ещё',app:'📱 Миниаппа',summary:'📊 Сводки',reminders:'🔔 Напоминания'};
+export function botKeyboard(appUrl,data){return {keyboard:[[BOT_BUTTONS.home,BOT_BUTTONS.add,BOT_BUTTONS.attention],[BOT_BUTTONS.payments,data&&!moduleEnabled(data,'lunch')?'💳 Счета':BOT_BUTTONS.lunch,BOT_BUTTONS.more]].map(row=>row.map(text=>({text}))),resize_keyboard:true,is_persistent:false,one_time_keyboard:false,input_field_placeholder:'Кофе 180 или выбери действие'};}
 export function miniAppButton(appUrl,text=BOT_BUTTONS.app){
  if(!appUrl)return null;
  const url=new URL(appUrl);if(url.protocol!=='https:'||url.username||url.password)throw Error('Для миниаппы нужен HTTPS-адрес без учётных данных');
@@ -21,9 +21,9 @@ export function buttonRows(buttons,{columns=2,labelLimit=22,rowLimit=38,fullWidt
  }
  return rows;
 }
-export function navigationCommand(text){return ({['💳 Счета']:'/accounts',[BOT_BUTTONS.home]:'/budget',[BOT_BUTTONS.add]:'/add',[BOT_BUTTONS.history]:'/history',[BOT_BUTTONS.payments]:'/payments',[BOT_BUTTONS.more]:'/more',[BOT_BUTTONS.app]:'/app',['💼 Открыть Бюрджет']:'/app',[BOT_BUTTONS.summary]:'/summary',[BOT_BUTTONS.lunch]:'/lunch',[BOT_BUTTONS.reminders]:'/reminders'})[text]||text;}
+export function navigationCommand(text){return ({[BOT_BUTTONS.attention]:'/attention',['💳 Счета']:'/accounts',[BOT_BUTTONS.home]:'/budget',[BOT_BUTTONS.add]:'/add',[BOT_BUTTONS.history]:'/history',[BOT_BUTTONS.payments]:'/payments',[BOT_BUTTONS.more]:'/more',[BOT_BUTTONS.app]:'/app',['💼 Открыть Бюрджет']:'/app',[BOT_BUTTONS.summary]:'/summary',[BOT_BUTTONS.lunch]:'/lunch',[BOT_BUTTONS.reminders]:'/reminders'})[text]||text;}
 export function summariesMenu(){return {inline_keyboard:[[{text:'☀️ Сегодня',callback_data:'nav:day'},{text:'📅 Неделя',callback_data:'nav:week'},{text:'🗓 Месяц',callback_data:'nav:month'}],[{text:'Ещё · тесты, обновления, помощь',callback_data:'nav:more'}]]};}
 export function extraMenu(appUrl){return {inline_keyboard:buttonRows([miniAppButton(appUrl),{text:'🧪 Тесты',callback_data:'b:v:tests'},{text:'✨ Что нового',callback_data:'b:v:updates'},{text:'❓ Помощь',callback_data:'b:v:help'},{text:'⌂ Главное меню',callback_data:'b:v:home'}].filter(Boolean))};}
 export const botHelp='Твой Бюрджет\n\nКнопки внизу: бюджет, запись, история, платежи, обеды и все разделы.\nПокупку можно написать одной строкой: кофе 180 Сбер.\nБот покажет карточку — запись после подтверждения.\n\nТесты: «Ещё → Настройки». Обновления: «Ещё → Что нового». Клавиатуру можно свернуть значком возле поля ввода.';
 
-export const BOT_SECTIONS={'/budget':'home','/accounts':'accounts','/savings':'savings','/goals':'goals','/history':'history','/payments':'payments','/plans':'plans','/debts':'debts','/lunch':'lunch','/settings':'settings','/reminders':'reminders','/analytics':'analytics','/backup':'backup','/tests':'tests','/more':'more','/help':'help','/updates':'updates'};
+export const BOT_SECTIONS={'/attention':'attention','/budget':'home','/accounts':'accounts','/savings':'savings','/goals':'goals','/history':'history','/payments':'payments','/plans':'plans','/debts':'debts','/lunch':'lunch','/settings':'settings','/reminders':'reminders','/analytics':'analytics','/backup':'backup','/tests':'tests','/more':'more','/help':'help','/updates':'updates'};

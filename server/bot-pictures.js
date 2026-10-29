@@ -8,6 +8,7 @@ export const pictureErrorCode=error=>/лимит/i.test(error?.message||'')?'quo
 export async function ensurePictures(env){
  if(ready.has(env.DB))return;
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_pictures(user_id TEXT NOT NULL,cache_key TEXT NOT NULL,png BLOB NOT NULL,file_id TEXT,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(user_id,cache_key))').run();
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_user_limits(user_id TEXT NOT NULL,day TEXT NOT NULL,used INTEGER NOT NULL,PRIMARY KEY(user_id,day))').run();
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_limits(day TEXT PRIMARY KEY,used INTEGER NOT NULL)').run();
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_lock(id INTEGER PRIMARY KEY,lease_until INTEGER NOT NULL)').run();ready.add(env.DB);
 }
@@ -54,8 +55,12 @@ async function renderQueued(env,userId,state,params,key,capture){
   await new Promise(resolve=>setTimeout(resolve,Math.min(500,wait)));
  }
  try{
+  const renderDay=new Date().toISOString().slice(0,10),userLimit=Math.max(1,Math.min(100,Number(env.PICTURE_USER_DAILY_LIMIT)||6));
+  const own=await env.DB.prepare('SELECT used FROM bot_picture_user_limits WHERE user_id=? AND day=?').bind(String(userId),renderDay).first();if((own?.used||0)>=userLimit)throw Error('Твой дневной лимит картинок; текст доступен без ограничений');
   const limit=Math.min(100,Math.max(1,Number(env.PICTURE_DAILY_LIMIT)||24));
   const permit=await env.DB.prepare('INSERT INTO bot_picture_limits(day,used) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET used=used+1 WHERE used<? RETURNING used').bind(new Date().toISOString().slice(0,10),limit).first();if(!permit)throw Error('Дневной лимит картинок');
+  await env.DB.prepare('INSERT INTO bot_picture_user_limits(user_id,day,used) VALUES(?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET used=used+1').bind(String(userId),renderDay).run();
+  await env.DB.prepare('DELETE FROM bot_picture_user_limits WHERE day<?').bind(new Date(Date.now()-7*86400000).toISOString().slice(0,10)).run();
   await env.DB.prepare('DELETE FROM bot_picture_limits WHERE day<?').bind(new Date(Date.now()-7*86400000).toISOString().slice(0,10)).run();
   const bytes=await capture(env,state.data,params);pngInfo(bytes);const now=Date.now();
   await env.DB.prepare('INSERT OR REPLACE INTO bot_pictures(user_id,cache_key,png,file_id,created_at,expires_at) VALUES(?,?,?,NULL,?,?)').bind(String(userId),key,bytes.buffer,now,now+TTL).run();

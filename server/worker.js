@@ -1,3 +1,4 @@
+import {financialCommand} from './financial-command.js';
 import {periodSummary} from './period-summary.js';
 import {createBackupDownload,backupFile} from './backup-download.js';
 export {periodSummary} from './period-summary.js';
@@ -78,7 +79,7 @@ async function telegram(env,method,body) {
   if(!env.TELEGRAM_BOT_TOKEN)throw new Error('Telegram не настроен');
   if(['sendMessage','editMessageText'].includes(method)&&typeof body.text==='string'&&!body.parse_mode&&!body.entities)body={...body,...telegramPresentation(body.text)};
   const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
-  const result=await r.json();if(method==='editMessageText'&&result.description?.includes('message is not modified'))return null;if(!r.ok||!result.ok)throw new Error('Не удалось доставить сообщение Telegram');return result.result;
+  const result=await r.json();if(method==='editMessageText'&&result.description?.includes('message is not modified'))return null;if(!r.ok||!result.ok){const e=new Error('Не удалось доставить сообщение Telegram');e.telegramCode=result.error_code||r.status;e.retryAfter=result.parameters?.retry_after;e.definitelyNotSent=[400,403,429].includes(e.telegramCode);throw e;}return result.result;
 }
 async function mutateState(env,userId,change){
  const state=await readState(env,userId),next=migrateData(change(structuredClone(state.data)),EMPTY);
@@ -185,7 +186,7 @@ async function handleTelegram(update,env) {
 }
 export default {
   async fetch(request,env) {
-    const url=new URL(request.url);
+    const url=new URL(request.url),requestStarted=Date.now();
     try {
     if(url.pathname==='/api/v1/backup/file')return await backupFile(request,env);
     if(url.pathname==='/api/v1/releases/check-picture'){
@@ -215,6 +216,11 @@ export default {
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
       if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId),text=await readRequestText(request,16000);return json(await collectTelemetry(env,userId,parseJsonObject(text),current.data.settings.telemetryEnabled!==false));}
       if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await readJsonObject(request),telegram,periodSummary));}
+      if(request.method==='POST'&&url.pathname==='/api/v1/commands')return json(await financialCommand(env,userId,await readJsonObject(request),request.headers.get('Idempotency-Key'),readState));
+      if(url.pathname==='/api/v1/security/sessions'){
+       if(request.method==='GET'){const rows=(await env.DB.prepare('SELECT hash,expires_at FROM user_web_sessions WHERE user_id=? AND expires_at>? ORDER BY expires_at DESC LIMIT 50').bind(userId,Date.now()).all()).results;return json({sessions:rows.map(s=>({id:s.hash,expiresAt:s.expires_at}))});}
+       if(request.method==='POST'){const input=await readJsonObject(request);if(input.all===true){await env.DB.prepare('DELETE FROM user_web_sessions WHERE user_id=?').bind(userId).run();return json({ok:true});}if(typeof input.id!=='string'||!/^[a-f0-9]{64}$/.test(input.id))throw new RequestError('Неверный сеанс');await env.DB.prepare('DELETE FROM user_web_sessions WHERE user_id=? AND hash=?').bind(userId,input.id).run();return json({ok:true});}
+      }
       if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await readJsonObject(request),telegram));
       if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
       if(request.method==='POST'&&url.pathname==='/api/v1/backup/download')return json(await createBackupDownload(env,userId,await readState(env,userId),await readJsonObject(request),url.origin));
@@ -237,21 +243,21 @@ export default {
           trimBackups(env,userId)
         ]);
         if(rows[1].meta.changes!==1)return await stored()||json({error:'Revision conflict'},409);
-        return json(result);
+        console.info(JSON.stringify({event:'state_saved',version:latestRelease.version,durationMs:Date.now()-requestStarted,path:url.pathname}));return json(result);
       }
       if(request.method==='POST'&&url.pathname==='/api/v1/transactions')return json(await writeTransaction(env,userId,await readJsonObject(request),request.headers.get('Idempotency-Key')),201);
       if(request.method==='GET'&&url.pathname==='/api/v1/summary') {
         const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date;
         const from=url.searchParams.get('from')||today,to=url.searchParams.get('to')||today;
-        if(!validDate(from)||!validDate(to)||from>to)throw new RequestError('Проверьте начало и конец периода');
+        if(!validDate(from)||!validDate(to)||from>to||(Date.parse(to)-Date.parse(from))/86400000>366)throw new RequestError('Проверьте начало и конец периода');
         return json({text:periodSummary(state.data,from,to,'Расходы')});
       }
       return json({error:'Not found'},404);
     }catch(error){
       if(error instanceof RequestError)return json({error:error.message},error.status);
       // Log route metadata only: database errors can contain financial data.
-      console.error(JSON.stringify({event:'request_failed',method:request.method,path:url.pathname}));
-      return json({error:'Сервер временно недоступен. Повтори запрос; операцию — с тем же ключом.'},503);
+      const reference=crypto.randomUUID();console.error(JSON.stringify({event:'request_failed',version:latestRelease.version,reference,method:request.method,path:url.pathname,durationMs:Date.now()-requestStarted}));
+      return json({error:'Сервер временно недоступен. Повтори запрос; операцию — с тем же ключом.',reference},503);
     }
   },
   async scheduled(event,env,ctx) {
@@ -260,15 +266,26 @@ export default {
       const now=new Date(event.scheduledTime);
       if(now.getUTCMinutes()===0&&await hasAccess(env,env.TELEGRAM_OWNER_ID))await readState(env,String(env.TELEGRAM_OWNER_ID));
       if(now.getUTCMinutes()===0&&env.RELEASE_ANNOUNCEMENTS==='on')await broadcastRelease(env,telegram);
-      const allowed=await allAllowedUsers(env),profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state').all();
+      const allowed=await allAllowedUsers(env);
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS notification_schedule_state(user_id TEXT PRIMARY KEY,last_checked INTEGER NOT NULL)').run();
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS notification_scan_cursor(id INTEGER PRIMARY KEY,last_user TEXT NOT NULL)').run();
+      const cursor=await env.DB.prepare('SELECT last_user FROM notification_scan_cursor WHERE id=1').first();
+      let profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state WHERE user_id>? ORDER BY user_id LIMIT 25').bind(cursor?.last_user||'').all();
+      if(!profiles.results.length)profiles=await env.DB.prepare('SELECT user_id,revision,data FROM user_finance_state ORDER BY user_id LIMIT 25').all();
       for(const profile of profiles.results){
         const userId=profile.user_id;if(!allowed.includes(String(userId))||profile.revision===0)continue;
         try{
-        const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=await notificationChecks(env,userId,day),reports=notificationJobs(data,now,responses,{catchUp:true});
+        const schedule=await env.DB.prepare('SELECT last_checked FROM notification_schedule_state WHERE user_id=?').bind(userId).first();
+        const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=await notificationChecks(env,userId,day),reports=notificationJobs(data,now,responses,{catchUp:true,lastRun:schedule?.last_checked});
         await deliverNotifications(env,userId,day,data,reports,responses,telegram,periodSummary,setDayCheck,{now:now.getTime()});
-        }catch{console.error('Notification processing failed for profile',userId);}
+        await env.DB.prepare('INSERT INTO notification_schedule_state(user_id,last_checked) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET last_checked=MAX(last_checked,excluded.last_checked)').bind(userId,now.getTime()).run();
+        }catch{console.error(JSON.stringify({event:'notification_processing_failed'}));}
       }
+      if(profiles.results.length)await env.DB.prepare('INSERT INTO notification_scan_cursor(id,last_user) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET last_user=excluded.last_user').bind(profiles.results.at(-1).user_id).run();
       if(now.getUTCMinutes()===0){
+      await env.DB.prepare('DELETE FROM user_reports_sent WHERE created_at<?').bind(Date.now()-90*86400000).run();
+      await env.DB.prepare('DELETE FROM user_day_checks WHERE day<?').bind(new Date(Date.now()-30*86400000).toISOString().slice(0,10)).run();
+      await env.DB.prepare('DELETE FROM user_feedback WHERE delivered=1 AND created_at<?').bind(Date.now()-90*86400000).run();
       await pruneTelemetry(env,now);
       await pruneLearning(env);
       await pruneLunchChat(env);
