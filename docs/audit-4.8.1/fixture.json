@@ -1,0 +1,69 @@
+{
+  "today": "2026-10-29",
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "fee",
+        "transferId": "move",
+        "type": "expense",
+        "cat": "other",
+        "amount": 5,
+        "amountRub": 5,
+        "currency": "RUB",
+        "accountId": "a",
+        "date": "2026-10-29",
+        "note": "Комиссия"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "a",
+        "name": "Карта",
+        "currency": "RUB",
+        "balance": 895
+      },
+      {
+        "id": "b",
+        "name": "Наличные",
+        "currency": "RUB",
+        "balance": 100
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [
+      {
+        "id": "move",
+        "from": "a",
+        "to": "b",
+        "amount": 100,
+        "fee": 5,
+        "date": "2026-10-29",
+        "currency": "RUB"
+      }
+    ],
+    "recurring": [],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": ""
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}
