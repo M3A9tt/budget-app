@@ -1,4 +1,5 @@
 import {accountMentions} from '../src/input-intent.js';
+import {operationsReport,operationsLines} from './operations.js';
 import {load,create,replace,pendingForm} from './bot-drafts.js';
 import {moduleEnabled} from '../src/modules.js';
 import {parseEntry,parseOwnTransfer,entryType} from '../src/quick-entry.js';
@@ -81,6 +82,7 @@ export async function showBotView(env,userId,api,name='home',args={}){
 async function showBotViewUnlocked(env,userId,api,name='home',args={}){
  const s=await api.readState(env,userId);try{const screen=({home:'overview',allocation:'overview',add:'add',accounts:'accounts',account:'accounts',savings:'savings',movements:'accounts',movement:'accounts',history:'history',transaction:'history',activity:'history',goals:'goals',goal:'goals',wishes:'goals',wish:'goals',payments:'payments',plans:'payments',due:'payments',dueItem:'payments',installments:'payments',installment:'payments',schedule:'payments',debts:'payments',debt:'payments',debtHistory:'payments',lunch:'lunch',lunchDays:'lunch',lunchMonths:'lunch',analytics:'stats',limits:'stats',updates:'updates'})[name]||'settings';await collectTelemetry(env,userId,{id:crypto.randomUUID(),events:[{event:'page_view',screen,device:'bot'}]},s.data.settings.telemetryEnabled!==false);}catch{}
  if(name==='attention'){const {notificationChecks}=await import('./habits.js');args={...args,responses:await notificationChecks(env,userId,todayMoscow(s.data.settings.timeZone))};}
+ if(name==='operations'){if(!s.isOwner)throw Error('Только владелец');return render(env,userId,api,{title:'Состояние сервиса',lines:operationsLines(await operationsReport(env)),actions:[view('Обновить','operations'),view('← Владелец','admin')]});}
  if(name==='backups'){const page=Math.max(0,Number(args.page)||0),rows=(await env.DB.prepare('SELECT revision,created_at FROM user_state_backups WHERE user_id=? ORDER BY revision DESC LIMIT 50').bind(userId).all()).results;return render(env,userId,api,{title:'Серверные резервные копии',lines:['Восстановление только после проверки.'],actions:[...rows.slice(page*8,page*8+8).map(r=>({label:`${r.created_at} · версия ${r.revision}`,special:'backup',args:{revision:r.revision}})),...(page>0?[view('← Копии','backups',{page:page-1})]:[]),...((page+1)*8<rows.length?[view('Копии →','backups',{page:page+1})]:[]),view('Меню копий','backup')]});}
  const screen=botView(s.data,name,args,s.isOwner);screen.origin={name,args};if(name==='transaction'&&args.backTo)screen.actions=screen.actions.map(r=>r.view==='history'?{...r,args:args.backTo.args}:r);
  if(screen.picture&&(env.BROWSER||api.capturePicture)){

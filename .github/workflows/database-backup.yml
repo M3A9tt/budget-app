@@ -1,0 +1,52 @@
+name: Independent database backup
+on:
+  workflow_call:
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+  workflow_dispatch:
+  schedule:
+    # 03:17 Moscow, away from normal payment activity. GitHub can delay schedules.
+    - cron: '17 0 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: budget-independent-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Configure existing database for read-only export
+        run: >-
+          node scripts/configure-staging.mjs
+          --owner 800154021
+          --database caeac098-77f3-4549-b5bd-cffb94cc0531
+          --url https://budget-staging.apersunov5.workers.dev
+      - name: Export, verify local recovery, and encrypt
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a3a43b37c767374a248624f195d0b90c
+        run: node scripts/create-db-backup.mjs "${{ runner.temp }}/burget-encrypted-backup"
+      - name: Store independent encrypted copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/burget-encrypted-backup/database.burget.enc
+            ${{ runner.temp }}/burget-encrypted-backup/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Record backup receipt
+        run: >-
+          node scripts/record-backup-receipt.mjs
+          "${{ runner.temp }}/burget-encrypted-backup/manifest.json"

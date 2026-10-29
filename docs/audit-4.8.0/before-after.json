@@ -1,0 +1,62 @@
+{
+  "baseline": "7e2905ddd5458fb5dbac1b117b1f0700f4daa35e",
+  "fixture": "isolated SQLite, fictional 1000 RUB, no transactions",
+  "scenarios": {
+    "manual": {
+      "before": {
+        "sendAttempts": 1,
+        "accepted": 1,
+        "delivery": "finalized",
+        "financialStateUnchanged": true
+      },
+      "after": {
+        "sendAttempts": 0,
+        "accepted": 0,
+        "delivery": "finalized",
+        "financialStateUnchanged": true
+      }
+    },
+    "forbidden": {
+      "before": {
+        "sendAttempts": 2,
+        "accepted": 0,
+        "delivery": "queued",
+        "financialStateUnchanged": true
+      },
+      "after": {
+        "sendAttempts": 1,
+        "accepted": 0,
+        "delivery": "blocked",
+        "financialStateUnchanged": true
+      }
+    },
+    "crash": {
+      "before": {
+        "sendAttempts": 1,
+        "accepted": 1,
+        "delivery": "finalized",
+        "financialStateUnchanged": true
+      },
+      "after": {
+        "sendAttempts": 0,
+        "accepted": 0,
+        "delivery": "uncertain",
+        "financialStateUnchanged": true
+      }
+    },
+    "receipt": {
+      "before": {
+        "sendAttempts": 2,
+        "accepted": 2,
+        "delivery": "finalized",
+        "financialStateUnchanged": true
+      },
+      "after": {
+        "sendAttempts": 1,
+        "accepted": 1,
+        "delivery": "finalized",
+        "financialStateUnchanged": true
+      }
+    }
+  }
+}

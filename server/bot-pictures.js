@@ -1,6 +1,7 @@
 import {isSavings} from '../src/savings.js';
 import {todayMoscow} from '../src/mini-model.js';
 import {latestRelease} from '../src/release-notes.js';
+import {recordOperation} from './operations.js';
 export const PICTURE_ERROR='Картинку пока не удалось подготовить. Данные доступны в разделе и миниаппе. Попробуй немного позже.';
 const TTL=8*60*60*1000,MAX_BYTES=1_800_000;
 const ready=new WeakSet(),flights=new WeakMap();
@@ -10,7 +11,10 @@ export async function ensurePictures(env){
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_pictures(user_id TEXT NOT NULL,cache_key TEXT NOT NULL,png BLOB NOT NULL,file_id TEXT,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(user_id,cache_key))').run();
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_user_limits(user_id TEXT NOT NULL,day TEXT NOT NULL,used INTEGER NOT NULL,PRIMARY KEY(user_id,day))').run();
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_limits(day TEXT PRIMARY KEY,used INTEGER NOT NULL)').run();
- await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_lock(id INTEGER PRIMARY KEY,lease_until INTEGER NOT NULL)').run();ready.add(env.DB);
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_lock(id INTEGER PRIMARY KEY,lease_until INTEGER NOT NULL)').run();
+ await env.DB.prepare("CREATE TABLE IF NOT EXISTS bot_picture_queue(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,cache_key TEXT NOT NULL,priority INTEGER NOT NULL,queued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'queued',UNIQUE(user_id,cache_key))").run();
+ await env.DB.prepare('CREATE INDEX IF NOT EXISTS bot_picture_queue_expiry ON bot_picture_queue(expires_at)').run();
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_picture_turns(user_id TEXT PRIMARY KEY,last_started INTEGER NOT NULL)').run();ready.add(env.DB);
 }
 export function pictureParams(input={},data){
  const kind=['budget','analytics','categories','forecast','lunch','savings','summary'].includes(input.kind)?input.kind:null;if(!kind)throw Error('Неизвестная картинка');
@@ -44,17 +48,27 @@ function pictureData(data,params){
  return {accounts:data.accounts,transactions:data.transactions,recurring:data.recurring,installments:data.installments,debts:data.debts,rates:data.rates,settings:{...settings,nextIncomeDate:data.settings.nextIncomeDate}};
 }
 async function cachedPicture(env,userId,key,params){const row=await env.DB.prepare('SELECT * FROM bot_pictures WHERE user_id=? AND cache_key=? AND expires_at>?').bind(String(userId),key,Date.now()).first();return row?{...row,params,bytes:new Uint8Array(row.png)}:null;}
-async function renderQueued(env,userId,state,params,key,capture){
- const started=Date.now(),wait=Math.min(8000,Math.max(0,Number(env.PICTURE_QUEUE_MS??3500)||0));let lease=0;
+async function renderQueued(env,userId,state,params,key,capture,priority){
+ const started=Date.now(),wait=Math.min(8000,Math.max(0,Number(env.PICTURE_QUEUE_MS??3500)||0)),job=crypto.randomUUID();let lease=0,claimed=false;
+ await env.DB.prepare('DELETE FROM bot_picture_queue WHERE expires_at<=?').bind(started).run();
  await env.DB.prepare('INSERT OR IGNORE INTO bot_picture_lock(id,lease_until) VALUES(1,0)').run();
- for(;;){
-  const hit=await cachedPicture(env,userId,key,params);if(hit)return hit;
-  lease=Date.now()+45000;const lock=await env.DB.prepare('UPDATE bot_picture_lock SET lease_until=? WHERE id=1 AND lease_until<?').bind(lease,Date.now()).run();
-  if(lock.meta.changes)break;
-  if(Date.now()-started>=wait)throw Error('Рендер занят');
-  await new Promise(resolve=>setTimeout(resolve,Math.min(500,wait)));
- }
+ // Bounded per-user admission prevents one caller from filling the waiting room.
+ await env.DB.prepare('INSERT OR IGNORE INTO bot_picture_queue(id,user_id,cache_key,priority,queued_at,expires_at) SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM bot_picture_queue WHERE user_id=?)<4 AND (SELECT COUNT(*) FROM bot_picture_queue)<64').bind(job,String(userId),key,priority==='background'?1:0,started,started+Math.max(500,wait+250),String(userId)).run();
+ const queued=await env.DB.prepare('SELECT id FROM bot_picture_queue WHERE user_id=? AND cache_key=?').bind(String(userId),key).first();
+ if(!queued)throw Error('Рендер занят');
+ const jobId=queued.id;
  try{
+  for(;;){
+   const hit=await cachedPicture(env,userId,key,params);if(hit)return {...hit,cacheHit:true};
+   const now=Date.now();lease=now+45000;
+   // One SQL statement decides the next turn and claims the global lease.
+   // Background jobs age into the same priority after 2s. Within a priority,
+   // users with the oldest last turn go first, then FIFO within that user.
+   const lock=await env.DB.prepare("UPDATE bot_picture_lock SET lease_until=? WHERE id=1 AND lease_until<? AND ?=(SELECT q.id FROM bot_picture_queue q LEFT JOIN bot_picture_turns t ON t.user_id=q.user_id WHERE q.expires_at>? AND q.status='queued' ORDER BY CASE WHEN q.queued_at<=? THEN 0 ELSE q.priority END,COALESCE(t.last_started,0),q.queued_at,q.id LIMIT 1)").bind(lease,now,jobId,now,now-2000).run();
+   if(lock.meta.changes){claimed=true;await env.DB.prepare("UPDATE bot_picture_queue SET status='running',expires_at=? WHERE id=?").bind(lease,jobId).run();await env.DB.prepare('INSERT INTO bot_picture_turns(user_id,last_started) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET last_started=excluded.last_started').bind(String(userId),now).run();break;}
+   if(now-started>=wait)throw Error('Рендер занят');
+   await new Promise(resolve=>setTimeout(resolve,Math.min(100,wait)));
+  }
   const renderDay=new Date().toISOString().slice(0,10),userLimit=Math.max(1,Math.min(100,Number(env.PICTURE_USER_DAILY_LIMIT)||6));
   const own=await env.DB.prepare('SELECT used FROM bot_picture_user_limits WHERE user_id=? AND day=?').bind(String(userId),renderDay).first();if((own?.used||0)>=userLimit)throw Error('Твой дневной лимит картинок; текст доступен без ограничений');
   const limit=Math.min(100,Math.max(1,Number(env.PICTURE_DAILY_LIMIT)||24));
@@ -65,18 +79,24 @@ async function renderQueued(env,userId,state,params,key,capture){
   const bytes=await capture(env,state.data,params);pngInfo(bytes);const now=Date.now();
   await env.DB.prepare('INSERT OR REPLACE INTO bot_pictures(user_id,cache_key,png,file_id,created_at,expires_at) VALUES(?,?,?,NULL,?,?)').bind(String(userId),key,bytes.buffer,now,now+TTL).run();
   return {user_id:String(userId),cache_key:key,bytes,params,created_at:now};
- }finally{await env.DB.prepare('UPDATE bot_picture_lock SET lease_until=0 WHERE id=1 AND lease_until=?').bind(lease).run();}
+ }finally{
+  if(claimed){try{await env.DB.prepare('DELETE FROM bot_picture_queue WHERE id=?').bind(jobId).run();}finally{await env.DB.prepare('UPDATE bot_picture_lock SET lease_until=0 WHERE id=1 AND lease_until=?').bind(lease).run();}}
+  else if(jobId===job)await env.DB.prepare("DELETE FROM bot_picture_queue WHERE id=? AND status='queued'").bind(jobId).run();
+ }
 }
-export async function getPicture(env,userId,state,input,capture=capturePicture){
+export async function getPicture(env,userId,state,input,capture=capturePicture,{priority='interactive'}={}){
+ const started=Date.now();
  const params=pictureParams(input,state.data);await ensurePictures(env);const day=todayMoscow(state.data.settings.timeZone);
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(pictureData(state.data,params))));
  const fingerprint=Array.from(new Uint8Array(digest)).map(n=>n.toString(16).padStart(2,'0')).join(''),key=JSON.stringify([latestRelease.id,fingerprint,day,params]);
  await env.DB.prepare('DELETE FROM bot_pictures WHERE expires_at<?').bind(Date.now()).run();
- const hit=await cachedPicture(env,userId,key,params);if(hit)return hit;
+ const hit=await cachedPicture(env,userId,key,params);if(hit){await recordOperation(env,'render','cache',Date.now()-started);return hit;}
  let tasks=flights.get(env.DB);if(!tasks){tasks=new Map();flights.set(env.DB,tasks);}const taskKey=JSON.stringify([String(userId),key]);
  if(tasks.has(taskKey))return tasks.get(taskKey);
- const task=renderQueued(env,userId,state,params,key,capture);tasks.set(taskKey,task);
- try{return await task;}finally{tasks.delete(taskKey);}
+ const task=renderQueued(env,userId,state,params,key,capture,priority);tasks.set(taskKey,task);
+ try{const picture=await task;await recordOperation(env,'render',picture.cacheHit?'cache':'ok',Date.now()-started);return picture;}
+ catch(error){const code=pictureErrorCode(error);await recordOperation(env,'render',['busy','quota'].includes(code)?code:'failed',Date.now()-started);throw error;}
+ finally{tasks.delete(taskKey);}
 }
 export async function originalPicture(env,userId,key){
  await ensurePictures(env);const cached=await env.DB.prepare('SELECT * FROM bot_pictures WHERE user_id=? AND cache_key=? AND expires_at>?').bind(String(userId),String(key),Date.now()).first();

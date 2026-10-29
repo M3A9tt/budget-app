@@ -1,4 +1,5 @@
 import {financialCommand} from './financial-command.js';
+import {recordOperation,operationsReport,pruneOperations} from './operations.js';
 import {periodSummary} from './period-summary.js';
 import {createBackupDownload,backupFile} from './backup-download.js';
 export {periodSummary} from './period-summary.js';
@@ -185,9 +186,9 @@ async function handleTelegram(update,env) {
   } catch(e){await send(e.message);}
 }
 export default {
-  async fetch(request,env) {
+  async fetch(request,env,ctx) {
     const url=new URL(request.url),requestStarted=Date.now();
-    try {
+    const response=await (async()=>{try {
     if(url.pathname==='/api/v1/backup/file')return await backupFile(request,env);
     if(url.pathname==='/api/v1/releases/check-picture'){
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);
@@ -214,6 +215,7 @@ export default {
     if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
     const expectedProfile=request.headers.get('X-Budget-Profile');if(expectedProfile&&expectedProfile!==userId)return json({error:'Профиль входа изменился. Обнови данные перед сохранением.'},403);
       if(url.pathname==='/api/v1/admin/lunch-learning'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);if(request.method==='GET')return json(await learningQueue(env));if(request.method==='POST')return json(await moderateLearning(env,await readJsonObject(request)));}
+      if(request.method==='GET'&&url.pathname==='/api/v1/admin/operations'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await operationsReport(env));}
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
       if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId),text=await readRequestText(request,16000);return json(await collectTelemetry(env,userId,parseJsonObject(text),current.data.settings.telemetryEnabled!==false));}
       if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await readJsonObject(request),telegram,periodSummary));}
@@ -259,7 +261,12 @@ export default {
       // Log route metadata only: database errors can contain financial data.
       const reference=crypto.randomUUID();console.error(JSON.stringify({event:'request_failed',version:latestRelease.version,reference,method:request.method,path:url.pathname,durationMs:Date.now()-requestStarted}));
       return json({error:'Сервер временно недоступен. Повтори запрос; операцию — с тем же ключом.',reference},503);
+    }})();
+    if((request.method==='PUT'&&url.pathname==='/api/v1/state')||(request.method==='POST'&&['/api/v1/commands','/api/v1/transactions'].includes(url.pathname))){
+      const code=response.status<300?'ok':response.status===409?'conflict':response.status>=500?'unavailable':'invalid';
+      const task=recordOperation(env,'save',code,Date.now()-requestStarted);if(ctx?.waitUntil)ctx.waitUntil(task);else await task;
     }
+    return response;
   },
   async scheduled(event,env,ctx) {
     // Minute wake-up in UTC; each profile uses its own IANA time zone.
@@ -280,7 +287,7 @@ export default {
         const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=await notificationChecks(env,userId,day),reports=notificationJobs(data,now,responses,{catchUp:true,lastRun:schedule?.last_checked});
         await deliverNotifications(env,userId,day,data,reports,responses,telegram,periodSummary,setDayCheck,{now:now.getTime()});
         await env.DB.prepare('INSERT INTO notification_schedule_state(user_id,last_checked) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET last_checked=MAX(last_checked,excluded.last_checked)').bind(userId,now.getTime()).run();
-        }catch{console.error(JSON.stringify({event:'notification_processing_failed'}));}
+        }catch{await recordOperation(env,'cron','failed');console.error(JSON.stringify({event:'notification_processing_failed'}));}
       }
       if(profiles.results.length)await env.DB.prepare('INSERT INTO notification_scan_cursor(id,last_user) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET last_user=excluded.last_user').bind(profiles.results.at(-1).user_id).run();
       if(now.getUTCMinutes()===0){
@@ -288,6 +295,7 @@ export default {
       await env.DB.prepare('DELETE FROM user_day_checks WHERE day<?').bind(new Date(Date.now()-30*86400000).toISOString().slice(0,10)).run();
       await env.DB.prepare('DELETE FROM user_feedback WHERE delivered=1 AND created_at<?').bind(Date.now()-90*86400000).run();
       await pruneTelemetry(env,now);
+      await pruneOperations(env,now.getTime());
       await pruneLearning(env);
       await pruneLunchChat(env);
       await env.DB.prepare('DELETE FROM user_web_codes WHERE expires_at<?').bind(Date.now()).run();
