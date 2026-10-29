@@ -46,6 +46,16 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
+      - name: Read stored independent copy back
+        uses: actions/download-artifact@v4
+        with:
+          name: database-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/burget-backup-readback
+      - name: Verify stored bytes match verified export
+        run: >-
+          node scripts/check-db-backup-artifact.mjs
+          "${{ runner.temp }}/burget-encrypted-backup/manifest.json"
+          "${{ runner.temp }}/burget-backup-readback"
       - name: Record backup receipt
         run: >-
           node scripts/record-backup-receipt.mjs
