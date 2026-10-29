@@ -212,6 +212,7 @@ export default {
     if(!telegramUser&&!apiAccess&&!sessionAccess)return json({error:'Откройте приложение заново из меню Telegram-бота'},401);
     const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
     if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
+    const expectedProfile=request.headers.get('X-Budget-Profile');if(expectedProfile&&expectedProfile!==userId)return json({error:'Профиль входа изменился. Обнови данные перед сохранением.'},403);
       if(url.pathname==='/api/v1/admin/lunch-learning'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);if(request.method==='GET')return json(await learningQueue(env));if(request.method==='POST')return json(await moderateLearning(env,await readJsonObject(request)));}
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
       if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId),text=await readRequestText(request,16000);return json(await collectTelemetry(env,userId,parseJsonObject(text),current.data.settings.telemetryEnabled!==false));}

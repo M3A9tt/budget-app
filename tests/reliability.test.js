@@ -165,3 +165,10 @@ test('Repeat and a targeted reminder do not expand an unrelated long daily sched
  d=createInstallment(d,{id:'s',name:'Сплит',total:600,count:2,firstDate:'2026-10-14',cadence:'biweekly',accountId:'a'});d=payInstallment(d,{planId:'s',paymentId:d.installments[0].payments[0].id,date:'2026-10-14'});const draft=repeatEntry(d,d.transactions[0],day,CATEGORIES);assert.equal(draft.amount,'300');
  const eventId='installment:'+d.installments[0].payments[1].id;d=setPaymentReminder(d,eventId,'2026-10-29','10:00',now);assert.equal(paymentReminderEvents(d,Date.parse('2026-10-29T07:00Z')).length,1);
 });
+
+test('A stale browser profile cannot save financial data into the newly authenticated profile',async()=>{
+ const {env,sqlite}=dbFixture();Object.assign(env,{API_TOKEN:'test-profile-token',TELEGRAM_OWNER_ID:'111'});const first=base(),second=base();second.accounts[0].balance=5000;
+ for(const [id,data] of [['111',first],['222',second]])sqlite.prepare('INSERT INTO user_finance_state VALUES(?,1,?,?)').run(id,JSON.stringify(data),'test');
+ const before=sqlite.prepare('SELECT * FROM user_finance_state ORDER BY user_id').all();
+ try{const response=await worker.fetch(new Request('https://budget.test/api/v1/state',{method:'PUT',headers:{Authorization:'Bearer test-profile-token','Content-Type':'application/json','X-Budget-Profile':'222'},body:JSON.stringify({expectedRevision:1,data:second})}),env);assert.equal(response.status,403);assert.deepEqual(sqlite.prepare('SELECT * FROM user_finance_state ORDER BY user_id').all(),before);const own=await worker.fetch(new Request('https://budget.test/api/v1/state',{headers:{Authorization:'Bearer test-profile-token','X-Budget-Profile':'111'}}),env);assert.equal(own.status,200);assert.equal((await own.json()).data.accounts[0].balance,1000);}finally{sqlite.close();}
+});

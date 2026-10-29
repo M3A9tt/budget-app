@@ -83,7 +83,7 @@ export default function MiniApp(){
     if(busyRef.current||!loaded)return false;
     busyRef.current=true;setBusy(true);setError('');
     let nextData;try{const current=ref.current;nextData=assertProfileCapacity(migrateData(fn(current.data),EMPTY));let revision=current.revision+1;
-      if(!demo){const result=await apiRequest('state',{method:'PUT',body:JSON.stringify({expectedRevision:current.revision,data:nextData})});revision=result.revision;}
+      if(!demo){const result=await apiRequest('state',{method:'PUT',headers:current.userId?{'X-Budget-Profile':current.userId}:{},body:JSON.stringify({expectedRevision:current.revision,data:nextData})});revision=result.revision;}
       const next={...current,revision,data:nextData};ref.current=next;setState(next);notify(demo?'Демо: '+message:message);return true;
     }catch(e){if(e.uncertain){try{const fresh=await apiRequest('state');fresh.data=migrateData(fresh.data,EMPTY);ref.current=fresh;setState(fresh);if(JSON.stringify(fresh.data)===JSON.stringify(nextData)){notify(message);return true;}}catch{}}setError(e.status===409?'Данные изменились в боте или на другом устройстве. Обновите список и повторите действие.':e.message+(e.reference?' · Код обращения: '+e.reference:''));return false;}
     finally{busyRef.current=false;setBusy(false);}
