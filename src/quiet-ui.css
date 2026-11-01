@@ -20,7 +20,7 @@
 .ins-home .ins-hero.budget-clear{padding:18px;margin-bottom:16px}
 .ins-home .ins-hero-amount{font-size:36px;margin:6px 0 10px}
 .ins-home .budget-equation{margin-top:12px}.ins-home .budget-equation button{padding:11px 0}
-.ins-home .budget-method{margin-top:4px;padding-top:6px}
+.ins-home .budget-method{border-top:0;margin-top:4px;padding-top:6px}
 .ins-home .ins-actions{display:flex;gap:8px;margin:0 0 12px}
 .ins-home .ins-actions button{min-height:46px;padding:11px 13px;font-size:13px;flex:1;justify-content:center;border-radius:9px}
 .home-entry-block{min-width:0;margin-bottom:22px}
@@ -28,7 +28,7 @@
 .home-attention-toggle>svg:first-child{color:#dfc28e;flex:none}.home-attention-toggle>span{flex:1;min-width:0}.home-attention-toggle b{font-size:13px;font-weight:500;display:block}.home-attention-toggle small{font-size:11px;color:var(--mini-muted);display:block;margin-top:5px;line-height:1.5}.home-attention-toggle>strong{font-size:13px;background:#32302a;color:#ecd6ac;border-radius:6px;padding:4px 7px;flex:none}
 .home-attention .attention-center{margin-top:12px;padding:14px}.home-attention .attention-center>h2{font-size:19px;letter-spacing:-.3px}
 .ins-home .home-accounts{margin-bottom:18px}.ins-home .ins-account-strip{min-height:0;overflow:visible;padding:0;margin:0}
-.ins-home .ins-account-strip>button{min-height:57px;padding:10px 0}.ins-home .ins-account-strip small{font-size:13px;color:#c4cbd5}
+.ins-home .ins-account-strip>button{flex:0 0 auto;min-height:57px;padding:10px 0}.ins-home .ins-account-strip small{font-size:13px;color:#c4cbd5}
 .ins-home .home-recent .mini-section-title{margin-top:20px}.ins-home .mini-rows{background:transparent;padding:0;border-radius:0}.ins-home .mini-tx{padding:13px 0;gap:10px}.ins-home .mini-tx-icon{width:34px;height:34px;border-radius:8px}
 .more-menu section{margin:26px 0}.more-menu h2{font-size:12px;font-weight:500;color:var(--mini-muted);margin:0 0 8px}
 .more-menu section>div{border-top:1px solid var(--mini-line)}.more-menu section button{display:flex;gap:14px;align-items:center;width:100%;padding:16px 0;border:0;border-bottom:1px solid var(--mini-line);background:transparent;color:var(--mini-text);text-align:left}
