@@ -1,0 +1,1533 @@
+{
+  "source": "2123dffc129a7a3e272a6888a0128a4bfee20149",
+  "fictional": true,
+  "financialProductionReads": 0,
+  "findings": [
+    {
+      "id": "G01",
+      "scenario": "Delete explicitly linked transfer commission, then cancel transfer",
+      "expected": "Transfer remains cancellable or standalone fee deletion is refused before mutation",
+      "actual": {
+        "balance": [
+          900,
+          100
+        ],
+        "transferFee": 5,
+        "feeRecords": 0,
+        "cancellationError": "У старого перевода комиссия не связана. Выбери её запись явно перед отменой."
+      },
+      "violated": true
+    },
+    {
+      "id": "G02",
+      "scenario": "Offer a bank commission as an existing debt repayment",
+      "expected": "A transfer commission cannot repay a creditor",
+      "actual": {
+        "remaining": 0,
+        "commissionAlsoDebt": true,
+        "balancesUnchanged": true
+      },
+      "violated": true
+    },
+    {
+      "id": "G03",
+      "scenario": "Feedback accepted externally; database receipt fails; caller retries same ID",
+      "expected": "At most one accepted message or explicit uncertain state without blind resend",
+      "actual": {
+        "firstStatus": 503,
+        "acceptedMessages": 2
+      },
+      "violated": true
+    },
+    {
+      "id": "G04",
+      "scenario": "Photo accepted then file_id cache fails; full text gets known 429; retry summary",
+      "expected": "Do not resend an already accepted photo",
+      "actual": {
+        "acceptedPhotos": 2
+      },
+      "violated": true
+    },
+    {
+      "id": "G05",
+      "scenario": "Prepared download link followed after 60 writes but only one second of five-minute TTL",
+      "expected": "Prepared exact-revision download remains available until stated expiry",
+      "actual": {
+        "status": 410,
+        "elapsedMs": 1000,
+        "ttlMs": 300000
+      },
+      "violated": true
+    },
+    {
+      "id": "G06",
+      "scenario": "Refresh after login changes to another owner with a lower per-owner revision",
+      "method": "Evaluate the exact source guard; browser E2E not claimed",
+      "expected": "Compare revision only within one owner",
+      "actual": {
+        "cases": [
+          {
+            "next": {
+              "userId": "fictional-B",
+              "revision": 1
+            },
+            "expected": true,
+            "actual": false
+          },
+          {
+            "next": {
+              "userId": "fictional-A",
+              "revision": 9
+            },
+            "expected": false,
+            "actual": false
+          },
+          {
+            "next": {
+              "userId": "fictional-A",
+              "revision": 11
+            },
+            "expected": true,
+            "actual": true
+          }
+        ]
+      },
+      "violated": true
+    },
+    {
+      "id": "G07",
+      "scenario": "API/domain accepts expense + lunch category + personal account",
+      "expected": "Explicit expense must debit its account or conflicting corporate-lunch fields must be rejected",
+      "actual": {
+        "balance": 1000,
+        "accountId": null,
+        "type": "expense",
+        "category": "lunch"
+      },
+      "violated": true
+    }
+  ],
+  "benchmarks": [
+    {
+      "transactions": 100,
+      "plans": 50,
+      "bytes": 27783,
+      "medianCombinedReadMs": 8.09,
+      "stateWritable": true
+    },
+    {
+      "transactions": 1000,
+      "plans": 50,
+      "bytes": 198603,
+      "medianCombinedReadMs": 8.31,
+      "stateWritable": true
+    },
+    {
+      "transactions": 5000,
+      "plans": 50,
+      "bytes": 961803,
+      "medianCombinedReadMs": 9.3,
+      "stateWritable": true
+    },
+    {
+      "transactions": 10000,
+      "plans": 50,
+      "bytes": 1915803,
+      "medianCombinedReadMs": 9.35,
+      "stateWritable": false
+    }
+  ],
+  "modules": [
+    {
+      "name": "src/AccountForm.jsx",
+      "bytes": 3391,
+      "dependencies": [
+        "src/mini-model.js",
+        "src/account-input.js"
+      ]
+    },
+    {
+      "name": "src/AccountVisibility.jsx",
+      "bytes": 418,
+      "dependencies": [
+        "src/mini-icons.jsx"
+      ]
+    },
+    {
+      "name": "src/AccountsPage.jsx",
+      "bytes": 3902,
+      "dependencies": [
+        "src/AccountVisibility.jsx",
+        "src/account-balances.js",
+        "src/mini-icons.jsx",
+        "src/mini-model.js",
+        "src/FinancePanels.jsx",
+        "src/AccountForm.jsx",
+        "src/savings.js"
+      ]
+    },
+    {
+      "name": "src/AnalyticsCharts.jsx",
+      "bytes": 12307,
+      "dependencies": [
+        "src/analytics.js",
+        "src/mini-model.js",
+        "src/finance-tools.js",
+        "src/mini-icons.jsx"
+      ]
+    },
+    {
+      "name": "src/AnalyticsPage.jsx",
+      "bytes": 11674,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/mini-model.js",
+        "src/analytics-report.js",
+        "src/analytics.js",
+        "src/modules.js",
+        "src/finance-events.js",
+        "src/AnalyticsCharts.jsx",
+        "src/ReportFilters.jsx",
+        "src/MoneyCalendar.jsx"
+      ]
+    },
+    {
+      "name": "src/App.jsx",
+      "bytes": 217269,
+      "dependencies": [
+        "src/QuickEntry.jsx",
+        "src/ledger.js",
+        "src/quick-entry.js"
+      ]
+    },
+    {
+      "name": "src/AppErrorBoundary.jsx",
+      "bytes": 1187,
+      "dependencies": []
+    },
+    {
+      "name": "src/AttentionPanel.jsx",
+      "bytes": 4081,
+      "dependencies": [
+        "src/RecordedPayment.jsx",
+        "src/attention.js",
+        "src/mini-model.js",
+        "src/event-actions.js",
+        "src/OccurrenceDateForm.jsx",
+        "src/payment-reminders.js",
+        "src/TimeInput.jsx"
+      ]
+    },
+    {
+      "name": "src/AuthGate.jsx",
+      "bytes": 2267,
+      "dependencies": [
+        "src/mini-icons.jsx"
+      ]
+    },
+    {
+      "name": "src/BackupPanel.jsx",
+      "bytes": 6424,
+      "dependencies": [
+        "src/ledger.js",
+        "src/mini-model.js",
+        "src/backup-download.js",
+        "src/mini-api.js"
+      ]
+    },
+    {
+      "name": "src/CategorySettings.jsx",
+      "bytes": 2443,
+      "dependencies": [
+        "src/category-customization.js"
+      ]
+    },
+    {
+      "name": "src/DebtTools.jsx",
+      "bytes": 6880,
+      "dependencies": [
+        "src/account-balances.js",
+        "src/Motion.jsx",
+        "src/mini-model.js",
+        "src/debt-actions.js",
+        "src/debt-state.js"
+      ]
+    },
+    {
+      "name": "src/DesktopTransactions.jsx",
+      "bytes": 2743,
+      "dependencies": [
+        "src/mini-model.js",
+        "src/activity-history.js"
+      ]
+    },
+    {
+      "name": "src/EntryComposer.jsx",
+      "bytes": 7983,
+      "dependencies": [
+        "src/AccountVisibility.jsx",
+        "src/account-balances.js",
+        "src/entry-assist.js",
+        "src/mini-icons.jsx",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/FeedbackPanel.jsx",
+      "bytes": 1680,
+      "dependencies": [
+        "src/mini-api.js"
+      ]
+    },
+    {
+      "name": "src/FinancePanels.jsx",
+      "bytes": 12062,
+      "dependencies": [
+        "src/CategorySettings.jsx",
+        "src/ImportImpact.jsx",
+        "src/ledger.js",
+        "src/TransferForm.jsx",
+        "src/account-balances.js",
+        "src/InstallmentCards.jsx",
+        "src/InstallmentForm.jsx",
+        "src/modules.js",
+        "src/PlannedOperations.jsx",
+        "src/Motion.jsx",
+        "src/mini-model.js",
+        "src/finance-tools.js",
+        "src/NotificationSettings.jsx",
+        "src/DebtTools.jsx"
+      ]
+    },
+    {
+      "name": "src/HomeSettings.jsx",
+      "bytes": 1833,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/home-layout.js",
+        "src/modules.js"
+      ]
+    },
+    {
+      "name": "src/HomeWidgets.jsx",
+      "bytes": 1563,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/mini-model.js",
+        "src/wishes.js",
+        "src/account-balances.js"
+      ]
+    },
+    {
+      "name": "src/ImportAccountMapping.jsx",
+      "bytes": 2938,
+      "dependencies": [
+        "src/account-balances.js",
+        "src/import-accounts.js"
+      ]
+    },
+    {
+      "name": "src/ImportImpact.jsx",
+      "bytes": 1076,
+      "dependencies": [
+        "src/profile-capacity.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/Insights.jsx",
+      "bytes": 10290,
+      "dependencies": [
+        "src/budget-view.js",
+        "src/AnalyticsCharts.jsx",
+        "src/AccountVisibility.jsx",
+        "src/account-balances.js",
+        "src/ModuleSettings.jsx",
+        "src/home-layout.js",
+        "src/HomeSettings.jsx",
+        "src/HomeWidgets.jsx",
+        "src/Wishes.jsx",
+        "src/savings.js",
+        "src/modules.js",
+        "src/analytics.js",
+        "src/mini-model.js",
+        "src/mini-icons.jsx",
+        "src/AnalyticsPage.jsx"
+      ]
+    },
+    {
+      "name": "src/InstallmentCards.jsx",
+      "bytes": 6452,
+      "dependencies": [
+        "src/installment-actions.js",
+        "src/mini-model.js",
+        "src/finance-tools.js",
+        "src/event-actions.js",
+        "src/ledger.js",
+        "src/payment-copy.js"
+      ]
+    },
+    {
+      "name": "src/InstallmentForm.jsx",
+      "bytes": 8293,
+      "dependencies": [
+        "src/account-balances.js",
+        "src/finance-tools.js",
+        "src/mini-model.js",
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/JsonImportPanel.jsx",
+      "bytes": 9407,
+      "dependencies": [
+        "src/ImportImpact.jsx",
+        "src/ledger.js",
+        "src/json-import.js",
+        "src/ImportAccountMapping.jsx",
+        "src/import-accounts.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/LunchImport.jsx",
+      "bytes": 5887,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/ledger.js",
+        "src/mini-model.js",
+        "src/json-import.js"
+      ]
+    },
+    {
+      "name": "src/LunchModeration.jsx",
+      "bytes": 3083,
+      "dependencies": [
+        "src/mini-api.js",
+        "src/mini-icons.jsx",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/LunchPage.jsx",
+      "bytes": 16429,
+      "dependencies": [
+        "src/lunch-day-state.js",
+        "src/mini-icons.jsx",
+        "src/ledger.js",
+        "src/lunch-schedule.js",
+        "src/lunch-records.js",
+        "src/LunchImport.jsx",
+        "src/mini-model.js",
+        "src/lunch-budget.js"
+      ]
+    },
+    {
+      "name": "src/LunchRecognitionSettings.jsx",
+      "bytes": 2178,
+      "dependencies": [
+        "src/mini-icons.jsx"
+      ]
+    },
+    {
+      "name": "src/MiniApp.jsx",
+      "bytes": 32786,
+      "dependencies": [
+        "src/categories.js",
+        "src/AttentionPanel.jsx",
+        "src/entry-draft.js",
+        "src/transfer-actions.js",
+        "src/profile-capacity.js",
+        "src/analytics-report.js",
+        "src/account-balances.js",
+        "src/lunch-records.js",
+        "src/use-telemetry.js",
+        "src/TransferForm.jsx",
+        "src/EntryComposer.jsx",
+        "src/AccountsPage.jsx",
+        "src/AuthGate.jsx",
+        "src/Wishes.jsx",
+        "src/lunch-budget.js",
+        "src/activity-history.js",
+        "src/modules.js",
+        "src/AccountForm.jsx",
+        "src/DesktopTransactions.jsx",
+        "src/entry-assist.js",
+        "src/Insights.jsx",
+        "src/FinancePanels.jsx",
+        "src/mini-icons.jsx",
+        "src/mini-model.js",
+        "src/ledger.js",
+        "src/quick-entry.js",
+        "src/mini-api.js",
+        "src/SavingsPage.jsx",
+        "src/PaymentsPage.jsx",
+        "src/SettingsPage.jsx",
+        "src/LunchPage.jsx",
+        "src/FeedbackPanel.jsx",
+        "src/ReleaseNotes.jsx"
+      ]
+    },
+    {
+      "name": "src/ModuleSettings.jsx",
+      "bytes": 3479,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/lunch-budget.js",
+        "src/modules.js"
+      ]
+    },
+    {
+      "name": "src/MoneyCalendar.jsx",
+      "bytes": 14605,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/finance-events.js",
+        "src/calendar-model.js",
+        "src/event-actions.js",
+        "src/mini-model.js",
+        "src/OccurrenceDateForm.jsx"
+      ]
+    },
+    {
+      "name": "src/Motion.jsx",
+      "bytes": 1179,
+      "dependencies": []
+    },
+    {
+      "name": "src/NotificationSettings.jsx",
+      "bytes": 9504,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/TimeInput.jsx",
+        "src/time-settings.js",
+        "src/modules.js",
+        "src/settings-draft.js",
+        "src/reminder-settings.js",
+        "src/mini-model.js",
+        "src/Motion.jsx"
+      ]
+    },
+    {
+      "name": "src/OccurrenceDateForm.jsx",
+      "bytes": 1348,
+      "dependencies": [
+        "src/planned-operations.js"
+      ]
+    },
+    {
+      "name": "src/PaymentsPage.jsx",
+      "bytes": 5116,
+      "dependencies": [
+        "src/PlannedOperations.jsx",
+        "src/finance-events.js",
+        "src/planned-model.js",
+        "src/MoneyCalendar.jsx",
+        "src/UpcomingPayments.jsx",
+        "src/modules.js",
+        "src/mini-icons.jsx",
+        "src/mini-model.js",
+        "src/payment-copy.js",
+        "src/FinancePanels.jsx"
+      ]
+    },
+    {
+      "name": "src/PlannedForm.jsx",
+      "bytes": 7948,
+      "dependencies": [
+        "src/account-balances.js",
+        "src/planned-operations.js",
+        "src/mini-model.js",
+        "src/payment-copy.js"
+      ]
+    },
+    {
+      "name": "src/PlannedOperations.jsx",
+      "bytes": 8966,
+      "dependencies": [
+        "src/RecordedPayment.jsx",
+        "src/mini-model.js",
+        "src/planned-model.js",
+        "src/planned-operations.js",
+        "src/Motion.jsx",
+        "src/OccurrenceDateForm.jsx",
+        "src/PlannedForm.jsx",
+        "src/payment-copy.js"
+      ]
+    },
+    {
+      "name": "src/QuickEntry.jsx",
+      "bytes": 3066,
+      "dependencies": [
+        "src/quick-entry.js",
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/RecordedPayment.jsx",
+      "bytes": 2908,
+      "dependencies": [
+        "src/planned-operations.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/ReleaseNotes.jsx",
+      "bytes": 617,
+      "dependencies": [
+        "src/release-notes.js"
+      ]
+    },
+    {
+      "name": "src/ReportFilters.jsx",
+      "bytes": 2973,
+      "dependencies": [
+        "src/account-balances.js",
+        "src/report-period.js"
+      ]
+    },
+    {
+      "name": "src/SavingsPage.jsx",
+      "bytes": 9024,
+      "dependencies": [
+        "src/AccountVisibility.jsx",
+        "src/account-balances.js",
+        "src/mini-icons.jsx",
+        "src/wishes.js",
+        "src/mini-model.js",
+        "src/savings.js",
+        "src/FinancePanels.jsx"
+      ]
+    },
+    {
+      "name": "src/SessionsPanel.jsx",
+      "bytes": 1649,
+      "dependencies": [
+        "src/mini-api.js",
+        "src/entry-draft.js"
+      ]
+    },
+    {
+      "name": "src/SettingsPage.jsx",
+      "bytes": 8077,
+      "dependencies": [
+        "src/SessionsPanel.jsx",
+        "src/HomeSettings.jsx",
+        "src/LunchModeration.jsx",
+        "src/LunchRecognitionSettings.jsx",
+        "src/TestMessages.jsx",
+        "src/TelemetryPanel.jsx",
+        "src/mini-icons.jsx",
+        "src/ModuleSettings.jsx",
+        "src/FinancePanels.jsx",
+        "src/JsonImportPanel.jsx",
+        "src/BackupPanel.jsx",
+        "src/FeedbackPanel.jsx",
+        "src/modules.js",
+        "src/ledger.js",
+        "src/mini-model.js",
+        "src/settings-draft.js",
+        "src/release-notes.js"
+      ]
+    },
+    {
+      "name": "src/TelemetryPanel.jsx",
+      "bytes": 2658,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/mini-api.js",
+        "src/telemetry-events.js"
+      ]
+    },
+    {
+      "name": "src/TestMessages.jsx",
+      "bytes": 1970,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/mini-api.js",
+        "src/test-message-types.js"
+      ]
+    },
+    {
+      "name": "src/TimeInput.jsx",
+      "bytes": 1038,
+      "dependencies": [
+        "src/time-settings.js"
+      ]
+    },
+    {
+      "name": "src/TransferForm.jsx",
+      "bytes": 5149,
+      "dependencies": [
+        "src/transfer-actions.js",
+        "src/account-balances.js",
+        "src/mini-model.js",
+        "src/ledger.js",
+        "src/mini-icons.jsx"
+      ]
+    },
+    {
+      "name": "src/UpcomingPayments.jsx",
+      "bytes": 2246,
+      "dependencies": [
+        "src/finance-events.js",
+        "src/event-actions.js",
+        "src/payment-copy.js",
+        "src/mini-model.js",
+        "src/mini-icons.jsx"
+      ]
+    },
+    {
+      "name": "src/Wishes.jsx",
+      "bytes": 6052,
+      "dependencies": [
+        "src/mini-icons.jsx",
+        "src/mini-model.js",
+        "src/wishes.js"
+      ]
+    },
+    {
+      "name": "src/account-balances.js",
+      "bytes": 785,
+      "dependencies": [
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/account-input.js",
+      "bytes": 1417,
+      "dependencies": [
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/activity-history.js",
+      "bytes": 2214,
+      "dependencies": [
+        "src/analytics-report.js",
+        "src/lunch-budget.js",
+        "src/ledger.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/analytics-report.js",
+      "bytes": 4151,
+      "dependencies": [
+        "src/ledger.js",
+        "src/mini-model.js",
+        "src/analytics.js",
+        "src/report-period.js",
+        "src/expense-groups.js"
+      ]
+    },
+    {
+      "name": "src/analytics.js",
+      "bytes": 3864,
+      "dependencies": [
+        "src/ledger.js",
+        "src/expense-groups.js",
+        "src/finance-events.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/attention.js",
+      "bytes": 1679,
+      "dependencies": [
+        "src/finance-events.js",
+        "src/modules.js",
+        "src/lunch-schedule.js",
+        "src/lunch-day-state.js",
+        "src/profile-capacity.js"
+      ]
+    },
+    {
+      "name": "src/backup-download.js",
+      "bytes": 1681,
+      "dependencies": [
+        "src/mini-api.js",
+        "src/json-import.js"
+      ]
+    },
+    {
+      "name": "src/budget-view.js",
+      "bytes": 775,
+      "dependencies": []
+    },
+    {
+      "name": "src/calendar-model.js",
+      "bytes": 1167,
+      "dependencies": [
+        "src/finance-events.js"
+      ]
+    },
+    {
+      "name": "src/categories.js",
+      "bytes": 892,
+      "dependencies": []
+    },
+    {
+      "name": "src/category-customization.js",
+      "bytes": 1677,
+      "dependencies": [
+        "src/categories.js"
+      ]
+    },
+    {
+      "name": "src/debt-actions.js",
+      "bytes": 2553,
+      "dependencies": [
+        "src/ledger.js",
+        "src/finance-tools.js",
+        "src/debt-state.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "src/debt-state.js",
+      "bytes": 2119,
+      "dependencies": [
+        "src/time-settings.js"
+      ]
+    },
+    {
+      "name": "src/due-payments.js",
+      "bytes": 797,
+      "dependencies": [
+        "src/finance-events.js"
+      ]
+    },
+    {
+      "name": "src/entry-assist.js",
+      "bytes": 3905,
+      "dependencies": [
+        "src/event-actions.js",
+        "src/finance-events.js",
+        "src/account-balances.js"
+      ]
+    },
+    {
+      "name": "src/entry-draft.js",
+      "bytes": 929,
+      "dependencies": []
+    },
+    {
+      "name": "src/event-actions.js",
+      "bytes": 1279,
+      "dependencies": [
+        "src/finance-events.js",
+        "src/planned-operations.js",
+        "src/account-balances.js"
+      ]
+    },
+    {
+      "name": "src/expense-check.js",
+      "bytes": 1385,
+      "dependencies": [
+        "src/mini-model.js",
+        "src/ledger.js",
+        "src/analytics-report.js"
+      ]
+    },
+    {
+      "name": "src/expense-groups.js",
+      "bytes": 616,
+      "dependencies": []
+    },
+    {
+      "name": "src/finance-events.js",
+      "bytes": 5991,
+      "dependencies": [
+        "src/planned-model.js",
+        "src/installment-state.js",
+        "src/debt-state.js",
+        "src/account-balances.js",
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/finance-tools.js",
+      "bytes": 11311,
+      "dependencies": [
+        "src/profile-capacity.js",
+        "src/import-identity.js",
+        "src/finance-events.js",
+        "src/installment-state.js",
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/home-layout.js",
+      "bytes": 3291,
+      "dependencies": [
+        "src/modules.js"
+      ]
+    },
+    {
+      "name": "src/import-accounts.js",
+      "bytes": 2816,
+      "dependencies": [
+        "src/account-input.js"
+      ]
+    },
+    {
+      "name": "src/import-identity.js",
+      "bytes": 1970,
+      "dependencies": [
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/input-intent.js",
+      "bytes": 3413,
+      "dependencies": []
+    },
+    {
+      "name": "src/installment-actions.js",
+      "bytes": 1600,
+      "dependencies": [
+        "src/ledger.js",
+        "src/finance-tools.js"
+      ]
+    },
+    {
+      "name": "src/installment-state.js",
+      "bytes": 1936,
+      "dependencies": []
+    },
+    {
+      "name": "src/json-import.js",
+      "bytes": 12065,
+      "dependencies": [
+        "src/profile-capacity.js",
+        "src/import-identity.js",
+        "src/finance-tools.js",
+        "src/ledger.js",
+        "src/mini-model.js",
+        "src/time-settings.js"
+      ]
+    },
+    {
+      "name": "src/ledger.js",
+      "bytes": 31827,
+      "dependencies": [
+        "src/category-customization.js",
+        "src/categories.js",
+        "src/lunch-records.js",
+        "src/home-layout.js",
+        "src/installment-state.js",
+        "src/debt-state.js",
+        "src/wishes.js",
+        "src/time-settings.js",
+        "src/modules.js",
+        "src/planned-model.js",
+        "src/reminder-settings.js",
+        "src/lunch-schedule.js"
+      ]
+    },
+    {
+      "name": "src/lunch-budget.js",
+      "bytes": 2852,
+      "dependencies": [
+        "src/lunch-records.js",
+        "src/ledger.js",
+        "src/lunch-schedule.js"
+      ]
+    },
+    {
+      "name": "src/lunch-day-state.js",
+      "bytes": 1098,
+      "dependencies": [
+        "src/lunch-records.js",
+        "src/lunch-schedule.js"
+      ]
+    },
+    {
+      "name": "src/lunch-recognition.js",
+      "bytes": 8567,
+      "dependencies": []
+    },
+    {
+      "name": "src/lunch-records.js",
+      "bytes": 1894,
+      "dependencies": []
+    },
+    {
+      "name": "src/lunch-schedule.js",
+      "bytes": 3315,
+      "dependencies": []
+    },
+    {
+      "name": "src/main.jsx",
+      "bytes": 784,
+      "dependencies": [
+        "src/AppErrorBoundary.jsx",
+        "src/MiniApp.jsx",
+        "src/App.jsx"
+      ]
+    },
+    {
+      "name": "src/mini-api.js",
+      "bytes": 3223,
+      "dependencies": []
+    },
+    {
+      "name": "src/mini-icons.jsx",
+      "bytes": 2796,
+      "dependencies": []
+    },
+    {
+      "name": "src/mini-model.js",
+      "bytes": 4851,
+      "dependencies": [
+        "src/ledger.js",
+        "src/finance-events.js",
+        "src/account-balances.js",
+        "src/categories.js"
+      ]
+    },
+    {
+      "name": "src/modules.js",
+      "bytes": 2244,
+      "dependencies": []
+    },
+    {
+      "name": "src/payment-copy.js",
+      "bytes": 525,
+      "dependencies": []
+    },
+    {
+      "name": "src/payment-overview.js",
+      "bytes": 2065,
+      "dependencies": [
+        "src/ledger.js",
+        "src/finance-events.js",
+        "src/finance-tools.js",
+        "src/debt-state.js"
+      ]
+    },
+    {
+      "name": "src/payment-reminders.js",
+      "bytes": 2595,
+      "dependencies": [
+        "src/finance-events.js",
+        "src/time-settings.js"
+      ]
+    },
+    {
+      "name": "src/planned-model.js",
+      "bytes": 7152,
+      "dependencies": []
+    },
+    {
+      "name": "src/planned-operations.js",
+      "bytes": 9164,
+      "dependencies": [
+        "src/ledger.js",
+        "src/planned-model.js"
+      ]
+    },
+    {
+      "name": "src/profile-capacity.js",
+      "bytes": 628,
+      "dependencies": []
+    },
+    {
+      "name": "src/quick-entry.js",
+      "bytes": 7363,
+      "dependencies": [
+        "src/input-intent.js"
+      ]
+    },
+    {
+      "name": "src/release-notes.js",
+      "bytes": 1420,
+      "dependencies": []
+    },
+    {
+      "name": "src/reminder-settings.js",
+      "bytes": 3763,
+      "dependencies": [
+        "src/time-settings.js"
+      ]
+    },
+    {
+      "name": "src/report-period.js",
+      "bytes": 2529,
+      "dependencies": [
+        "src/finance-events.js"
+      ]
+    },
+    {
+      "name": "src/savings.js",
+      "bytes": 2723,
+      "dependencies": [
+        "src/account-balances.js",
+        "src/ledger.js",
+        "src/account-input.js"
+      ]
+    },
+    {
+      "name": "src/settings-draft.js",
+      "bytes": 502,
+      "dependencies": []
+    },
+    {
+      "name": "src/telegram-presentation.js",
+      "bytes": 795,
+      "dependencies": []
+    },
+    {
+      "name": "src/telemetry-events.js",
+      "bytes": 1924,
+      "dependencies": []
+    },
+    {
+      "name": "src/test-message-types.js",
+      "bytes": 387,
+      "dependencies": []
+    },
+    {
+      "name": "src/time-settings.js",
+      "bytes": 1571,
+      "dependencies": []
+    },
+    {
+      "name": "src/transfer-actions.js",
+      "bytes": 2023,
+      "dependencies": [
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "src/use-telemetry.js",
+      "bytes": 1481,
+      "dependencies": [
+        "src/mini-api.js",
+        "src/telemetry-events.js"
+      ]
+    },
+    {
+      "name": "src/wishes.js",
+      "bytes": 2856,
+      "dependencies": [
+        "src/account-balances.js",
+        "src/ledger.js"
+      ]
+    },
+    {
+      "name": "server/attention-message.js",
+      "bytes": 719,
+      "dependencies": [
+        "src/attention.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "server/backup-download.js",
+      "bytes": 4112,
+      "dependencies": [
+        "src/mini-model.js",
+        "server/users.js",
+        "server/request-errors.js"
+      ]
+    },
+    {
+      "name": "server/bot-catalog.js",
+      "bytes": 28838,
+      "dependencies": [
+        "src/categories.js",
+        "src/category-customization.js",
+        "src/planned-operations.js",
+        "src/installment-actions.js",
+        "src/payment-reminders.js",
+        "src/lunch-day-state.js",
+        "src/transfer-actions.js",
+        "src/account-balances.js",
+        "server/lunch-entry.js",
+        "src/home-layout.js",
+        "src/entry-assist.js",
+        "src/mini-model.js",
+        "src/ledger.js",
+        "src/account-input.js",
+        "src/finance-tools.js",
+        "src/savings.js",
+        "src/wishes.js",
+        "src/debt-actions.js",
+        "src/debt-state.js",
+        "src/json-import.js",
+        "src/import-accounts.js",
+        "src/reminder-settings.js",
+        "src/modules.js",
+        "src/time-settings.js",
+        "src/lunch-schedule.js"
+      ]
+    },
+    {
+      "name": "server/bot-chat.js",
+      "bytes": 44300,
+      "dependencies": [
+        "src/input-intent.js",
+        "server/operations.js",
+        "server/bot-drafts.js",
+        "src/modules.js",
+        "src/quick-entry.js",
+        "src/entry-assist.js",
+        "src/home-layout.js",
+        "src/due-payments.js",
+        "server/bot-dialog.js",
+        "src/mini-model.js",
+        "src/savings.js",
+        "server/bot-pictures.js",
+        "server/telemetry.js",
+        "server/notifications.js",
+        "server/habits.js",
+        "server/bot-views.js",
+        "server/bot-catalog.js",
+        "server/bot-navigation.js",
+        "src/ledger.js",
+        "src/lunch-budget.js",
+        "src/json-import.js",
+        "server/lunch-learning.js",
+        "server/test-messages.js",
+        "server/feedback.js"
+      ]
+    },
+    {
+      "name": "server/bot-commit.js",
+      "bytes": 5709,
+      "dependencies": [
+        "server/operations.js",
+        "server/lunch-learning.js",
+        "server/lunch-entry.js",
+        "server/state-persistence.js",
+        "src/ledger.js",
+        "src/mini-model.js",
+        "server/bot-catalog.js"
+      ]
+    },
+    {
+      "name": "server/bot-dialog.js",
+      "bytes": 5359,
+      "dependencies": [
+        "src/lunch-budget.js",
+        "src/mini-model.js",
+        "src/entry-assist.js",
+        "src/debt-state.js",
+        "src/finance-tools.js"
+      ]
+    },
+    {
+      "name": "server/bot-drafts.js",
+      "bytes": 1462,
+      "dependencies": []
+    },
+    {
+      "name": "server/bot-files.js",
+      "bytes": 1964,
+      "dependencies": []
+    },
+    {
+      "name": "server/bot-navigation.js",
+      "bytes": 4079,
+      "dependencies": [
+        "src/modules.js"
+      ]
+    },
+    {
+      "name": "server/bot-pictures.js",
+      "bytes": 14479,
+      "dependencies": [
+        "src/savings.js",
+        "src/mini-model.js",
+        "src/release-notes.js",
+        "server/operations.js",
+        "server/report-html.jsx"
+      ]
+    },
+    {
+      "name": "server/bot-views.js",
+      "bytes": 39697,
+      "dependencies": [
+        "src/categories.js",
+        "src/planned-model.js",
+        "src/attention.js",
+        "src/lunch-day-state.js",
+        "src/budget-view.js",
+        "src/ledger.js",
+        "src/expense-check.js",
+        "src/analytics-report.js",
+        "src/activity-history.js",
+        "src/finance-events.js",
+        "src/account-balances.js",
+        "src/home-layout.js",
+        "src/due-payments.js",
+        "src/entry-assist.js",
+        "src/mini-model.js",
+        "src/finance-tools.js",
+        "src/savings.js",
+        "src/wishes.js",
+        "src/debt-state.js",
+        "src/payment-overview.js",
+        "src/lunch-budget.js",
+        "src/analytics.js",
+        "src/modules.js",
+        "src/time-settings.js",
+        "server/bot-catalog.js",
+        "src/release-notes.js",
+        "src/test-message-types.js"
+      ]
+    },
+    {
+      "name": "server/delivery-state.js",
+      "bytes": 685,
+      "dependencies": []
+    },
+    {
+      "name": "server/dialog-focus.js",
+      "bytes": 1429,
+      "dependencies": [
+        "server/bot-navigation.js"
+      ]
+    },
+    {
+      "name": "server/feedback.js",
+      "bytes": 2486,
+      "dependencies": [
+        "server/request-errors.js",
+        "src/release-notes.js"
+      ]
+    },
+    {
+      "name": "server/financial-command.js",
+      "bytes": 2921,
+      "dependencies": [
+        "server/bot-catalog.js",
+        "src/mini-model.js",
+        "src/ledger.js",
+        "server/state-persistence.js",
+        "server/request-errors.js"
+      ]
+    },
+    {
+      "name": "server/habits.js",
+      "bytes": 8252,
+      "dependencies": [
+        "server/lunch-entry.js",
+        "src/finance-tools.js",
+        "src/time-settings.js"
+      ]
+    },
+    {
+      "name": "server/legacy-lunch.js",
+      "bytes": 3801,
+      "dependencies": [
+        "server/dialog-focus.js",
+        "src/ledger.js",
+        "server/state-persistence.js",
+        "server/lunch-entry.js",
+        "server/habits.js",
+        "server/bot-drafts.js"
+      ]
+    },
+    {
+      "name": "server/lunch-chat.js",
+      "bytes": 9533,
+      "dependencies": [
+        "src/input-intent.js",
+        "server/dialog-focus.js",
+        "src/lunch-recognition.js",
+        "src/time-settings.js",
+        "server/lunch-learning.js"
+      ]
+    },
+    {
+      "name": "server/lunch-entry.js",
+      "bytes": 2197,
+      "dependencies": [
+        "src/lunch-day-state.js",
+        "src/finance-tools.js"
+      ]
+    },
+    {
+      "name": "server/lunch-learning.js",
+      "bytes": 4447,
+      "dependencies": [
+        "server/request-errors.js",
+        "src/lunch-recognition.js"
+      ]
+    },
+    {
+      "name": "server/notification-outbox.js",
+      "bytes": 7737,
+      "dependencies": [
+        "server/delivery-state.js",
+        "server/operations.js",
+        "src/lunch-day-state.js",
+        "server/attention-message.js",
+        "src/payment-reminders.js",
+        "server/summary-delivery.js",
+        "src/lunch-schedule.js",
+        "src/due-payments.js",
+        "server/notifications.js",
+        "src/modules.js"
+      ]
+    },
+    {
+      "name": "server/notifications.js",
+      "bytes": 7438,
+      "dependencies": [
+        "src/lunch-day-state.js",
+        "server/attention-message.js",
+        "src/finance-events.js",
+        "src/payment-reminders.js",
+        "src/due-payments.js",
+        "src/mini-model.js",
+        "src/lunch-schedule.js",
+        "src/time-settings.js",
+        "src/modules.js",
+        "src/reminder-settings.js",
+        "src/expense-check.js"
+      ]
+    },
+    {
+      "name": "server/operations.js",
+      "bytes": 5014,
+      "dependencies": []
+    },
+    {
+      "name": "server/period-summary.js",
+      "bytes": 2146,
+      "dependencies": [
+        "src/budget-view.js",
+        "src/analytics-report.js",
+        "src/report-period.js",
+        "src/mini-model.js",
+        "src/ledger.js",
+        "src/time-settings.js"
+      ]
+    },
+    {
+      "name": "server/releases.js",
+      "bytes": 5110,
+      "dependencies": [
+        "server/bot-navigation.js",
+        "server/users.js",
+        "src/release-notes.js",
+        "server/delivery-state.js",
+        "server/operations.js"
+      ]
+    },
+    {
+      "name": "server/report-html.jsx",
+      "bytes": 8502,
+      "dependencies": [
+        "src/budget-view.js",
+        "src/modules.js",
+        "src/Insights.jsx",
+        "src/HomeWidgets.jsx",
+        "src/LunchPage.jsx",
+        "server/period-summary.js",
+        "src/mini-model.js"
+      ]
+    },
+    {
+      "name": "server/request-errors.js",
+      "bytes": 1410,
+      "dependencies": []
+    },
+    {
+      "name": "server/state-persistence.js",
+      "bytes": 2873,
+      "dependencies": []
+    },
+    {
+      "name": "server/summary-delivery.js",
+      "bytes": 956,
+      "dependencies": [
+        "server/bot-pictures.js"
+      ]
+    },
+    {
+      "name": "server/telegram-auth.js",
+      "bytes": 1439,
+      "dependencies": []
+    },
+    {
+      "name": "server/telemetry.js",
+      "bytes": 3134,
+      "dependencies": [
+        "server/request-errors.js",
+        "src/telemetry-events.js"
+      ]
+    },
+    {
+      "name": "server/test-messages.js",
+      "bytes": 4812,
+      "dependencies": [
+        "server/request-errors.js",
+        "server/summary-delivery.js",
+        "src/test-message-types.js",
+        "server/notifications.js",
+        "src/time-settings.js",
+        "src/due-payments.js",
+        "src/release-notes.js"
+      ]
+    },
+    {
+      "name": "server/users.js",
+      "bytes": 3963,
+      "dependencies": []
+    },
+    {
+      "name": "server/web-auth.js",
+      "bytes": 3405,
+      "dependencies": [
+        "server/users.js",
+        "server/request-errors.js"
+      ]
+    },
+    {
+      "name": "server/worker.js",
+      "bytes": 33404,
+      "dependencies": [
+        "server/financial-command.js",
+        "server/operations.js",
+        "server/period-summary.js",
+        "server/backup-download.js",
+        "server/summary-delivery.js",
+        "server/lunch-entry.js",
+        "server/legacy-lunch.js",
+        "src/home-layout.js",
+        "server/state-persistence.js",
+        "server/bot-pictures.js",
+        "server/bot-chat.js",
+        "server/bot-commit.js",
+        "server/bot-files.js",
+        "server/lunch-chat.js",
+        "server/dialog-focus.js",
+        "server/lunch-learning.js",
+        "server/bot-navigation.js",
+        "server/test-messages.js",
+        "src/telegram-presentation.js",
+        "server/telemetry.js",
+        "server/notification-outbox.js",
+        "server/feedback.js",
+        "src/time-settings.js",
+        "server/releases.js",
+        "src/release-notes.js",
+        "server/habits.js",
+        "server/users.js",
+        "src/mini-model.js",
+        "server/web-auth.js",
+        "server/notifications.js",
+        "server/telegram-auth.js",
+        "src/ledger.js",
+        "src/finance-tools.js",
+        "server/request-errors.js",
+        "server/report-html.jsx"
+      ]
+    }
+  ]
+}

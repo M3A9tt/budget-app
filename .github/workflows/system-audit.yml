@@ -1,0 +1,33 @@
+name: System audit evidence
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/audit-system-20261101.mjs'
+      - 'docs/GLOBAL-SYSTEM-AUDIT-2026-11-01.md'
+      - 'docs/global-audit-2026-11-01/**'
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Reproduce documented findings on fictional data
+        run: node scripts/audit-system-20261101.mjs
+      - name: Save reproducible diagnostic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-audit-evidence
+          path: docs/global-audit-2026-11-01/evidence.json
+          if-no-files-found: error
+      - name: Distinguish evidence collection from fixing defects
+        run: >-
+          node --input-type=module -e "import {readFileSync,appendFileSync} from 'node:fs';
+          const d=JSON.parse(readFileSync('docs/global-audit-2026-11-01/evidence.json'));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Audit evidence collected. Open findings: '+d.findings.filter(x=>x.violated).length+'. This job does not claim those defects are fixed.');"
