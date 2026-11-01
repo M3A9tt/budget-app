@@ -41,7 +41,10 @@ test('Recovery refuses to overwrite files, export validation rejects a missing f
 test('Automated copy uploads only an encrypted database and a safe manifest; export failure removes its temporary plaintext',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'burget-backup-test-'));try{
   const manifest=await createDatabaseBackup({directory:join(dir,'out'),exportDatabase:async path=>{const fixture=await sqlFixture(dir);await writeFile(path,await readFile(fixture));}});
-  assert.deepEqual((await readdir(join(dir,'out'))).sort(),['database.burget.enc','manifest.json']);assert.equal(manifest.sha256,await fileDigest(join(dir,'out','database.burget.enc')));assert.equal(manifest.verification.integrity,'ok');assert.ok(!JSON.stringify(manifest).includes('111'));assert.ok(!JSON.stringify(manifest).includes(profile.privateField));
+  assert.deepEqual((await readdir(join(dir,'out'))).sort(),['database.burget.enc','manifest.json']);assert.equal(manifest.sha256,await fileDigest(join(dir,'out','database.burget.enc')));assert.deepEqual(manifest.verification,{integrity:'ok'});
+  // A random ciphertext digest can contain a short user ID by chance; validate the safe schema instead.
+  assert.deepEqual(Object.keys(manifest).sort(),['appVersion','createdAt','format','keyId','schemaVersion','sha256','sourceCommit','verification','version'].sort());
+  assert.match(manifest.keyId,/^[a-f0-9]{64}$/);assert.match(manifest.sha256,/^[a-f0-9]{64}$/);assert.ok(!JSON.stringify(manifest).includes(profile.privateField));
   assert.equal((await verifyStoredBackup(join(dir,'out','manifest.json'),join(dir,'out'))).integrity,'ok');
   await writeFile(join(dir,'out','database.burget.enc'),'damaged stored transfer');await assert.rejects(verifyStoredBackup(join(dir,'out','manifest.json'),join(dir,'out')),/checksum/);
   const failure=exportFailure({status:1,stdout:'https://private-export.invalid/secret-token',stderr:'Authentication failure [code: 10000]\nPRIVATE FINANCIAL SQL'});
