@@ -1,6 +1,6 @@
 import {moduleEnabled,MODULES} from './modules.js';
 export const HOME_BLOCKS=[
- ['budget','Доступный бюджет','wallet'],['actions','Быстрая запись','plus'],['accounts','Мои счета','wallet'],['savings','Отложено','shield'],['wishes','Цели и покупки','goal','goals'],['month','Итоги месяца','chart'],['spending','Расходы по дням','chart'],['payments','Ближайшие платежи','bell'],['limits','Лимиты категорий','tag','limits'],['forecast','Прогноз остатка','chart','forecast'],['recent','Последние операции','history']
+ ['budget','Доступный бюджет','wallet'],['actions','Быстрая запись','plus'],['accounts','Мои счета','wallet'],['savings','Отложено','shield'],['wishes','Цели и покупки','goal','goals'],['month','Итоги месяца','chart'],['spending','Расходы по дням','chart'],['payments','Ближайшие операции','bell'],['limits','Лимиты категорий','tag','limits'],['forecast','Прогноз остатка','chart','forecast'],['recent','Последние операции','history']
 ];
 export const HOME_PRESETS={simple:['budget','actions','accounts','recent'],everyday:HOME_BLOCKS.filter(([id])=>id!=='forecast').map(([id])=>id),full:HOME_BLOCKS.map(([id])=>id)};
 const DEFAULT_HOME=HOME_PRESETS.simple;

@@ -36,7 +36,7 @@ test('A new unsaved entry survives tab switching without saving or duplicating a
 test('Payments open directly and preserve a draft; More opens a menu and contextual analytics',()=>{
  const a=app();a.button('Записать').props.onClick();a.render();let entry=a.component('EntryComposer');const count=entry.props.data.transactions.length;
  entry.props.setDraft({...entry.props.draft,amount:'321',note:'Черновик'});a.render();
- a.find(n=>n.type==='button'&&n.props['aria-label']==='Открыть платежи').props.onClick();a.render();assert.ok(a.find(n=>n.props['data-page']==='payments'));
+ a.find(n=>n.type==='button'&&n.props['aria-label']==='Открыть планы').props.onClick();a.render();assert.ok(a.find(n=>n.props['data-page']==='payments'));
  a.button('Записать').props.onClick();a.render();entry=a.component('EntryComposer');assert.equal(entry.props.draft.amount,'321');assert.equal(entry.props.data.transactions.length,count);
  a.button('Ещё').props.onClick();a.render();const menu=a.component('MoreMenu');assert.ok(menu);menu.props.onPage('stats');a.render();assert.ok(a.find(n=>n.props['data-page']==='stats'));assert.equal(a.button('Ещё').props['aria-current'],'page');
 });

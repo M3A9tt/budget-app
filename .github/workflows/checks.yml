@@ -56,6 +56,11 @@ jobs:
         run: npm run test:calendar
         env:
           CALENDAR_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/connected-calendar
+      - name: Check unified expense and income entry
+        if: runner.os == 'Linux'
+        run: npm run test:entry
+        env:
+          ENTRY_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/unified-entry
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4

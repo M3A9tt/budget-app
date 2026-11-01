@@ -13,7 +13,7 @@ test('Flexible expenses and income preserve amount, date, category and ledger di
  assert.equal(parse('подарок 500 Альфа #развлечения').cat,'fun');assert.equal(parse('кофе 180').accountId,'');assert.equal(parse('обед 350',{companyLunchEnabled:false}).type,'expense');assert.equal(parse('обед компании 350',{companyLunchEnabled:false}).type,'lunch');
 });
 test('Ambiguous amounts, dates and accounts never become a financial draft; own transfer stays out of income and expense',()=>{
- for(const text of ['кофе 180 и такси 300','2 кофе 180','завтра кофе 180','31.02.2026 кофе 180','кофе 0','кофе 1000000000001','вчера сегодня кофе 180','кофе 180 Альфа Сбер'])assert.throws(()=>parse(text),text);
+ for(const text of ['кофе 180 и такси 300','2 кофе 180','31.02.2026 кофе 180','кофе 0','кофе 1000000000001','вчера сегодня кофе 180','кофе 180 Альфа Сбер'])assert.throws(()=>parse(text),text);
  assert.throws(()=>parseEntry('кофе 180',accounts,CATEGORIES,today),/название счёта/);
  const transfer=parseOwnTransfer('вчера перевод 500 Сбер → Копилка',accounts,today); 
  assert.equal(transfer.amount,500);assert.equal(transfer.date,'2026-10-16');

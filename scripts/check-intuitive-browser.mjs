@@ -47,8 +47,8 @@ try{
      await page.setViewportSize({width,height:844});await noOverflow('home '+width);await shot('home-'+width);
     }
     await page.setViewportSize({width:390,height:844});
-    await page.getByRole('button',{name:'Открыть платежи',exact:true}).click();
-    await page.locator('[data-page=payments]').waitFor();await page.getByRole('heading',{name:'Платежи',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Открыть планы',exact:true}).click();
+    await page.locator('[data-page=payments]').waitFor();await page.getByRole('heading',{name:'Планы',exact:true}).waitFor();
     await shot('payments-route-390');await page.locator('.mini-nav').getByRole('button',{name:'Главная',exact:true}).click();
    }
    await page.getByRole('button',{name:'Что требует внимания',exact:true}).click();

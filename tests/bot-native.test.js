@@ -533,3 +533,7 @@ test('Native calendar opens the exact debt, moves its source once and pays throu
  await f.update('/payments');await f.press('Календарь');await f.press(/Долг из календаря/);assert.match(f.last().text,/Возврат долга/);assert.equal(f.snapshot().accounts[0].balance,10000);await f.press('Перенести дату');await f.update(later);const move=f.button('✅ Подтвердить');await f.update('',move);await f.update('',move);assert.equal(f.snapshot().debts[0].dueDate,later);assert.equal(f.snapshot().accounts[0].balance,10000);
  await f.update('/payments');await f.press('Календарь');await f.press(/Долг из календаря/);await f.press('Записать оплату');await f.update('400');await f.press(/Банк/);await f.press(/^Оставить:/);const pay=f.button('✅ Подтвердить');await f.update('',pay);await f.update('',pay);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,9600);assert.equal(f.snapshot().transactions[0].debtId,'calendar-debt');
 }));
+
+test('Future expense entered as ordinary text becomes a calendar plan and repeated confirmation never debits',()=>run(async f=>{
+ await f.update('завтра кофе 100 Банк');assert.match(f.last().text,/Будущий расход/);const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);const d=f.snapshot();assert.equal(d.accounts[0].balance,10000);assert.equal(d.transactions.length,0);assert.equal(d.recurring.length,1);assert.equal(d.recurring[0].type,'expense');
+}));
