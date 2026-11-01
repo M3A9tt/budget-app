@@ -1,0 +1,16 @@
+/* Task-first layout. Neutral surfaces; colour carries financial meaning. */
+.mini-shell{--mini-panel:#1a1e24;--mini-raised:#242a32;--mini-line:#30363e}
+.mini-header{margin-bottom:20px}.mini-mark{border-radius:10px}
+.home-shortcuts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:8px;margin-bottom:20px}
+.home-shortcuts>.mini-secondary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;margin:0;padding:10px;font-size:13px;border-radius:10px;line-height:1.35}
+.ins-home .ins-page-head{margin-bottom:14px}.ins-home .ins-page-head h1{font-size:24px;letter-spacing:-.5px}.ins-home .ins-kicker{letter-spacing:0;text-transform:none}
+.ins-home .ins-hero.budget-clear{background:#1b2823;border:1px solid #34483d;border-radius:14px;padding:20px;box-shadow:none}
+.ins-home .ins-hero-amount{font-size:clamp(30px,8vw,42px);letter-spacing:-1px;margin:8px 0 12px;font-variant-numeric:tabular-nums}
+.ins-home .budget-horizon{margin:0 0 14px}.budget-method{border-top:1px solid #ffffff14;padding-top:10px;margin-top:10px;font-size:12px;color:#b2bdb6}.budget-method summary{cursor:pointer;min-height:32px;display:list-item;line-height:2}.budget-method p{line-height:1.6}.budget-method .budget-explanation{font-size:12px;line-height:1.6}
+.ins-home .home-reserve-compact{border-radius:0;background:transparent;border:0;border-bottom:1px solid var(--mini-line);padding:16px 0;margin:0 0 16px;box-shadow:none}.ins-home .home-reserve-icon{background:transparent;border-radius:0}
+.ins-home .ins-account-strip{display:flex;flex-direction:column;gap:0;background:transparent;border-radius:0}.ins-home .ins-account-strip>button{width:100%;min-width:0;border-radius:0;border:0;border-bottom:1px solid var(--mini-line);background:transparent;box-shadow:none;padding:12px 0;display:flex;align-items:center;gap:10px;text-align:left}.ins-home .ins-account-strip>button>span:last-child{flex:1;display:flex;justify-content:space-between;align-items:center;gap:12px}.ins-home .ins-account-strip strong{font-size:15px;white-space:nowrap}.ins-home .ins-account-initial{width:30px;height:30px;border-radius:8px;background:#252e29;color:#c6dfc9}
+.ins-home .ins-month-summary{background:transparent;border:0;border-top:1px solid var(--mini-line);border-bottom:1px solid var(--mini-line);border-radius:0;box-shadow:none;padding:16px 0}.mini-tx{box-shadow:none}.mini-card{box-shadow:none}
+.attention-center{background:var(--mini-panel);border-radius:12px}.attention-center>.mini-card{border-radius:8px;padding:14px}.recorded-payment-panel{border-radius:8px;background:#202832}.recorded-payment-panel input{width:100%;min-width:0;padding:11px;margin:8px 0;background:#171c23;color:var(--mini-text);border:1px solid #485464;border-radius:8px}
+.payments-sections{gap:0;border-bottom:1px solid var(--mini-line)}.payments-sections>button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 10px}.payments-sections>button[aria-pressed=true]{border-color:#b7ee83;background:transparent;color:#c8e7b0}
+.planned-card,.installment-card{border-radius:12px}.category-studio{border-radius:12px}.mini-secondary,.mini-primary{border-radius:10px}
+@media(min-width:1100px){.home-shortcuts{max-width:480px}.ins-home .ins-hero-amount{font-size:42px}}
