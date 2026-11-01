@@ -100,15 +100,15 @@ test('Negative budget distinguishes shortfall from bank balances and keeps savin
 test('Calendar review changes no balance before the common form and expected income is an explicit scenario',()=>{
  const today=todayMoscow(),data=state();data.settings.nextIncomeDate='';data.recurring=[{id:'due',name:'Свет',active:true,frequency:'once',type:'expense',startDate:today,amount:100,accountId:'large',currency:'RUB',cat:'housing'},{id:'salary',name:'Доход',active:true,frequency:'once',type:'income',startDate:today,amount:500,accountId:'large',currency:'RUB'}];const before=structuredClone(data);let draft;
  const v=mount('MoneyCalendar',{data,onPrepare:x=>draft=x});const amount=()=>text(v.root.findByProps({className:'money-forecast-total'}).findByType('strong').toJSON?.()||{children:v.root.findByProps({className:'money-forecast-total'}).findByType('strong').children});assert.equal(amount(),money(2840));
- const toggle=v.root.findByType('input');act(()=>toggle.props.onChange({target:{checked:true}}));assert.equal(amount(),money(3340));
+ const toggle=v.root.findByProps({type:'checkbox'});act(()=>toggle.props.onChange({target:{checked:true}}));assert.equal(amount(),money(3340));
  click(v,x=>x.props.className==='money-event'&&text(x).includes('Свет'));assert.deepEqual(data,before);click(v,x=>labelText(x)==='Сумма другая');assert.equal(draft.amount,'');assert.equal(draft.recurringId,'due');assert.equal(draft.date,today);assert.deepEqual(data,before);v.unmount();
 });
 
 test('Calendar restores horizon, income scenario and chosen date after leaving for a shared form',()=>{
  const today=todayMoscow(),date=new Date(Date.parse(today+'T12:00:00Z')+10*86400000).toISOString().slice(0,10),data=state();data.settings.nextIncomeDate=new Date(Date.parse(today+'T12:00:00Z')+2*86400000).toISOString().slice(0,10);let saved;
- let v=mount('MoneyCalendar',{data,onStateChange:x=>saved=x});click(v,x=>labelText(x)==='Месяц');act(()=>v.root.findByType('input').props.onChange({target:{checked:true}}));if(!v.root.findAllByType('button').some(x=>x.props['aria-label']?.startsWith(date+' ·')))click(v,x=>x.props['aria-label']==='Следующий месяц');click(v,x=>x.props['aria-label']?.startsWith(date+' ·'));
+ let v=mount('MoneyCalendar',{data,onStateChange:x=>saved=x});click(v,x=>labelText(x)==='Месяц');act(()=>v.root.findByProps({type:'checkbox'}).props.onChange({target:{checked:true}}));if(!v.root.findAllByType('button').some(x=>x.props['aria-label']?.startsWith(date+' ·')))click(v,x=>x.props['aria-label']==='Следующий месяц');click(v,x=>x.props['aria-label']?.startsWith(date+' ·'));
  assert.equal(saved.horizon,'30');assert.equal(saved.income,true);assert.equal(saved.date,date);v.unmount();
- v=mount('MoneyCalendar',{data,initialState:saved});assert.equal(v.root.findByType('input').props.checked,true);assert.equal(v.root.findAllByType('button').find(x=>labelText(x)==='Месяц').props['aria-pressed'],true);assert.equal(v.root.findAllByType('button').find(x=>x.props['aria-label']?.startsWith(date+' ·')).props['aria-pressed'],true);v.unmount();
+ v=mount('MoneyCalendar',{data,initialState:saved});assert.equal(v.root.findByProps({type:'checkbox'}).props.checked,true);assert.equal(v.root.findAllByType('button').find(x=>labelText(x)==='Месяц').props['aria-pressed'],true);assert.equal(v.root.findAllByType('button').find(x=>x.props['aria-label']?.startsWith(date+' ·')).props['aria-pressed'],true);v.unmount();
 });
 test('Installment review opens the shared draft with the remaining sum; paid rows open their actual transaction',()=>{
  const today=todayMoscow(),data=state();data.installments=[{id:'i',name:'Сплит',accountId:'large',currency:'RUB',cat:'tech',payments:[{id:'p',amount:300,date:today}]}];data.transactions=[{id:'part',type:'expense',cat:'tech',amount:100,date:today,currency:'RUB',accountId:'large',installmentPaymentId:'p'}];let draft,edited;
@@ -173,4 +173,20 @@ test('Payment search and seven-day scope include their exact boundary and never 
  act(()=>v.root.findByProps({'aria-label':'Найти платёж'}).props.onChange({target:{value:'Большой 123,5'}}));assert.equal(v.root.findAllByProps({className:'upcoming-payment'}).length,2);
  act(()=>v.root.findByProps({'aria-label':'Найти платёж'}).props.onChange({target:{value:'не существует'}}));assert.ok(text(v.toJSON()).includes('Ничего не найдено'));
  click(v,b=>text(b)==='Сбросить поиск и фильтр');assert.equal(v.root.findAllByProps({className:'upcoming-payment'}).length,4);assert.deepEqual(data,before);v.unmount();
+});
+
+test('Calendar selected day opens shared forms for every source and saves the actual chosen date without debiting',async()=>{
+ const today=todayMoscow(),date=new Date(Date.parse(today+'T12:00Z')+2*86400000).toISOString().slice(0,10),changed=new Date(Date.parse(today+'T12:00Z')+7*86400000).toISOString().slice(0,10);let data=state(),v,saved;
+ const props=()=>({data,busy:false,onStateChange:x=>saved=x,mutate:async fn=>{data=fn(data);v.update(React.createElement(ui.MoneyCalendar,props()));return true;}});
+ v=mount('MoneyCalendar',props());act(()=>v.root.findByProps({'aria-label':'Перейти к дате'}).props.onChange({target:{value:date}}));click(v,b=>text(b)==='Добавить на этот день');
+ const kinds=v.root.findByProps({'aria-label':'Что добавить в календарь'});assert.deepEqual(kinds.findAllByType('button').map(b=>text(b)),['Платёж','Доход','По необходимости','Сплит или кредит','Долг']);
+ const planned=v.root.findByType(ui.PlannedForm);assert.equal(planned.props.initial.startDate,date);const balances=structuredClone(data.accounts);
+ await act(async()=>{await planned.props.save({id:'calendar-direct',type:'expense',name:'Покупка из календаря',amount:250,frequency:'once',accountId:'large',startDate:changed});});
+ assert.deepEqual(data.accounts,balances);assert.equal(data.transactions.length,0);assert.equal(saved.date,changed);assert.ok(text(v.toJSON()).includes('Покупка из календаря'));assert.equal(data.recurring[0].startDate,changed);v.unmount();
+});
+
+test('Calendar moves a debt through its source and displays transfers as editable facts with no duplicate keys',async()=>{
+ const today=todayMoscow(),future=new Date(Date.parse(today+'T12:00Z')+3*86400000).toISOString().slice(0,10);let data=state(),v,edited;data.debts=[{id:'friend',person:'Друг',type:'my',amount:100,currency:'RUB',dueDate:today,payments:[]}];data.transfers=[{id:'fact',from:'large',to:'small',amount:50,currency:'RUB',date:today}];
+ const props=()=>({data,onEdit:tx=>edited=tx,mutate:async fn=>{data=fn(data);v.update(React.createElement(ui.MoneyCalendar,props()));return true;}});v=mount('MoneyCalendar',props());click(v,b=>b.props.className==='money-event money-fact');assert.equal(edited.type,'transfer');assert.equal(edited.id,'fact');click(v,b=>b.props.className==='money-event'&&text(b).includes('Друг'));click(v,b=>text(b)==='Перенести дату');act(()=>v.root.findByProps({'aria-label':'Новая дата'}).props.onChange({target:{value:future}}));
+ await act(async()=>{await v.root.findByProps({className:'mini-form occurrence-date-form'}).props.onSubmit({preventDefault(){}});});assert.equal(data.debts[0].dueDate,future);assert.equal(data.transactions.length,0);assert.equal(data.accounts.find(a=>a.id==='large').balance,1000);v.unmount();
 });

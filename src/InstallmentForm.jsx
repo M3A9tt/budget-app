@@ -5,16 +5,16 @@ import {money,todayMoscow} from './mini-model.js';
 import {sumMoney} from './ledger.js';
 
 const dateLabel=date=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'));
-export default function InstallmentForm({data,mutate,busy,cats}){
+export default function InstallmentForm({data,mutate,busy,cats,initialDate='',initialOpen=false,onDone=()=>{}}){
  const accounts=orderedAccounts(data),currencies=[...new Set(accounts.map(a=>a.currency||'RUB'))],initialCurrency=currencies.includes('RUB')?'RUB':currencies[0]||'RUB';
- const blank=()=>({id:crypto.randomUUID(),name:'',total:'',count:'',firstDate:todayMoscow(data.settings.timeZone),cadence:'monthly',accountId:'',cat:'other',obligationKind:'installment',currency:initialCurrency});
- const [draft,setDraft]=useState(blank),[step,setStep]=useState(1),[schedule,setSchedule]=useState([]),[error,setError]=useState(''),[open,setOpen]=useState(false);
+ const blank=()=>({id:crypto.randomUUID(),name:'',total:'',count:'',firstDate:initialDate||todayMoscow(data.settings.timeZone),cadence:'monthly',accountId:'',cat:'other',obligationKind:'installment',currency:initialCurrency});
+ const [draft,setDraft]=useState(blank),[step,setStep]=useState(1),[schedule,setSchedule]=useState([]),[error,setError]=useState(''),[open,setOpen]=useState(initialOpen);
  const prefix=useId(),heading=useRef(null),saving=useRef(false);
  const set=(key,value)=>{setDraft(d=>({...d,[key]:value,...(key==='currency'?{accountId:''}:{})}));setError('');};
  const field=(key,label,props={})=><label htmlFor={prefix+key}>{label}<input disabled={busy} id={prefix+key} name={key} value={draft[key]} onChange={e=>set(key,e.target.value)} {...props}/></label>;
  const focusHeading=()=>requestAnimationFrame(()=>{heading.current?.focus();heading.current?.scrollIntoView({block:'start',behavior:'smooth'});});
  const preview=e=>{e.preventDefault();try{if(!draft.name.trim())throw Error('Напиши, за что платишь');const rows=installmentSchedule(draft),available=accounts.filter(a=>(a.currency||'RUB')===draft.currency);setDraft(d=>({...d,accountId:available.some(a=>a.id===d.accountId)?d.accountId:available.length===1?available[0].id:''}));setSchedule(rows);setError('');setStep(2);focusHeading();}catch(e){setError(e.message);}};
- const save=async e=>{e.preventDefault();if(saving.current||busy)return;saving.current=true;setError('');try{const account=data.accounts.find(a=>a.id===draft.accountId);if(!account||(account.currency||'RUB')!==draft.currency)throw Error('Выбери счёт в валюте графика');if(await mutate(d=>createInstallment(d,draft),'График добавлен. Деньги пока не списаны.')){setDraft(blank());setStep(1);setSchedule([]);setOpen(false);}}catch(e){setError(e.message);}finally{saving.current=false;}};
+ const save=async e=>{e.preventDefault();if(saving.current||busy)return;saving.current=true;setError('');try{const account=data.accounts.find(a=>a.id===draft.accountId);if(!account||(account.currency||'RUB')!==draft.currency)throw Error('Выбери счёт в валюте графика');if(await mutate(d=>createInstallment(d,draft),'График добавлен. Деньги пока не списаны.')){setDraft(blank());setStep(1);setSchedule([]);setOpen(false);onDone(draft.firstDate);}}catch(e){setError(e.message);}finally{saving.current=false;}};
  return <details className="mini-card mini-disclosure installment-create" open={open} onToggle={e=>setOpen(e.currentTarget.open)}><summary>Добавить сплит, рассрочку или кредит</summary>
  {!accounts.length?<p className="mini-small mini-muted">Сначала добавь счёт в разделе «Счета» — с него будут оплачиваться платежи.</p>:<form className="mini-form" onSubmit={step===1?preview:save}>
  <div className="installment-steps" aria-label={`Шаг ${step} из 2`}><span className={step===1?'current':''}>1 · Что осталось</span><span className={step===2?'current':''}>2 · Проверка</span></div>
