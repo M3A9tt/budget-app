@@ -36,6 +36,11 @@ jobs:
       - name: Check reliability scenarios in Chromium
         if: runner.os == 'Linux'
         run: npm run test:reliability
+      - name: Check recorded payments and emoji categories
+        if: runner.os == 'Linux'
+        run: npm run test:usability
+        env:
+          USABILITY_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/usability
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4

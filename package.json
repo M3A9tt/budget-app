@@ -1,7 +1,7 @@
 {
   "name": "finance-app",
   "private": true,
-  "version": "4.8.0",
+  "version": "4.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,8 @@
     "db:staging": "wrangler d1 execute budget-staging --remote --file server/schema.sql --config server/wrangler.staging.jsonc",
     "login:cloudflare": "wrangler login --device --browser=false",
     "test:browser": "node scripts/check-finance-browser.mjs",
-    "test:reliability": "node scripts/check-reliability-browser.mjs"
+    "test:reliability": "node scripts/check-reliability-browser.mjs",
+    "test:usability": "node scripts/check-intuitive-browser.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
