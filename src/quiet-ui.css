@@ -1,8 +1,6 @@
 /* Task-first layout. Neutral surfaces; colour carries financial meaning. */
 .mini-shell{--mini-panel:#1a1e24;--mini-raised:#242a32;--mini-line:#30363e}
 .mini-header{margin-bottom:20px}.mini-mark{border-radius:10px}
-.home-shortcuts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:8px;margin-bottom:20px}
-.home-shortcuts>.mini-secondary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;margin:0;padding:10px;font-size:13px;border-radius:10px;line-height:1.35}
 .ins-home .ins-page-head{margin-bottom:14px}.ins-home .ins-page-head h1{font-size:24px;letter-spacing:-.5px}.ins-home .ins-kicker{letter-spacing:0;text-transform:none}
 .ins-home .ins-hero.budget-clear{background:#1b2823;border:1px solid #34483d;border-radius:14px;padding:20px;box-shadow:none}
 .ins-home .ins-hero-amount{font-size:clamp(30px,8vw,42px);letter-spacing:-1px;margin:8px 0 12px;font-variant-numeric:tabular-nums}
@@ -13,4 +11,31 @@
 .attention-center{background:var(--mini-panel);border-radius:12px}.attention-center>.mini-card{border-radius:8px;padding:14px}.recorded-payment-panel{border-radius:8px;background:#202832}.recorded-payment-panel input{width:100%;min-width:0;padding:11px;margin:8px 0;background:#171c23;color:var(--mini-text);border:1px solid #485464;border-radius:8px}
 .payments-sections{gap:0;border-bottom:1px solid var(--mini-line)}.payments-sections>button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 10px}.payments-sections>button[aria-pressed=true]{border-color:#b7ee83;background:transparent;color:#c8e7b0}
 .planned-card,.installment-card{border-radius:12px}.category-studio{border-radius:12px}.mini-secondary,.mini-primary{border-radius:10px}
-@media(min-width:1100px){.home-shortcuts{max-width:480px}.ins-home .ins-hero-amount{font-size:42px}}
+@media(min-width:1100px){.ins-home .ins-hero-amount{font-size:42px}}
+
+/* One home for daily work; detailed tools have their own destinations. */
+.mini-shell{background:#11151b;--mini-muted:#a6aebb}
+.mini-brand small{display:none}.mini-header{margin-bottom:24px}
+.ins-home .ins-page-head{margin-bottom:16px}.ins-home .ins-page-head h1{font-size:25px}
+.ins-home .ins-hero.budget-clear{padding:18px;margin-bottom:16px}
+.ins-home .ins-hero-amount{font-size:36px;margin:6px 0 10px}
+.ins-home .budget-equation{margin-top:12px}.ins-home .budget-equation button{padding:11px 0}
+.ins-home .budget-method{margin-top:4px;padding-top:6px}
+.ins-home .ins-actions{display:flex;gap:8px;margin:0 0 12px}
+.ins-home .ins-actions button{min-height:46px;padding:11px 13px;font-size:13px;flex:1;justify-content:center;border-radius:9px}
+.home-entry-block{min-width:0;margin-bottom:22px}
+.home-attention-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:66px;padding:13px 0;border:0;border-bottom:1px solid var(--mini-line);background:transparent;text-align:left;color:var(--mini-text)}
+.home-attention-toggle>svg:first-child{color:#dfc28e;flex:none}.home-attention-toggle>span{flex:1;min-width:0}.home-attention-toggle b{font-size:13px;font-weight:500;display:block}.home-attention-toggle small{font-size:11px;color:var(--mini-muted);display:block;margin-top:5px;line-height:1.5}.home-attention-toggle>strong{font-size:13px;background:#32302a;color:#ecd6ac;border-radius:6px;padding:4px 7px;flex:none}
+.home-attention .attention-center{margin-top:12px;padding:14px}.home-attention .attention-center>h2{font-size:19px;letter-spacing:-.3px}
+.ins-home .home-accounts{margin-bottom:18px}.ins-home .ins-account-strip{min-height:0;overflow:visible;padding:0;margin:0}
+.ins-home .ins-account-strip>button{min-height:57px;padding:10px 0}.ins-home .ins-account-strip small{font-size:13px;color:#c4cbd5}
+.ins-home .home-recent .mini-section-title{margin-top:20px}.ins-home .mini-rows{background:transparent;padding:0;border-radius:0}.ins-home .mini-tx{padding:13px 0;gap:10px}.ins-home .mini-tx-icon{width:34px;height:34px;border-radius:8px}
+.more-menu section{margin:26px 0}.more-menu h2{font-size:12px;font-weight:500;color:var(--mini-muted);margin:0 0 8px}
+.more-menu section>div{border-top:1px solid var(--mini-line)}.more-menu section button{display:flex;gap:14px;align-items:center;width:100%;padding:16px 0;border:0;border-bottom:1px solid var(--mini-line);background:transparent;color:var(--mini-text);text-align:left}
+.more-menu section button>svg:first-child{color:#b4c6df;flex:none}.more-menu section button>span{flex:1;min-width:0}.more-menu strong{display:block;font-size:15px;font-weight:500}.more-menu small{display:block;font-size:12px;color:var(--mini-muted);line-height:1.5;margin-top:5px}.more-back{display:flex;align-items:center;gap:6px;margin-bottom:12px;min-height:40px}
+.entry-repeat{border-bottom:1px solid var(--mini-line);margin:0 0 16px}.entry-repeat summary{cursor:pointer;color:var(--mini-muted);font-size:12px;padding:12px 0;min-height:44px}.entry-repeat summary svg{vertical-align:middle;margin-right:6px}.entry-repeat>div{padding:4px 0 14px}
+.entry-composer .entry-amount{background:none;text-align:left;padding:10px 0 14px}.entry-amount>div{justify-content:flex-start}.entry-amount input{text-align:left;width:min(85%,350px);padding:10px 0;font-variant-numeric:tabular-nums}.entry-amount label{font-size:13px;color:#c6ced6}
+.entry-composer .category-choices button{border-radius:9px;min-height:48px;padding:10px 9px;color:#c5cdd7;background:#1c222b}.entry-composer .category-choices button[aria-pressed=true]{color:#d9f3cb;border-color:#a7d58e;background:#29362b}.category-search{margin:4px 0 12px}
+.entry-composer .account-choices{flex-wrap:wrap;overflow:visible}.entry-composer .account-choices button{border-radius:9px;padding:10px;min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}.account-choices button>span{min-width:0}
+@media(max-width:359px){.mini-shell{padding-left:16px;padding-right:16px}.ins-home .ins-actions button{padding:10px 8px;font-size:12px}.home-attention-toggle{gap:8px}.entry-composer .category-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1080px){.ins-home>.home-budget,.ins-home>.home-accounts,.ins-home>.home-entry-block{grid-row:auto}.ins-home>.home-budget{grid-column:1}.ins-home>.home-entry-block{grid-column:2}.ins-home>.home-accounts{grid-column:1/-1}.ins-home>.home-recent{grid-column:1/-1}.more-menu{max-width:760px}.more-menu section button{padding:18px 0}}

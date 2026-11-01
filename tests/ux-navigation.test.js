@@ -33,6 +33,14 @@ test('A new unsaved entry survives tab switching without saving or duplicating a
  a.find(n=>n.type==='button'&&n.props['aria-label']==='Назад').props.onClick();a.render();assert.ok(a.find(n=>n.props['data-page']==='history'));
 });
 
+test('Payments open directly and preserve a draft; More opens a menu and contextual analytics',()=>{
+ const a=app();a.button('Записать').props.onClick();a.render();let entry=a.component('EntryComposer');const count=entry.props.data.transactions.length;
+ entry.props.setDraft({...entry.props.draft,amount:'321',note:'Черновик'});a.render();
+ a.find(n=>n.type==='button'&&n.props['aria-label']==='Открыть платежи').props.onClick();a.render();assert.ok(a.find(n=>n.props['data-page']==='payments'));
+ a.button('Записать').props.onClick();a.render();entry=a.component('EntryComposer');assert.equal(entry.props.draft.amount,'321');assert.equal(entry.props.data.transactions.length,count);
+ a.button('Ещё').props.onClick();a.render();const menu=a.component('MoreMenu');assert.ok(menu);menu.props.onPage('stats');a.render();assert.ok(a.find(n=>n.props['data-page']==='stats'));assert.equal(a.button('Ещё').props['aria-current'],'page');
+});
+
 test('All operations from home clear stale history filters and search',()=>{
  const a=app();a.button('История').props.onClick();a.render();a.button('Доходы').props.onClick();a.find(n=>n.props['aria-label']==='Поиск операций').props.onChange({target:{value:'никогда не найдёт'}});a.render();a.button('Главная').props.onClick();a.render();a.component('HomeOverview').props.recentContent.props.action.props.onClick();a.render();assert.equal(a.find(n=>n.props['aria-label']==='Поиск операций').props.value,'');assert.ok(a.component('Transactions').props.txs.some(t=>t.type==='expense'));
 });

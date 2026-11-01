@@ -3,12 +3,14 @@ export const HOME_BLOCKS=[
  ['budget','Доступный бюджет','wallet'],['actions','Быстрая запись','plus'],['accounts','Мои счета','wallet'],['savings','Отложено','shield'],['wishes','Цели и покупки','goal','goals'],['month','Итоги месяца','chart'],['spending','Расходы по дням','chart'],['payments','Ближайшие платежи','bell'],['limits','Лимиты категорий','tag','limits'],['forecast','Прогноз остатка','chart','forecast'],['recent','Последние операции','history']
 ];
 export const HOME_PRESETS={simple:['budget','actions','accounts','recent'],everyday:HOME_BLOCKS.filter(([id])=>id!=='forecast').map(([id])=>id),full:HOME_BLOCKS.map(([id])=>id)};
-export function homeOrder(data){return data.settings?.homeLayout?.order||HOME_BLOCKS.map(([id])=>id);}
-export function homeVisible(data,id){const block=HOME_BLOCKS.find(([key])=>key===id);return !!block&&(!block[3]||moduleEnabled(data,block[3]))&&(id==='actions'||!(data.settings?.homeLayout?.hidden||['forecast']).includes(id));}
+const DEFAULT_HOME=HOME_PRESETS.simple;
+const defaultHidden=()=>HOME_BLOCKS.map(([id])=>id).filter(id=>!DEFAULT_HOME.includes(id));
+export function homeOrder(data){return data.settings?.homeLayout?.order||[...DEFAULT_HOME,...HOME_BLOCKS.map(([id])=>id).filter(id=>!DEFAULT_HOME.includes(id))];}
+export function homeVisible(data,id){const block=HOME_BLOCKS.find(([key])=>key===id);return !!block&&(!block[3]||moduleEnabled(data,block[3]))&&(id==='actions'||!(data.settings?.homeLayout?.hidden||defaultHidden()).includes(id));}
 export function homeBlocks(data){return homeOrder(data).filter(id=>homeVisible(data,id));}
 export function customizeHome(data,{preset,key,move,visible,reset}={}){
  if(reset){const settings={...data.settings};delete settings.homeLayout;return {...data,settings};}
- let order=[...homeOrder(data)],hidden=[...(data.settings?.homeLayout?.hidden||['forecast'])];
+ let order=[...homeOrder(data)],hidden=[...(data.settings?.homeLayout?.hidden||defaultHidden())];
  if(preset){if(!HOME_PRESETS[preset])throw Error('Вариант главной не найден');order=[...HOME_PRESETS[preset],...HOME_BLOCKS.map(([id])=>id).filter(id=>!HOME_PRESETS[preset].includes(id))];hidden=HOME_BLOCKS.map(([id])=>id).filter(id=>!HOME_PRESETS[preset].includes(id));}
  else {
   if(!HOME_BLOCKS.some(([id])=>id===key))throw Error('Блок не найден');
