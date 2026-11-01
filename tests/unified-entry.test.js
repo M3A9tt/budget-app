@@ -21,3 +21,6 @@ test('Future timing cannot reclassify existing facts, linked payments, company l
  for(const entry of [{...d.transactions[0],date:future},{type:'expense',recurringId:'p'},{type:'lunch'},{type:'expense',currency:'USD'}])assert.throws(()=>submitEntry(d,{date:future,amount:100,currency:'RUB',accountId:'a',...entry},today));assert.deepEqual(d,before);
  const manual=submitEntry(base(),{type:'expense',amount:100,currency:'RUB',accountId:'a',timing:'planned',frequency:'manual',date:'',note:'Без расписания'},today);assert.equal(scheduledEvents(manual,today,moveDate(today,100)).length,0);
 });
+test('A future plan cannot complete an expense check that asks for actual spending',()=>{
+ const d=base();assert.throws(()=>applyBotAction(d,'tx',{type:'expense',checkDay:today},{date:moveDate(today,2),amount:100,accountId:'a'}),/фактический расход/);assert.equal(d.recurring.length,0);
+});

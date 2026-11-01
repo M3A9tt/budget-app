@@ -18,7 +18,6 @@ export function compactTransaction(data,p){
 }
 export function actionDestination(p){if(p.op==='homeLayout')return {name:'homeLayout',args:{}};if(p.op==='module')return {name:'modules',args:{}};
  if(p.op==='moveCalendarEvent')return {name:'calendar',args:{}};
- if(p.op==='tx'&&isPlannedEntry(p.values,todayMoscow()))return {name:'calendar',args:{}};
  const id=p.args.id;
  if(p.op==='payInstallment')return {name:'installment',args:{id}};
  if(['repay','linkDebt','debtDate'].includes(p.op))return {name:'debt',args:{id}};
