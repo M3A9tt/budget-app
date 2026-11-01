@@ -41,6 +41,11 @@ jobs:
         run: npm run test:usability
         env:
           USABILITY_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/usability
+      - name: Check payment actions, reconciliation and filters
+        if: runner.os == 'Linux'
+        run: npm run test:payments
+        env:
+          PAYMENT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/payment-experience
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
