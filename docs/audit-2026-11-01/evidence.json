@@ -1,0 +1,18 @@
+[
+  {
+    "label": "before",
+    "accountBalance": 1800,
+    "transactionCount": 1,
+    "linked": false,
+    "customCategories": 1,
+    "pageErrors": []
+  },
+  {
+    "label": "after",
+    "accountBalance": 1800,
+    "transactionCount": 1,
+    "linked": true,
+    "customCategories": 2,
+    "pageErrors": []
+  }
+]
