@@ -1,0 +1,81 @@
+[
+  {
+    "label": "before",
+    "steps": [
+      {
+        "action": "no-unscheduled-option",
+        "writes": 0,
+        "balance": 10000,
+        "transactions": 0,
+        "obligations": 0,
+        "free": 10000,
+        "dates": [],
+        "events": []
+      }
+    ],
+    "pageErrors": []
+  },
+  {
+    "label": "after",
+    "steps": [
+      {
+        "action": "save-without-date",
+        "writes": 1,
+        "balance": 10000,
+        "transactions": 0,
+        "obligations": 0,
+        "free": 10000,
+        "dates": [],
+        "events": []
+      },
+      {
+        "action": "schedule-one-date",
+        "writes": 2,
+        "balance": 10000,
+        "transactions": 0,
+        "obligations": 8000,
+        "free": 2000,
+        "dates": [
+          "2026-11-03"
+        ],
+        "events": [
+          {
+            "date": "2026-11-03",
+            "period": "2026-11-03"
+          }
+        ]
+      },
+      {
+        "action": "pay-without-next-date",
+        "writes": 3,
+        "balance": 2000,
+        "transactions": 1,
+        "obligations": 0,
+        "free": 2000,
+        "dates": [
+          "2026-11-03"
+        ],
+        "events": []
+      },
+      {
+        "action": "choose-arbitrary-next-date",
+        "writes": 4,
+        "balance": 2000,
+        "transactions": 1,
+        "obligations": 8000,
+        "free": -6000,
+        "dates": [
+          "2026-11-03",
+          "2026-12-18"
+        ],
+        "events": [
+          {
+            "date": "2026-12-18",
+            "period": "2026-12-18"
+          }
+        ]
+      }
+    ],
+    "pageErrors": []
+  }
+]
