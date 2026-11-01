@@ -11,7 +11,7 @@ import {orderedAccounts,accountTotals} from '../src/account-balances.js';
 import {createPlanned,skipPlanned} from '../src/planned-operations.js';
 import {putTransaction} from '../src/ledger.js';
 const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as AppErrorBoundary} from './src/AppErrorBoundary.jsx';export {default as PlannedOperations} from './src/PlannedOperations.jsx';export {default as PlannedForm} from './src/PlannedForm.jsx';export {default as PaymentsPage} from './src/PaymentsPage.jsx';export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
-const ctx={module:{exports:{}},exports:{},require,Intl,Date,console,structuredClone,window:{scrollTo:()=>{}},crypto:globalThis.crypto};ctx.exports=ctx.module.exports;vm.runInNewContext(bundle,ctx);const ui=ctx.module.exports;
+const ctx={module:{exports:{}},exports:{},require,Intl,Date,console,structuredClone,window:{scrollTo:()=>{},confirm:()=>true},crypto:globalThis.crypto};ctx.exports=ctx.module.exports;vm.runInNewContext(bundle,ctx);const ui=ctx.module.exports;
 const state=()=>({...structuredClone(EMPTY),accounts:[{id:'zero',name:'Пустой счёт',balance:0,currency:'RUB'},{id:'small',name:'Малый счёт',balance:100,currency:'RUB'},{id:'fx',name:'Доллары',balance:20,currency:'USD'},{id:'large',name:'Большой счёт',balance:1000,currency:'RUB'},{id:'reserve',name:'Резервный счёт',balance:3000,currency:'RUB',savingsKind:'deposit'}]});
 const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.children?text(x.children):'';
 
@@ -22,9 +22,11 @@ test('Payments use one-level sections, retain the extra calendar, and open share
  const data=state(),today=todayMoscow();data.recurring=[{id:'due',name:'ЖКХ',frequency:'monthly',startDate:today,dueDay:Number(today.slice(-2)),amount:100,currency:'RUB',accountId:'large',cat:'housing',type:'expense',active:true}];const before=structuredClone(data);let draft;
  const v=mount('PaymentsPage',{data,cats:CATEGORIES,onPrepare:d=>draft=d});
  const nav=v.root.findByProps({'aria-label':'Разделы платежей'});assert.deepEqual(nav.findAllByType('button').map(b=>text(b)),['Ближайшие','Сплиты и кредиты','Регулярные','Разовые','Долги']);assert.equal(v.root.findAllByProps({className:'payment-source-grid'}).length,0);assert.equal(v.root.findAllByProps({className:'money-calendar '}).length,0);
- click(v,b=>b.props.className==='upcoming-payment');assert.equal(draft.recurringId,'due');assert.equal(draft.amount,'100');assert.deepEqual(data,before);
- click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Календарь денег'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('Ближайшие 30 дней'));
- click(v,b=>text(b)==='Регулярные');assert.ok(text(v.toJSON()).includes('ЖКХ'));v.unmount();
+ click(v,b=>b.props.className==='upcoming-payment');assert.equal(draft,undefined);assert.deepEqual(data,before);click(v,b=>text(b)==='Записать оплату');assert.equal(draft.recurringId,'due');assert.equal(draft.amount,'100');assert.deepEqual(data,before);
+ click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Календарь денег'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('На 30 дней и ранее без отметки'));
+ click(v,b=>text(b)==='Регулярные');assert.ok(text(v.toJSON()).includes('ЖКХ'));
+ for(const label of ['Ближайшие','Сплиты и кредиты','Регулярные','Разовые','Долги','Ближайшие']){click(v,b=>text(b)===label);assert.equal(v.root.findAllByProps({className:'payments-management'}).length,1,'one menu after '+label);}
+ v.unmount();
 });
 test('Monthly editor exposes amount, day and account first, preserves paid constraints and previews before saving',()=>{
  let data=createPlanned(state(),{name:'ЖКХ',amount:'100',frequency:'monthly',startDate:todayMoscow(),accountId:'large',cat:'housing',type:'expense'});const rule=data.recurring[0];data=skipPlanned(data,rule.id,todayMoscow().slice(0,7));let saved;
@@ -141,4 +143,34 @@ test('Render failure offers reload without clearing financial storage or showing
  assert.equal(view.root.findByProps({role:'alert'}).type,'main');
  act(()=>view.root.findByType('button').props.onClick());assert.equal(reloads,1);view.unmount();
  const valid=mount('AppErrorBoundary',{children:React.createElement('span',null,'Рабочий экран')});assert.equal(text(valid.toJSON()),'Рабочий экран');valid.unmount();
+});
+
+test('Upcoming payment can link a recorded expense or skip an obsolete period without a second debit',async()=>{
+ const today=todayMoscow(),offset=n=>new Date(Date.parse(today+'T12:00Z')+n*86400000).toISOString().slice(0,10);
+ let data=createPlanned(state(),{id:'old',name:'ЖКХ',frequency:'once',startDate:offset(-1),type:'expense',amount:100,accountId:'large',cat:'housing'});
+ data=createPlanned(data,{id:'stale',name:'Старый расход',frequency:'once',startDate:offset(-2),type:'expense',amount:200,accountId:'large',cat:'other'});
+ data=createPlanned(data,{id:'future',name:'Будущий план',frequency:'once',startDate:offset(3),type:'expense',amount:50,accountId:'large',cat:'other'});
+ data=putTransaction(data,{id:'manual',type:'expense',amount:100,date:offset(-1),cat:'housing',accountId:'large',note:'ЖКХ внесено раньше'});
+ const balances=structuredClone(data.accounts),future=structuredClone(data.recurring.find(r=>r.id==='future'));let v;
+ const props=()=>({data,cats:CATEGORIES,busy:false,onPrepare:()=>assert.fail('Linking must not prepare a new payment'),mutate:async fn=>{data=fn(data);v.update(React.createElement(ui.PaymentsPage,props()));return true;}});
+ v=mount('PaymentsPage',props());
+ const search=value=>act(()=>v.root.findByProps({'aria-label':'Найти платёж'}).props.onChange({target:{value}}));
+ search('ЖКХ');click(v,b=>b.props.className==='upcoming-payment');click(v,b=>text(b)==='Уже учтено');
+ act(()=>v.root.findByType('select').props.onChange({target:{value:'manual'}}));
+ await act(async()=>{await v.root.findAllByType('button').find(b=>text(b)==='Связать без списания').props.onClick();});
+ assert.deepEqual(structuredClone(data.accounts),balances);assert.equal(data.transactions.length,1);assert.equal(data.transactions[0].recurringId,'old');
+ search('Старый');click(v,b=>b.props.className==='upcoming-payment');click(v,b=>text(b)==='Уже учтено');click(v,b=>text(b)==='Учтено в остатке / не нужно');
+ assert.ok(text(v.toJSON()).includes('Запись об оплате не появится'));assert.deepEqual(structuredClone(data.accounts),balances);
+ await act(async()=>{await v.root.findAllByType('button').find(b=>text(b)==='Неактуально в этом периоде').props.onClick();});
+ assert.ok(data.recurring.find(r=>r.id==='stale').skippedPeriods.includes('once'));assert.equal(data.transactions.length,1);assert.deepEqual(structuredClone(data.accounts),balances);assert.deepEqual(structuredClone(data.recurring.find(r=>r.id==='future')),future);v.unmount();
+});
+
+test('Payment search and seven-day scope include their exact boundary and never change money',()=>{
+ const today=todayMoscow(),offset=n=>new Date(Date.parse(today+'T12:00Z')+n*86400000).toISOString().slice(0,10);
+ let data=state();for(const [id,n] of [['old',-1],['today',0],['edge',6],['later',7]])data=createPlanned(data,{id,name:id,frequency:'once',startDate:offset(n),type:'expense',amount:123.5,accountId:'large',cat:'other'});
+ const before=structuredClone(data),v=mount('PaymentsPage',{data,cats:CATEGORIES,onPrepare:()=>assert.fail('Searching cannot prepare payment')});
+ click(v,b=>text(b).startsWith('7 дней'));let output=text(v.toJSON());assert.ok(output.includes('today'));assert.ok(output.includes('edge'));assert.ok(!output.includes('later'));assert.ok(!output.includes('old'));
+ act(()=>v.root.findByProps({'aria-label':'Найти платёж'}).props.onChange({target:{value:'Большой 123,5'}}));assert.equal(v.root.findAllByProps({className:'upcoming-payment'}).length,2);
+ act(()=>v.root.findByProps({'aria-label':'Найти платёж'}).props.onChange({target:{value:'не существует'}}));assert.ok(text(v.toJSON()).includes('Ничего не найдено'));
+ click(v,b=>text(b)==='Сбросить поиск и фильтр');assert.equal(v.root.findAllByProps({className:'upcoming-payment'}).length,4);assert.deepEqual(data,before);v.unmount();
 });

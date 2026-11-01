@@ -1,3 +1,4 @@
+import {selectPaymentSection} from './browser-payment-section.mjs';
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
 import {execFileSync} from 'node:child_process';
@@ -37,9 +38,9 @@ try{
    await page.goto('http://127.0.0.1:'+server.httpServer.address().port+'/?payments=1');
    await page.locator('.connected-payments').waitFor();await page.screenshot({animations:'disabled',path:join(out,label+'-overview.png'),fullPage:true});
    if(label==='before'){await page.getByRole('button',{name:'До погашения',exact:true}).click();await page.getByRole('button',{name:/Кредиты, сплит, рассрочки/}).click();}
-   else await page.getByRole('button',{name:'Сплиты и кредиты',exact:true}).click();
+   else await selectPaymentSection(page,'Сплиты и кредиты');
    await page.locator('.installment-card').waitFor();await page.screenshot({animations:'disabled',path:join(out,label+'-splits.png'),fullPage:true});
-   await page.getByRole('button',{name:label==='before'?'Постоянные':'Регулярные',exact:true}).click();
+   await selectPaymentSection(page,label==='before'?'Постоянные':'Регулярные');
    const card=page.locator(label==='before'?'.mini-card':'.planned-card').filter({has:page.getByText('ЖКХ',{exact:true})}).last();
    if(label==='after')await card.locator('.planned-actions>summary').click();
    await card.getByRole('button',{name:label==='before'?'Изменить':'Изменить план',exact:true}).click();

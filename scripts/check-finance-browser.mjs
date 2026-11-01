@@ -1,3 +1,4 @@
+import {selectPaymentSection} from './browser-payment-section.mjs';
 import {createServer} from 'vite';
 const server=await createServer({root:process.cwd(),server:{host:'127.0.0.1',port:0}});await server.listen();
 const origin='http://127.0.0.1:'+server.httpServer.address().port;
@@ -76,13 +77,13 @@ for(const width of [320,360,390,430,768,1280]){await page.setViewportSize({width
 await page.setViewportSize({width:390,height:844});await page.locator('.history-type-tabs').getByRole('button',{name:'Расходы',exact:true}).click();assert.equal(await page.locator('[data-transfer-id]').count(),0);await page.getByText(/^Комиссия за перевод/).waitFor();
 await page.locator('.mini-nav').getByRole('button',{name:'Главная',exact:true}).click();await page.locator('[data-transfer-id="'+savedTransfer.id+'"]').waitFor();assert.deepEqual(data.accounts,balancesAfterTransfer);
 // Installment review accepts a partial sum and returns to the same section.
-await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'Сплиты и кредиты',exact:true}).click();
+await page.goto(origin+'/?payments=1');await selectPaymentSection(page,'Сплиты и кредиты');
 const beforeSplit=data.accounts.find(a=>a.id==='alpha').balance;await page.getByRole('button',{name:'Проверить платёж',exact:true}).click();assert.equal(data.accounts.find(a=>a.id==='alpha').balance,beforeSplit);await page.locator('#amount').fill('100');await page.getByRole('button',{name:/Записать.*100/}).click();await page.locator('.installment-payment').waitFor();assert.equal(data.accounts.find(a=>a.id==='alpha').balance,beforeSplit-100);await page.getByText(/осталось.*200/).waitFor();
 await page.getByRole('button',{name:/оплачено.*100.*открыть запись/}).click();await page.locator('#amount').fill('125');await page.getByRole('button',{name:'Сохранить изменения',exact:false}).click();await page.locator('.installment-payment').waitFor();assert.equal(data.accounts.find(a=>a.id==='alpha').balance,beforeSplit-125);assert.equal(data.transactions.filter(t=>t.installmentPaymentId==='qa-part').length,1);await page.getByText(/осталось.*175/).waitFor();
 for(const width of [320,360,390,430,768,1280]){
  await page.setViewportSize({width,height:900});await checkOverflow('installments '+width);
  await page.locator('.mini-nav').getByRole('button',{name:'Записать',exact:true}).click();await page.getByRole('button',{name:'Перевод',exact:true}).click();await page.locator('select[name=from]').selectOption('alpha');await page.locator('select[name=to]').selectOption('sber');await page.locator('input[name=amount]').fill('10');await checkOverflow('transfer '+width);await page.screenshot({path:screenshotDir+'/transfer-'+width+'.png',fullPage:true});
- await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'Сплиты и кредиты',exact:true}).click();
+ await page.goto(origin+'/?payments=1');await selectPaymentSection(page,'Сплиты и кредиты');
 }
 // 4.2: repair a partially valid JSON import in Settings without changing bank balances.
 await page.setViewportSize({width:390,height:844});
@@ -144,7 +145,7 @@ await checkOverflow('backup refreshed 390');
 await page.screenshot({path:screenshotDir+'/10-backup-refresh-390.png',fullPage:true});
 // Return an accidentally skipped occurrence without touching actual balances.
 data.recurring.push({id:'qa-skipped',name:'Случайный пропуск',type:'expense',frequency:'monthly',startDate:today,active:true,amount:75,currency:'RUB',accountId:'alpha',cat:'housing',dueDay:Number(today.slice(-2)),skippedPeriods:[today.slice(0,7)]});
-await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'Регулярные',exact:true}).click();
+await page.goto(origin+'/?payments=1');await selectPaymentSection(page,'Регулярные');
 const skippedCard=page.locator('.mini-card').filter({has:page.getByText('Случайный пропуск',{exact:true})});
 await skippedCard.locator('.planned-actions>summary').click();await skippedCard.locator('.plan-skipped summary').click();
 const beforeRestoreBalances=data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeRestoreCount=data.transactions.length;
@@ -154,7 +155,7 @@ assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeResto
 for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:900});await checkOverflow('restored plan '+width);}
 await page.setViewportSize({width:390,height:844});await page.screenshot({path:screenshotDir+'/11-restored-plan-390.png',fullPage:true});
 // The remaining-payments wizard previews the exact schedule before any mutation.
-await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:'Сплиты и кредиты',exact:true}).click();
+await page.goto(origin+'/?payments=1');await selectPaymentSection(page,'Сплиты и кредиты');
 await page.locator('.installment-create>summary').click();
 await page.getByLabel('За что платишь?',{exact:true}).fill('Телефон — остаток');await page.getByLabel('Осталось заплатить',{exact:true}).fill('9000');await page.getByLabel('Осталось платежей',{exact:true}).fill('3');await page.getByLabel('Как часто',{exact:true}).selectOption('biweekly');await page.getByLabel('Ближайший неоплаченный платёж',{exact:true}).fill(today);
 const beforeWizardBalances=data.accounts.map(a=>({id:a.id,balance:a.balance})),beforeWizardTransactions=data.transactions.length,beforeWizardPlans=data.installments.length;
@@ -172,7 +173,7 @@ const priorMonth=new Date(today+'T12:00:00Z');priorMonth.setUTCDate(1);priorMont
 data.recurring.push({id:'qa-housing',name:'Редактирование ЖКХ',type:'expense',frequency:'monthly',startDate:priorPeriod+'-01',dueDay:15,active:true,amount:100,currency:'RUB',accountId:'alpha',cat:'housing',skippedPeriods:[]});
 data=putTransaction(data,{id:'qa-housing-paid',type:'expense',recurringId:'qa-housing',recurringPeriod:priorPeriod,date:priorPeriod+'-15',amount:100,currency:'RUB',accountId:'alpha',cat:'housing',note:'Оплата прошлого месяца'});
 await page.setViewportSize({width:390,height:1000});await page.goto(origin+'/?payments=1');await page.locator('.payments-upcoming').waitFor();assert.equal(await page.getByRole('button',{name:'До погашения',exact:true}).count(),0);assert.equal(await page.locator('.payments-sections button').count(),5);await page.screenshot({path:screenshotDir+'/14-payments-overview-390.png',fullPage:true});
-await page.getByRole('button',{name:'Регулярные',exact:true}).click();const housingCard=page.locator('.planned-card').filter({has:page.getByText('Редактирование ЖКХ',{exact:true})});await housingCard.locator('.planned-actions>summary').click();await housingCard.getByRole('button',{name:'Изменить план',exact:true}).click();
+await selectPaymentSection(page,'Регулярные');const housingCard=page.locator('.planned-card').filter({has:page.getByText('Редактирование ЖКХ',{exact:true})});await housingCard.locator('.planned-actions>summary').click();await housingCard.getByRole('button',{name:'Изменить план',exact:true}).click();
 assert.equal(await housingCard.locator('input:visible').count(),2);assert.equal(await housingCard.locator('select:visible').count(),2);assert.equal(await housingCard.getByLabel('С какого счёта платить',{exact:true}).inputValue(),'alpha');
 const historyBeforePlan=JSON.stringify(data.history),transactionsBeforePlan=JSON.stringify(data.transactions),balancesBeforePlan=data.accounts.map(a=>({id:a.id,balance:a.balance}));
 await housingCard.locator('[name=amount]').fill('125');await housingCard.locator('[name=dueDay]').fill('28');assert.equal(JSON.stringify(data.transactions),transactionsBeforePlan);
@@ -180,7 +181,7 @@ for(const width of [320,360,390,430,768,1280]){await page.setViewportSize({width
 await page.setViewportSize({width:390,height:1000});await housingCard.screenshot({path:screenshotDir+'/15-monthly-editor-390.png'});await housingCard.getByRole('button',{name:'Сохранить изменения',exact:true}).click();await housingCard.getByRole('button',{name:'Отметить оплату',exact:true}).waitFor();
 assert.equal(data.recurring.find(r=>r.id==='qa-housing').dueDay,28);assert.equal(data.recurring.find(r=>r.id==='qa-housing').amount,125);assert.equal(JSON.stringify(data.history),historyBeforePlan);assert.equal(JSON.stringify(data.transactions),transactionsBeforePlan);assert.deepEqual(data.accounts.map(a=>({id:a.id,balance:a.balance})),balancesBeforePlan);
 await housingCard.getByRole('button',{name:'Отметить оплату',exact:true}).click();await housingCard.getByRole('button',{name:/^125/}).click();assert.equal(await page.locator('#amount').inputValue(),'125');await page.getByRole('button',{name:/Записать.*125/}).click();await page.locator('.planned-card').filter({hasText:'Редактирование ЖКХ'}).waitFor();assert.equal(data.accounts.find(a=>a.id==='alpha').balance,balancesBeforePlan.find(a=>a.id==='alpha').balance-125);assert.equal(data.transactions.filter(t=>t.recurringId==='qa-housing'&&t.recurringPeriod===today.slice(0,7)).length,1);assert.equal(data.transactions.find(t=>t.id==='qa-housing-paid').amount,100);
-for(const width of [320,360,390,430,768,1280]){await page.setViewportSize({width,height:1000});for(const section of ['Ближайшие','Сплиты и кредиты','Регулярные','Разовые','Долги']){await page.locator('.payments-sections').getByRole('button',{name:section,exact:true}).click();await checkOverflow('payment section '+section+' '+width);}}
+for(const width of [320,360,390,430,768,1280]){await page.setViewportSize({width,height:1000});for(const section of ['Ближайшие','Сплиты и кредиты','Регулярные','Разовые','Долги']){await selectPaymentSection(page,section);await checkOverflow('payment section '+section+' '+width);}}
 // 4.5: create an income, move one occurrence across a month boundary, confirm and edit the linked fact.
 data=structuredClone(EMPTY);data.accounts=[{id:'income-bank',name:'Карта для доходов',currency:'RUB',balance:2000}];data.settings={...data.settings,modules:{plans:true},nextIncomeDate:past(7)};
 await page.setViewportSize({width:390,height:1000});await page.goto(origin+'/?payments=1');await page.locator('.payments-income-entry').click();await page.locator('.mini-disclosure>summary').click();
