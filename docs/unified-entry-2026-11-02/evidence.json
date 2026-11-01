@@ -1,0 +1,98 @@
+[
+  {
+    "label": "before",
+    "steps": [],
+    "pageErrors": []
+  },
+  {
+    "label": "after",
+    "steps": [
+      {
+        "action": "ordinary-expense-planned",
+        "balance": 1000,
+        "transactions": 0,
+        "plans": [
+          {
+            "type": "expense",
+            "date": "2026-11-04",
+            "frequency": "once"
+          }
+        ],
+        "events": [
+          {
+            "type": "expense",
+            "date": "2026-11-04",
+            "amount": 100
+          }
+        ]
+      },
+      {
+        "action": "expense-paid-once",
+        "balance": 900,
+        "transactions": 1,
+        "plans": [
+          {
+            "type": "expense",
+            "date": "2026-11-04",
+            "frequency": "once"
+          }
+        ],
+        "events": []
+      },
+      {
+        "action": "future-income-in-same-entry",
+        "balance": 900,
+        "transactions": 1,
+        "plans": [
+          {
+            "type": "expense",
+            "date": "2026-11-04",
+            "frequency": "once"
+          },
+          {
+            "type": "income",
+            "date": "2026-11-04",
+            "frequency": "once"
+          }
+        ],
+        "events": [
+          {
+            "type": "income",
+            "date": "2026-11-04",
+            "amount": 500
+          }
+        ]
+      },
+      {
+        "action": "undated-expense-in-same-entry",
+        "balance": 900,
+        "transactions": 1,
+        "plans": [
+          {
+            "type": "expense",
+            "date": "2026-11-04",
+            "frequency": "once"
+          },
+          {
+            "type": "income",
+            "date": "2026-11-04",
+            "frequency": "once"
+          },
+          {
+            "type": "expense",
+            "date": "",
+            "frequency": "manual"
+          }
+        ],
+        "events": [
+          {
+            "type": "income",
+            "date": "2026-11-04",
+            "amount": 500
+          }
+        ]
+      }
+    ],
+    "pageErrors": []
+  }
+]

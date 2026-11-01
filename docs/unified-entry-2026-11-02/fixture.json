@@ -1,0 +1,47 @@
+{
+  "baseline": "c0954408357b5a78ecf07aa3b36152dab5e9023c",
+  "today": "2026-11-02",
+  "future": "2026-11-04",
+  "fictional": true,
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [],
+    "accounts": [
+      {
+        "id": "a",
+        "name": "Карта",
+        "balance": 1000,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "notificationMode": "manual",
+      "modules": {
+        "plans": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}
