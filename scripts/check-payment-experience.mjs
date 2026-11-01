@@ -65,7 +65,7 @@ try{
     await page.getByRole('button',{name:/Записать.*350/}).click();await page.locator('[data-page=payments]').waitFor();assert.equal(data.accounts[0].balance,1450);assert.equal(data.transactions.length,2);
     assert.equal(data.transactions.filter(t=>t.recurringId==='travel').length,1);steps.push({action:'confirm-payment',balance:data.accounts[0].balance,transactions:data.transactions.length});
     await page.locator('.mini-nav').getByRole('button',{name:'История',exact:true}).click();await page.getByLabel('Поиск операций',{exact:true}).fill('Проездной');await page.getByText('Проездной',{exact:true}).waitFor();
-    await page.getByRole('button',{name:'Открыть платежи',exact:true}).click();
+    await page.getByRole('button',{name:'Открыть планы',exact:true}).click();
     const filters=page.getByRole('group',{name:'Срок платежей',exact:true});await filters.getByRole('button',{name:/7 дней/}).click();
     assert.equal(await page.getByText('Уточняемый платёж',{exact:true}).count(),0);
     await filters.getByRole('button',{name:/Все/}).click();await page.getByRole('searchbox',{name:'Найти платёж',exact:true}).fill('никакого совпадения');

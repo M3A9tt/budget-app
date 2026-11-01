@@ -8,7 +8,7 @@ function datePart(value,today){
  if(relative.length+explicit.length>1)throw Error('Укажи одну дату для одной операции');
  if(relative.length){const m=relative[0],days=({сегодня:0,вчера:-1,позавчера:-2,завтра:1})[m[0].toLocaleLowerCase('ru')];date=new Date(Date.parse(today+'T12:00:00Z')+days*86400000).toISOString().slice(0,10);value=value.slice(0,m.index)+' '+value.slice(m.index+m[0].length);}
  if(explicit.length){const m=explicit[0];date=m[0].includes('.')?m[0].split('.').reverse().join('-'):m[0];if(!Number.isFinite(Date.parse(date+'T12:00:00Z'))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw Error('Проверь дату: например 14.10.2026');value=value.slice(0,m.index)+' '+value.slice(m.index+m[0].length);}
- if(date>today)throw Error('Будущую операцию добавь в планы. Фактическую запись подтвердим после оплаты');return {value,date};
+ return {value,date};
 }
 function amountPart(value){
  const number='(?:\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|\\d+)(?:[.,]\\d{1,2})?',unit='(?:₽|руб(?:лей|ля|ль|\\.)?|р\\.?|RUB|USD|EUR|GBP|CNY|TRY|\\$|€)';
@@ -19,9 +19,9 @@ function amountPart(value){
  const u=(m[3]||'').toUpperCase(),currency=!u?null:/^(?:₽|РУБ|Р\.?|RUB)/u.test(u)?'RUB':u==='$'?'USD':u==='€'?'EUR':u;
  return {amount,currency,sign:m[1],note:value.slice(0,m.index)+' '+value.slice(m.index+m[0].length)};
 }
-export function parseEntry(text,accounts,categories,date,defaults={}){
+export function parseEntry(text,accounts,categories,today,defaults={}){
  if(typeof text!=='string'||text.length>2000)throw Error('Одна операция — сообщение до 2000 символов');
- const dated=datePart(text.trim(),date),hits=accountMentions(dated.value,accounts),ids=[...new Set(hits.map(x=>x.account.id))];if(ids.length>1)throw Error('Названо несколько счетов — выберите один');
+ const dated=datePart(text.trim(),today),hits=accountMentions(dated.value,accounts),ids=[...new Set(hits.map(x=>x.account.id))];if(ids.length>1)throw Error('Названо несколько счетов — выберите один');
  let working=without(dated.value,hits.map(x=>{const before=dated.value.slice(0,x.start).match(/(?:^|\s)(?:с|со|на|в|из|сч[её]т:?)\s*$/iu);return {...x,start:before?x.start-before[0].length:x.start};}));
  const parsed=amountPart(working),memo=parsed.note.toLocaleLowerCase('ru');
  const {type,companyLunch:lunch,mentionsLunch}=classifyFinancialIntent({memo,sign:parsed.sign,hasNamedAccount:hits.length>0,companyLunchEnabled:defaults.companyLunchEnabled!==false,inferredType:entryType(text)});
@@ -31,11 +31,13 @@ export function parseEntry(text,accounts,categories,date,defaults={}){
  let cat=categories.find(c=>memo.includes(c.name.toLocaleLowerCase('ru')))?.id||keywords.find(([,re])=>re.test(memo))?.[0]||'other';
  const tags=[...parsed.note.matchAll(/#([\p{L}\p{N}_-]+)/gu)];for(const tag of tags){const found=categories.find(c=>[c.id,c.name].some(n=>n.toLocaleLowerCase('ru')===tag[1].toLocaleLowerCase('ru')));if(found){cat=found.id;parsed.note=parsed.note.replace(tag[0],' ');}}
  const note=parsed.note.replace(/(?<!\p{L})(?:сбп|наличными|наличные|картой|банковский перевод)(?!\p{L})/giu,' ').replace(/^\s*(?:расход|доход|получил(?:а)?|потратил(?:а)?)\s*[:;|]?\s*/iu,'').replace(/^[\s:;|,−+\-]+|[\s:;|,−+\-]+$/gu,'').replace(/\s+/g,' ').trim();
- return {type,cat:lunch?'lunch':type==='income'?'income':mentionsLunch?'food':cat,amount:parsed.amount,currency:lunch?'RUB':parsed.currency||account?.currency||'RUB',date:dated.date,note:note||(type==='income'?'Доход':lunch?'Обед компании':'Покупка'),paymentMethod:/сбп/u.test(memo)?'sbp':/налич/u.test(memo)?'cash':/карт/u.test(memo)?'card':/перевод/u.test(memo)?'bank':(account?.id===defaults.accountId?defaults.paymentMethod:'unknown')||'unknown',tags:mentionsLunch&&!lunch&&type==='expense'?['обед-за-свои']:[],accountId:lunch?undefined:account?.id||''};
+ if(lunch&&dated.date>today)throw Error('Обед компании записывается после фактического обеда');
+ return {...(dated.date>today?{timing:'planned'}:{}),type,cat:lunch?'lunch':type==='income'?'income':mentionsLunch?'food':cat,amount:parsed.amount,currency:lunch?'RUB':parsed.currency||account?.currency||'RUB',date:dated.date,note:note||(type==='income'?'Доход':lunch?'Обед компании':'Покупка'),paymentMethod:/сбп/u.test(memo)?'sbp':/налич/u.test(memo)?'cash':/карт/u.test(memo)?'card':/перевод/u.test(memo)?'bank':(account?.id===defaults.accountId?defaults.paymentMethod:'unknown')||'unknown',tags:mentionsLunch&&!lunch&&type==='expense'?['обед-за-свои']:[],accountId:lunch?undefined:account?.id||''};
 }
 export function parseOwnTransfer(text,accounts,today){
  const dated=datePart(text,today);
  if(!/^\s*(?:перевод|перевести|перевёл|перевел)\s/iu.test(dated.value)||!/(?:→|->|между своими|со?\s.+\sна\s)/iu.test(text))return null;
+ if(dated.date>today)throw Error('Будущий перевод пока нельзя запланировать');
  const hits=accountMentions(dated.value,accounts);if(hits.some((a,i)=>hits.slice(i+1).some(b=>a.account.id!==b.account.id&&a.start<b.end&&b.start<a.end)))throw Error('Название счёта неоднозначно. Выбери счета в форме перевода или дай им разные названия');const unique=[...new Set(hits.map(x=>x.account.id))];if(unique.length!==2)throw Error('Для перевода укажи два своих счёта: перевод 1000 Сбер → Копилка');
  const first=hits.find(x=>x.account.id===unique[0]).account,second=hits.find(x=>x.account.id===unique[1]).account;
  if((first.currency||'RUB')!==(second.currency||'RUB'))throw Error('Перевод между разными валютами пока не поддерживается: сначала зафиксируй обмен и фактический курс');
