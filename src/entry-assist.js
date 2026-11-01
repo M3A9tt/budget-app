@@ -12,8 +12,9 @@ export function repeatEntry(data,tx,today,categories){
  if(tx.installmentPaymentId||tx.recurringId){
   const plan=(data.installments||[]).find(p=>p.payments.some(x=>x.id===tx.installmentPaymentId));
   const rule=tx.recurringId&&data.recurring.find(r=>r.id===tx.recurringId),scope={...data,recurring:rule?[rule]:[],installments:plan?[plan]:[],debts:[]};
-  const end=[moveDate(today,['daily','weekly'].includes(rule?.frequency)?30:3660),rule?.frequency==='once'?rule.startDate:'',...(plan?.payments||[]).map(p=>p.date)].sort().at(-1);
+  const end=[moveDate(today,['daily','weekly'].includes(rule?.frequency)?30:3660),rule?.frequency==='once'?rule.startDate:'',...(rule?.frequency==='manual'?[...(rule.scheduledDates||[]),...Object.values(rule.dateOverrides||{})]:[]),...(plan?.payments||[]).map(p=>p.date)].sort().at(-1);
   const next=scheduledEvents(scope,today,end).find(e=>tx.recurringId?e.source==='plan':e.source==='installment');
+  if(!next&&rule?.frequency==='manual')throw Error('Назначь следующую дату в разделе «По необходимости». Автоматического повтора нет.');
   if(!next)throw Error('Неоплаченных платежей нет. Открой график, чтобы проверить историю.');
   return prepareEvent(data,next,today);
  }

@@ -130,7 +130,7 @@ async function prompt(env,userId,api,id,p,page=0){
  // A reply to an old prompt must never become the answer to a later field.
  const loaded=await load(env,userId,id);if(loaded.p.step===p.step&&loaded.p.status==='form')await replace(env,userId,loaded.row,{...loaded.p,promptId:message?.message_id});
 }
-const actionTitles={tx:'Запись операции',account:'Новый счёт',transfer:'Перевод своим',editTransfer:'Изменение перевода',reverseTransfer:'Отмена перевода и комиссии',notificationMode:'Режим уведомлений',reschedulePlan:'Перенос платежа',paymentReminder:'Разовое напоминание',lunchAnswer:'Ответ об обеде',reconcile:'Сверка остатка',wish:'Заметка о покупке',debt:'Существующий долг',repay:'Возврат долга',linkDebt:'Связать возврат',plan:'План операции',installment:'График обязательства',restore:'Замена бюджета',import:'Импорт операций',feedback:'Обратная связь'};
+const actionTitles={tx:'Запись операции',account:'Новый счёт',transfer:'Перевод своим',editTransfer:'Изменение перевода',reverseTransfer:'Отмена перевода и комиссии',notificationMode:'Режим уведомлений',schedulePlan:'Назначить дату платежа',reschedulePlan:'Перенос платежа',paymentReminder:'Разовое напоминание',lunchAnswer:'Ответ об обеде',reconcile:'Сверка остатка',wish:'Заметка о покупке',debt:'Существующий долг',repay:'Возврат долга',linkDebt:'Связать возврат',plan:'План операции',installment:'График обязательства',restore:'Замена бюджета',import:'Импорт операций',feedback:'Обратная связь'};
 export async function preview(env,userId,api,id,p){
  const s=await api.readState(env,userId),fields=fieldsFor(s.data,p.op,p.args,p.values);let lines=[],error='';
  try{

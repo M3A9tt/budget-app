@@ -520,3 +520,10 @@ test('Release refreshes each users native miniapp menu and keyboard once; repeat
  const before=calls.length,again=await broadcastRelease(f.env,send);assert.equal(again.sent,0);assert.equal(again.alreadySent,2);assert.equal(calls.length,before);
  assert.deepEqual(f.snapshot(),seed());
 }));
+
+test('Native on-demand plan has no hidden monthly recurrence; explicit scheduling and confirmation debit once',()=>run(async f=>{
+ await f.update('/payments');await f.press('По необходимости');await f.press('＋ План');await f.update('Психотерапевт');await f.press('Расход');await f.update('8000');await f.press(/Банк/);await f.press('Здоровье');await f.press('По необходимости');await f.press('Нет');assert.equal(f.snapshot().recurring.length,0);await f.press('✅ Подтвердить');
+ let d=f.snapshot();assert.equal(d.accounts[0].balance,10000);assert.deepEqual(d.recurring[0].scheduledDates,[]);assert.equal(d.transactions.length,0);
+ await f.update('/payments');await f.press('По необходимости');await f.press(/Психотерапевт/);assert.match(f.last().text,/Дата пока не назначена/);await f.press('Назначить дату');await f.update(today);const schedule=f.button('✅ Подтвердить');await f.update('',schedule);await f.update('',schedule);d=f.snapshot();assert.deepEqual(d.recurring[0].scheduledDates,[today]);assert.equal(d.accounts[0].balance,10000);
+ await f.update('/payments');await f.press('Оплатить сейчас');await f.press(/Психотерапевт/);await f.press('Подтвердить / изменить сумму');await f.press('Нет');await f.press(/^Оставить:/);const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);d=f.snapshot();assert.equal(d.accounts[0].balance,2000);assert.equal(d.transactions.length,1);assert.equal(d.transactions[0].recurringPeriod,today);assert.equal(d.recurring[0].active,true);assert.equal(dashboard(d,today).obligations,0);
+}));

@@ -46,6 +46,11 @@ jobs:
         run: npm run test:payments
         env:
           PAYMENT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/payment-experience
+      - name: Check on-demand payment lifecycle
+        if: runner.os == 'Linux'
+        run: npm run test:ondemand
+        env:
+          ONDEMAND_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/on-demand
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
