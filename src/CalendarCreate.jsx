@@ -1,0 +1,21 @@
+import React,{useState} from 'react';
+import Icon from './mini-icons.jsx';
+import PlannedForm from './PlannedForm.jsx';
+import InstallmentForm from './InstallmentForm.jsx';
+import DebtForm from './DebtForm.jsx';
+import {createPlanned,schedulePlanned} from './planned-operations.js';
+import {categoryCatalog} from './categories.js';
+import {money} from './mini-model.js';
+export default function CalendarCreate({data,date,today,mutate,busy,onDone}){
+ const [open,setOpen]=useState(false),[kind,setKind]=useState('expense'),[template,setTemplate]=useState(''),[newTemplate,setNewTemplate]=useState(false),[error,setError]=useState('');
+ const templates=data.recurring.filter(r=>r.frequency==='manual'&&r.active);
+ const save=async(fn,message,nextDate=date)=>{const ok=await mutate(fn,message);if(ok){setOpen(false);onDone(nextDate);}return ok;};
+ return <section className="calendar-create" aria-label="Добавление на выбранный день"><button type="button" className="mini-secondary calendar-create-toggle" disabled={busy} aria-expanded={open} onClick={()=>{setOpen(!open);setNewTemplate(false);setError('');}}><Icon name={open?'up':'plus'} size={18}/>{open?'Свернуть добавление':'Добавить на этот день'}</button>{open&&<div className="calendar-create-panel">
+ <div className="calendar-create-kinds" role="group" aria-label="Что добавить в календарь">{[['expense','Платёж','up'],['income','Доход','down'],['manual','По необходимости','repeat'],['installment','Сплит или кредит','calendar'],['debt','Долг','wallet']].map(([id,label,icon])=><button type="button" key={id} disabled={busy} aria-pressed={kind===id} onClick={()=>{setKind(id);setNewTemplate(false);setError('');}}><Icon name={icon} size={17}/>{label}</button>)}</div>
+ {['expense','income'].includes(kind)&&<><p className="payment-hint">{kind==='expense'?'Будущий расход. Деньги спишутся только после подтверждения оплаты.':'Ожидаемое поступление. Деньги появятся на счёте после подтверждения.'}</p><PlannedForm key={kind} data={data} cats={categoryCatalog(data.customCats)} busy={busy} initial={{type:kind,frequency:'once',startDate:date}} incomeOnly={kind==='income'} save={values=>save(d=>createPlanned(d,values),'Событие добавлено в календарь',values.startDate||date)}/></>}
+ {kind==='manual'&&(templates.length&&!newTemplate?<form className="mini-form" onSubmit={async e=>{e.preventDefault();try{setError('');await save(d=>schedulePlanned(d,template,date,today),'Дата назначена, деньги не списаны');}catch(e){setError(e.message);}}}><label>Сохранённый платёж<select aria-label="Сохранённый платёж" value={template} required disabled={busy} onChange={e=>setTemplate(e.target.value)}><option value="">Выбрать…</option>{templates.map(r=><option key={r.id} value={r.id}>{r.name} · {r.variable?'Уточнить сумму':money(r.amount,r.currency)}</option>)}</select></label><p className="payment-hint">Назначится одна дата. Следующий срок сам не появится.</p><button className="mini-primary" disabled={busy||!template||date<today}>Назначить на выбранный день</button>{date<today&&<p className="payment-hint">Для назначения выбери сегодняшний или будущий день.</p>}<button type="button" className="mini-text-button" disabled={busy} onClick={()=>setNewTemplate(true)}>Создать другой платёж</button></form>:<>{templates.length>0&&<button type="button" className="mini-text-button" disabled={busy} onClick={()=>setNewTemplate(false)}>Выбрать сохранённый платёж</button>}<p className="payment-hint">Сохрани психотерапевта, барбера или другой платёж без расписания. Первую дату предложим из календаря.</p><PlannedForm data={data} cats={categoryCatalog(data.customCats)} busy={busy} initial={{type:'expense',frequency:'manual',startDate:date}} save={values=>save(d=>createPlanned(d,values),'Платёж по необходимости добавлен',values.startDate||date)}/></>)}
+ {kind==='installment'&&<InstallmentForm data={data} cats={categoryCatalog(data.customCats)} busy={busy} initialDate={date} initialOpen mutate={mutate} onDone={date=>{setOpen(false);onDone(date);}}/>}
+ {kind==='debt'&&<DebtForm data={data} busy={busy} initialDate={date} mutate={mutate} onDone={nextDate=>{setOpen(false);onDone(nextDate||date);}}/>}
+ {error&&<p role="alert">{error}</p>}
+ </div>}</section>;
+}

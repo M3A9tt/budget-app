@@ -2,9 +2,10 @@ import {parseMoney,putTransaction} from './ledger.js';
 import {validDate} from './finance-tools.js';
 import {debtRemaining,debtTransactionType,canLinkDebtTransaction} from './debt-state.js';
 import {todayMoscow} from './mini-model.js';
-export function createDebt(data,{person,type,amount,currency='RUB',note='',dueDate=''}){
+export function createDebt(data,{id=crypto.randomUUID(),person,type,amount,currency='RUB',note='',dueDate=''}){
+ if(typeof id!=='string'||!/^[-\w]{1,80}$/.test(id)||(data.debts||[]).some(d=>d.id===id))throw Error('Долг уже создан или его номер неверен. Проверь список.');
  const value=parseMoney(amount);if(!person.trim()||!['my','tome','transit'].includes(type)||!Number.isFinite(value)||value<=0||!data.rates[currency]||dueDate&&!validDate(dueDate))throw Error('Проверьте имя, сумму, валюту и срок возврата');
- return {...data,debts:[...(data.debts||[]),{id:crypto.randomUUID(),person:person.trim(),type,amount:value,currency,note:note.trim(),date:todayMoscow(data.settings.timeZone),dueDate,payments:[],closed:false}]};
+ return {...data,debts:[...(data.debts||[]),{id,person:person.trim(),type,amount:value,currency,note:note.trim(),date:todayMoscow(data.settings.timeZone),dueDate,payments:[],closed:false}]};
 }
 export function setDebtDueDate(data,{id,dueDate=''}){if(dueDate&&!validDate(dueDate))throw Error('Неверный срок возврата');if(!data.debts.some(d=>d.id===id))throw Error('Долг не найден');return {...data,debts:data.debts.map(d=>d.id===id?{...d,dueDate}:d)};}
 export function repayDebt(data,{id,amount,date,accountId,transactionId}){

@@ -51,6 +51,11 @@ jobs:
         run: npm run test:ondemand
         env:
           ONDEMAND_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/on-demand
+      - name: Check connected calendar and shared financial sources
+        if: runner.os == 'Linux'
+        run: npm run test:calendar
+        env:
+          CALENDAR_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/connected-calendar
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
