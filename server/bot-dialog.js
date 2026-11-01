@@ -20,7 +20,7 @@ export function actionDestination(p){if(p.op==='homeLayout')return {name:'homeLa
  if(p.op==='payInstallment')return {name:'installment',args:{id}};
  if(['repay','linkDebt','debtDate'].includes(p.op))return {name:'debt',args:{id}};
  if(p.op==='fundGoal')return {name:'goal',args:{id}};
- if(['confirmPlan','skipPlan'].includes(p.op))return {name:'plan',args:{id}};
+ if(['confirmPlan','skipPlan','schedulePlan','reschedulePlan'].includes(p.op))return {name:'plan',args:{id}};
  const origin=p.args.returnTo;
  if(p.op==='deleteTx'&&origin?.name==='transaction')return origin.args?.backTo||{name:'history',args:{}};
  return origin||{name:p.op==='tx'?'history':'home',args:{}};

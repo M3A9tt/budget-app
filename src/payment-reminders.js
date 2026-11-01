@@ -7,7 +7,7 @@ export function localReminderInstant(data,date,time){
  const c=clockAt(new Date(at),data.settings.timeZone);if(c.date!==date||c.minutes!==Number(time.slice(0,2))*60+Number(time.slice(3)))throw Error('Такого времени нет в выбранном часовом поясе');return at;
 }
 export function setPaymentReminder(data,eventId,date,time,now=Date.now()){
- const today=clockAt(new Date(now),data.settings.timeZone).date,at=localReminderInstant(data,date,time),scope={...data,recurring:data.recurring.filter(r=>eventId.startsWith('plan:'+r.id+':')),installments:(data.installments||[]).filter(p=>p.payments.some(x=>eventId==='installment:'+x.id)),debts:(data.debts||[]).filter(d=>eventId==='debt:'+d.id)},rule=scope.recurring[0],end=[moveDate(today,['daily','weekly'].includes(rule?.frequency)?30:3660),rule?.frequency==='once'?rule.startDate:''].sort().at(-1),event=scheduledEvents(scope,today,end).find(e=>e.id===eventId);
+ const today=clockAt(new Date(now),data.settings.timeZone).date,at=localReminderInstant(data,date,time),scope={...data,recurring:data.recurring.filter(r=>eventId.startsWith('plan:'+r.id+':')),installments:(data.installments||[]).filter(p=>p.payments.some(x=>eventId==='installment:'+x.id)),debts:(data.debts||[]).filter(d=>eventId==='debt:'+d.id)},rule=scope.recurring[0],end=[moveDate(today,['daily','weekly'].includes(rule?.frequency)?30:3660),rule?.frequency==='once'?rule.startDate:'',...(rule?.frequency==='manual'?[...(rule.scheduledDates||[]),...Object.values(rule.dateOverrides||{})]:[])].sort().at(-1),event=scheduledEvents(scope,today,end).find(e=>e.id===eventId);
  if(!event||at<=now)throw Error('Платёж изменился или время напоминания уже прошло');
  return {...data,paymentReminders:{...data.paymentReminders,[eventId]:{at,date:event.date}}};
 }
