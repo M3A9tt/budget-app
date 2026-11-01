@@ -1,0 +1,197 @@
+{
+  "baseline": "bd6c289782ffe10f4e093a437dd9e942eb375ea4",
+  "today": "2026-11-01",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "fictional": true,
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "manual",
+        "type": "expense",
+        "cat": "housing",
+        "amount": 200,
+        "date": "2026-10-31",
+        "accountId": "card",
+        "note": "ЖКХ внесено раньше",
+        "currency": "RUB",
+        "amountRub": 200,
+        "accountAmount": 200,
+        "revision": 1,
+        "updatedAt": "2026-11-01T07:34:06.015Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "card",
+        "name": "Основная карта",
+        "balance": 1800,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [
+      {
+        "name": "ЖКХ",
+        "amount": 200,
+        "currency": "RUB",
+        "accountId": "card",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-10-31",
+        "dueDay": 31,
+        "variable": false,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "housing",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Старый платёж",
+        "amount": 500,
+        "currency": "RUB",
+        "accountId": "card",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-10-30",
+        "dueDay": 30,
+        "variable": false,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "stale",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Интернет",
+        "amount": 100,
+        "currency": "RUB",
+        "accountId": "card",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-11-01",
+        "dueDay": 1,
+        "variable": false,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "internet",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Проездной",
+        "amount": 350,
+        "currency": "RUB",
+        "accountId": "card",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-11-04",
+        "dueDay": 4,
+        "variable": false,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "travel",
+        "active": true,
+        "skippedPeriods": []
+      },
+      {
+        "name": "Уточняемый платёж",
+        "amount": 50,
+        "currency": "RUB",
+        "accountId": "card",
+        "cat": "housing",
+        "type": "expense",
+        "frequency": "once",
+        "startDate": "2026-11-11",
+        "dueDay": 11,
+        "variable": true,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "unknown",
+        "active": true,
+        "skippedPeriods": []
+      }
+    ],
+    "history": [
+      {
+        "id": "79c69da6-0d39-4ddc-9525-5274c349f25e",
+        "ts": 1793518446015,
+        "type": "add_tx",
+        "after": {
+          "id": "manual",
+          "type": "expense",
+          "cat": "housing",
+          "amount": 200,
+          "date": "2026-10-31",
+          "accountId": "card",
+          "note": "ЖКХ внесено раньше",
+          "currency": "RUB",
+          "amountRub": 200,
+          "accountAmount": 200,
+          "revision": 1,
+          "updatedAt": "2026-11-01T07:34:06.015Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "notificationMode": "manual",
+      "modules": {
+        "plans": true,
+        "installments": true,
+        "debts": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    },
+    "installments": [
+      {
+        "id": "split",
+        "name": "Тестовый сплит",
+        "obligationKind": "installment",
+        "cadence": "biweekly",
+        "total": 600,
+        "currency": "RUB",
+        "accountId": "card",
+        "cat": "other",
+        "payments": [
+          {
+            "date": "2026-11-01",
+            "amount": 300,
+            "id": "eafbebd8-2cd2-4b8a-99a6-2e421cc88bd1"
+          },
+          {
+            "date": "2026-11-15",
+            "amount": 300,
+            "id": "079a7981-26d5-46f2-9028-2a055b7fa702"
+          }
+        ]
+      }
+    ]
+  }
+}

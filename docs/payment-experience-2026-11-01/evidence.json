@@ -1,0 +1,40 @@
+[
+  {
+    "label": "before",
+    "writes": 0,
+    "balance": 1800,
+    "transactions": 1,
+    "budget": 50,
+    "steps": [],
+    "pageErrors": []
+  },
+  {
+    "label": "after",
+    "writes": 4,
+    "balance": 1450,
+    "transactions": 2,
+    "budget": 750,
+    "steps": [
+      {
+        "action": "open-row",
+        "writes": 0
+      },
+      {
+        "action": "link-existing",
+        "balance": 1800,
+        "transactions": 1
+      },
+      {
+        "action": "skip-obsolete",
+        "balance": 1800,
+        "transactions": 1
+      },
+      {
+        "action": "confirm-payment",
+        "balance": 1450,
+        "transactions": 2
+      }
+    ],
+    "pageErrors": []
+  }
+]
