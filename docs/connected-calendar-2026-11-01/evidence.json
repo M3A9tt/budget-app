@@ -1,0 +1,499 @@
+[
+  {
+    "label": "before",
+    "steps": [
+      {
+        "action": "income-only-creation-entry",
+        "writes": 0,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9300
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 1,
+        "transfers": 1,
+        "obligations": 0,
+        "free": 9300,
+        "events": []
+      }
+    ],
+    "pageErrors": []
+  },
+  {
+    "label": "after",
+    "steps": [
+      {
+        "action": "create-expense",
+        "writes": 1,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9300
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 1,
+        "transfers": 1,
+        "obligations": 600,
+        "free": 8700,
+        "events": [
+          {
+            "id": "plan:37362b80-e0be-47fa-ab37-eb35575da9bc:once",
+            "name": "Покупка из календаря",
+            "date": "2026-11-04",
+            "amount": 600,
+            "source": "plan"
+          }
+        ]
+      },
+      {
+        "action": "create-income-without-credit",
+        "writes": 2,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9300
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 1,
+        "transfers": 1,
+        "obligations": 600,
+        "free": 8700,
+        "events": [
+          {
+            "id": "plan:37362b80-e0be-47fa-ab37-eb35575da9bc:once",
+            "name": "Покупка из календаря",
+            "date": "2026-11-04",
+            "amount": 600,
+            "source": "plan"
+          },
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          }
+        ]
+      },
+      {
+        "action": "schedule-existing-template",
+        "writes": 3,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9300
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 1,
+        "transfers": 1,
+        "obligations": 1400,
+        "free": 7900,
+        "events": [
+          {
+            "id": "plan:37362b80-e0be-47fa-ab37-eb35575da9bc:once",
+            "name": "Покупка из календаря",
+            "date": "2026-11-04",
+            "amount": 600,
+            "source": "plan"
+          },
+          {
+            "id": "plan:therapy:2026-11-04",
+            "name": "Психотерапевт",
+            "date": "2026-11-04",
+            "amount": 800,
+            "source": "plan"
+          },
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          }
+        ]
+      },
+      {
+        "action": "create-installment-graph",
+        "writes": 4,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9300
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 1,
+        "transfers": 1,
+        "obligations": 1900,
+        "free": 7400,
+        "events": [
+          {
+            "id": "plan:37362b80-e0be-47fa-ab37-eb35575da9bc:once",
+            "name": "Покупка из календаря",
+            "date": "2026-11-04",
+            "amount": 600,
+            "source": "plan"
+          },
+          {
+            "id": "plan:therapy:2026-11-04",
+            "name": "Психотерапевт",
+            "date": "2026-11-04",
+            "amount": 800,
+            "source": "plan"
+          },
+          {
+            "id": "installment:d5002159-87a7-41d3-881e-4691162b11c5",
+            "name": "Сплит из календаря",
+            "date": "2026-11-04",
+            "amount": 500,
+            "source": "installment"
+          },
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          },
+          {
+            "id": "installment:451799d5-c031-416d-a1c6-7ea8ce1342ff",
+            "name": "Сплит из календаря",
+            "date": "2026-12-04",
+            "amount": 500,
+            "source": "installment"
+          }
+        ]
+      },
+      {
+        "action": "all-sources-on-one-day",
+        "writes": 5,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9300
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 1,
+        "transfers": 1,
+        "obligations": 2200,
+        "free": 7100,
+        "events": [
+          {
+            "id": "debt:4236e0a7-d7ee-48f5-9ff9-aec5f53cf42f",
+            "name": "Друг из календаря",
+            "date": "2026-11-04",
+            "amount": 300,
+            "source": "debt"
+          },
+          {
+            "id": "plan:37362b80-e0be-47fa-ab37-eb35575da9bc:once",
+            "name": "Покупка из календаря",
+            "date": "2026-11-04",
+            "amount": 600,
+            "source": "plan"
+          },
+          {
+            "id": "plan:therapy:2026-11-04",
+            "name": "Психотерапевт",
+            "date": "2026-11-04",
+            "amount": 800,
+            "source": "plan"
+          },
+          {
+            "id": "installment:d5002159-87a7-41d3-881e-4691162b11c5",
+            "name": "Сплит из календаря",
+            "date": "2026-11-04",
+            "amount": 500,
+            "source": "installment"
+          },
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          },
+          {
+            "id": "installment:451799d5-c031-416d-a1c6-7ea8ce1342ff",
+            "name": "Сплит из календаря",
+            "date": "2026-12-04",
+            "amount": 500,
+            "source": "installment"
+          }
+        ]
+      },
+      {
+        "action": "move-one-installment",
+        "writes": 6,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9300
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 1,
+        "transfers": 1,
+        "obligations": 2200,
+        "free": 7100,
+        "events": [
+          {
+            "id": "debt:4236e0a7-d7ee-48f5-9ff9-aec5f53cf42f",
+            "name": "Друг из календаря",
+            "date": "2026-11-04",
+            "amount": 300,
+            "source": "debt"
+          },
+          {
+            "id": "plan:37362b80-e0be-47fa-ab37-eb35575da9bc:once",
+            "name": "Покупка из календаря",
+            "date": "2026-11-04",
+            "amount": 600,
+            "source": "plan"
+          },
+          {
+            "id": "plan:therapy:2026-11-04",
+            "name": "Психотерапевт",
+            "date": "2026-11-04",
+            "amount": 800,
+            "source": "plan"
+          },
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          },
+          {
+            "id": "installment:d5002159-87a7-41d3-881e-4691162b11c5",
+            "name": "Сплит из календаря",
+            "date": "2026-11-08",
+            "amount": 500,
+            "source": "installment"
+          },
+          {
+            "id": "installment:451799d5-c031-416d-a1c6-7ea8ce1342ff",
+            "name": "Сплит из календаря",
+            "date": "2026-12-04",
+            "amount": 500,
+            "source": "installment"
+          }
+        ]
+      },
+      {
+        "action": "pay-moved-debt",
+        "writes": 8,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9000
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 2,
+        "transfers": 1,
+        "obligations": 1900,
+        "free": 7100,
+        "events": [
+          {
+            "id": "plan:37362b80-e0be-47fa-ab37-eb35575da9bc:once",
+            "name": "Покупка из календаря",
+            "date": "2026-11-04",
+            "amount": 600,
+            "source": "plan"
+          },
+          {
+            "id": "plan:therapy:2026-11-04",
+            "name": "Психотерапевт",
+            "date": "2026-11-04",
+            "amount": 800,
+            "source": "plan"
+          },
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          },
+          {
+            "id": "installment:d5002159-87a7-41d3-881e-4691162b11c5",
+            "name": "Сплит из календаря",
+            "date": "2026-11-08",
+            "amount": 500,
+            "source": "installment"
+          },
+          {
+            "id": "installment:451799d5-c031-416d-a1c6-7ea8ce1342ff",
+            "name": "Сплит из календаря",
+            "date": "2026-12-04",
+            "amount": 500,
+            "source": "installment"
+          }
+        ]
+      },
+      {
+        "action": "link-existing-without-debit",
+        "writes": 9,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 9000
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 2,
+        "transfers": 1,
+        "obligations": 1300,
+        "free": 7700,
+        "events": [
+          {
+            "id": "plan:therapy:2026-11-04",
+            "name": "Психотерапевт",
+            "date": "2026-11-04",
+            "amount": 800,
+            "source": "plan"
+          },
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          },
+          {
+            "id": "installment:d5002159-87a7-41d3-881e-4691162b11c5",
+            "name": "Сплит из календаря",
+            "date": "2026-11-08",
+            "amount": 500,
+            "source": "installment"
+          },
+          {
+            "id": "installment:451799d5-c031-416d-a1c6-7ea8ce1342ff",
+            "name": "Сплит из календаря",
+            "date": "2026-12-04",
+            "amount": 500,
+            "source": "installment"
+          }
+        ]
+      },
+      {
+        "action": "pay-template-without-recurrence",
+        "writes": 10,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 8200
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 3,
+        "transfers": 1,
+        "obligations": 500,
+        "free": 7700,
+        "events": [
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          },
+          {
+            "id": "installment:d5002159-87a7-41d3-881e-4691162b11c5",
+            "name": "Сплит из календаря",
+            "date": "2026-11-08",
+            "amount": 500,
+            "source": "installment"
+          },
+          {
+            "id": "installment:451799d5-c031-416d-a1c6-7ea8ce1342ff",
+            "name": "Сплит из календаря",
+            "date": "2026-12-04",
+            "amount": 500,
+            "source": "installment"
+          }
+        ]
+      },
+      {
+        "action": "edit-transfer-from-calendar",
+        "writes": 11,
+        "accounts": [
+          {
+            "id": "card",
+            "balance": 8200
+          },
+          {
+            "id": "reserve",
+            "balance": 2100
+          }
+        ],
+        "transactions": 3,
+        "transfers": 1,
+        "obligations": 500,
+        "free": 7700,
+        "events": [
+          {
+            "id": "plan:8746ab8d-3e62-4370-9324-4b2bb640b919:once",
+            "name": "Подработка из календаря",
+            "date": "2026-11-04",
+            "amount": 5000,
+            "source": "plan"
+          },
+          {
+            "id": "installment:d5002159-87a7-41d3-881e-4691162b11c5",
+            "name": "Сплит из календаря",
+            "date": "2026-11-08",
+            "amount": 500,
+            "source": "installment"
+          },
+          {
+            "id": "installment:451799d5-c031-416d-a1c6-7ea8ce1342ff",
+            "name": "Сплит из календаря",
+            "date": "2026-12-04",
+            "amount": 500,
+            "source": "installment"
+          }
+        ]
+      }
+    ],
+    "pageErrors": []
+  }
+]

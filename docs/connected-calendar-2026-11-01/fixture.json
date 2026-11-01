@@ -1,0 +1,128 @@
+{
+  "baseline": "bac95bee7425fb1d3fb29422c6850d79e6feee27",
+  "today": "2026-11-01",
+  "date": "2026-11-04",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "fictional": true,
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "existing",
+        "date": "2026-11-01",
+        "type": "expense",
+        "cat": "other",
+        "amount": 600,
+        "accountId": "card",
+        "note": "Покупка уже внесена",
+        "currency": "RUB",
+        "amountRub": 600,
+        "accountAmount": 600,
+        "revision": 1,
+        "updatedAt": "2026-11-01T18:51:43.841Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "card",
+        "name": "Основная карта",
+        "balance": 9300,
+        "currency": "RUB"
+      },
+      {
+        "id": "reserve",
+        "name": "Резерв",
+        "balance": 2100,
+        "currency": "RUB",
+        "accType": "savings"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [
+      {
+        "id": "movement",
+        "revision": 1,
+        "from": "card",
+        "to": "reserve",
+        "amount": 100,
+        "fee": 0,
+        "currency": "RUB",
+        "note": "Отложил в резерв",
+        "date": "2026-11-01",
+        "balanceEffect": "normal",
+        "updatedAt": "2026-11-01T18:51:43.842Z"
+      }
+    ],
+    "recurring": [
+      {
+        "name": "Психотерапевт",
+        "amount": 800,
+        "currency": "RUB",
+        "accountId": "card",
+        "cat": "other",
+        "type": "expense",
+        "frequency": "manual",
+        "startDate": "",
+        "dueDay": 1,
+        "variable": false,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "therapy",
+        "active": true,
+        "skippedPeriods": [],
+        "scheduledDates": []
+      }
+    ],
+    "history": [
+      {
+        "id": "98b1934b-3f12-4c87-bdf0-24405d7c3c90",
+        "ts": 1793559103842,
+        "type": "add_tx",
+        "after": {
+          "id": "existing",
+          "date": "2026-11-01",
+          "type": "expense",
+          "cat": "other",
+          "amount": 600,
+          "accountId": "card",
+          "note": "Покупка уже внесена",
+          "currency": "RUB",
+          "amountRub": 600,
+          "accountAmount": 600,
+          "revision": 1,
+          "updatedAt": "2026-11-01T18:51:43.841Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "2026-11-21",
+      "notificationMode": "manual",
+      "modules": {
+        "plans": true,
+        "installments": true,
+        "debts": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}
