@@ -35,7 +35,7 @@ try{
    if(label==='after'){if(await card.locator('.planned-actions>summary').count())await card.locator('.planned-actions>summary').click();await card.locator('.plan-skipped summary').click();await card.getByRole('button',{name:'Вернуть в план 2026-10',exact:true}).waitFor();}
    else assert.equal(await card.getByRole('button',{name:/Вернуть в план/}).count(),0);
    await page.evaluate(()=>document.fonts.ready);await card.evaluate(el=>el.scrollIntoView({block:'start'}));await card.screenshot({path:join(out,'plans-'+label+'.png'),animations:'disabled'});
-   await page.locator('.mini-nav').getByRole('button',{name:'Анализ',exact:true}).click();await page.locator('.report-spending-hero').waitFor();
+   if(await page.locator('.mini-nav').getByRole('button',{name:'Анализ',exact:true}).count())await page.locator('.mini-nav').getByRole('button',{name:'Анализ',exact:true}).click();else{await page.locator('.mini-nav').getByRole('button',{name:'Ещё',exact:true}).click();await page.getByRole('button',{name:'Аналитика',exact:true}).click();}await page.locator('.report-spending-hero').waitFor();
    const amount=(await page.locator('.report-total-button strong').textContent()).replace(/\s/g,'');assert.equal(amount,label==='before'?'30,23₽':'30,24₽');
    await page.locator('.report-spending-hero').screenshot({path:join(out,'money-'+label+'.png'),animations:'disabled'});
    assert.deepEqual(errors,[]);

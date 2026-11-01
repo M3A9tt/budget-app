@@ -17,3 +17,12 @@ test('Personal home order, hidden modules and backup roundtrip preserve shared f
  assert.throws(()=>customizeHome(d,{key:'actions',visible:false}));
  const fresh=initialProfile(EMPTY);assert.equal(fresh.accounts.length,0);assert.ok(Object.values(fresh.settings.modules).every(x=>x===false));assert.deepEqual(homeBlocks(fresh),['budget','actions','accounts','recent']);
 });
+
+test('Compact default home does not overwrite saved layouts or change money',()=>{
+ const d={...structuredClone(EMPTY),accounts:[{id:'a',name:'Карта',balance:1800,currency:'RUB'}]};
+ assert.deepEqual(homeBlocks(d),['budget','actions','accounts','recent']);
+ const custom=customizeHome(d,{preset:'everyday'}),snapshot=structuredClone(custom.settings.homeLayout),before=dashboard(custom,todayMoscow());
+ assert.ok(homeBlocks(custom).includes('month'));assert.ok(homeBlocks(custom).includes('payments'));
+ assert.deepEqual(custom.settings.homeLayout,snapshot);assert.deepEqual(dashboard(custom,todayMoscow()),before);
+ assert.deepEqual(homeBlocks(customizeHome(custom,{reset:true})),homeBlocks(d));
+});
