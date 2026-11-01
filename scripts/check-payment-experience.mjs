@@ -39,12 +39,13 @@ try{
    await page.goto(origin+'/?payments=1');await page.locator('.payments-upcoming').waitFor();await page.getByText('ЖКХ',{exact:true}).waitFor();
    await shot('list-390',false);await shot('list-full-390');
    if(label==='after'){
-    const row=name=>page.locator('.payment-event').filter({has:page.getByText(name,{exact:true})});
+    const ids={'ЖКХ':'housing','Старый платёж':'stale','Интернет':'internet','Проездной':'travel','Уточняемый платёж':'unknown'};
+    const row=name=>page.locator('[data-payment-event="plan:'+ids[name]+':once"]');
     const query=page.getByRole('searchbox',{name:'Найти платёж',exact:true});
     await query.fill('ЖКХ');await row('ЖКХ').locator('.upcoming-payment').click();
     assert.equal(writes,0);assert.equal(await page.locator('[data-page=payments]').count(),1);steps.push({action:'open-row',writes});
     await row('ЖКХ').getByRole('button',{name:'Уже учтено',exact:true}).click();
-    await row('ЖКХ').getByLabel('Найти запись',{exact:true}).fill('ЖКХ внесено');await row('ЖКХ').getByLabel('Уже записанная операция',{exact:true}).selectOption('manual');
+    await row('ЖКХ').getByLabel('Найти запись',{exact:true}).fill('ЖКХ внесено');await shot('link-panel-before-selection-390');await row('ЖКХ').getByLabel('Уже записанная операция',{exact:true}).selectOption('manual');
     await shot('recorded-payment-390');const balances=structuredClone(data.accounts),future=structuredClone(data.recurring.find(r=>r.id==='travel'));
     await row('ЖКХ').getByRole('button',{name:'Связать без списания',exact:true}).click();await page.getByText('Ничего не найдено',{exact:true}).waitFor();
     assert.deepEqual(data.accounts,balances);assert.equal(data.transactions.length,1);assert.equal(data.transactions[0].recurringId,'housing');assert.deepEqual(data.recurring.find(r=>r.id==='travel'),future);
@@ -81,7 +82,7 @@ try{
     await page.getByRole('heading',{name:'Уведомления',exact:true}).waitFor();assert.equal(data.settings.notificationMode,'manual');assert.equal(writes,4);
    }
    assert.deepEqual(errors,[]);evidence.push({label,writes,balance:data.accounts[0].balance,transactions:data.transactions.length,budget:dashboard(data,today).free,steps,pageErrors:errors});
-  }finally{await context.close();await server.close();}
+  }catch(error){await shot('failure').catch(()=>{});console.log(JSON.stringify({label,page:await page.locator('main').getAttribute('data-page'),events:await page.locator('[data-payment-event]').allTextContents()}));throw error;}finally{await context.close();await server.close();}
  }
 }finally{await browser.close();execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});await rm(temp,{recursive:true,force:true});}
 await writeFile(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));console.log('Payment experience Chromium passed: link, skip, move, confirm and shared history');
