@@ -1,0 +1,22 @@
+[
+  {
+    "label": "before",
+    "homeHeight": 1742,
+    "actionTop": 727,
+    "accountBalance": 1800,
+    "transactionCount": 1,
+    "linked": false,
+    "customCategories": 1,
+    "pageErrors": []
+  },
+  {
+    "label": "after",
+    "homeHeight": 765,
+    "actionTop": 482,
+    "accountBalance": 1762.5,
+    "transactionCount": 2,
+    "linked": true,
+    "customCategories": 2,
+    "pageErrors": []
+  }
+]

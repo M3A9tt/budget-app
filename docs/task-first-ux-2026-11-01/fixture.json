@@ -1,0 +1,110 @@
+{
+  "baseline": "a60e3ee88d1abceb6c3db16919f2ae9ea44d2c9d",
+  "today": "2026-11-01",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "fictional": true,
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "id": "manual",
+        "type": "expense",
+        "cat": "housing",
+        "amount": 200,
+        "date": "2026-11-01",
+        "accountId": "a",
+        "note": "ЖКХ уже записано",
+        "currency": "RUB",
+        "amountRub": 200,
+        "accountAmount": 200,
+        "revision": 1,
+        "updatedAt": "2026-11-01T06:56:48.202Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "a",
+        "name": "Карта",
+        "balance": 1800,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [
+      {
+        "id": "cat",
+        "name": "Коты",
+        "icon": "other",
+        "color": "#b8dec4"
+      }
+    ],
+    "transfers": [],
+    "recurring": [
+      {
+        "name": "ЖКХ",
+        "amount": 200,
+        "currency": "RUB",
+        "accountId": "a",
+        "cat": "other",
+        "type": "expense",
+        "frequency": "monthly",
+        "startDate": "2026-11-01",
+        "dueDay": 1,
+        "variable": false,
+        "budgetAnchor": false,
+        "billingMonthOffset": 0,
+        "id": "housing",
+        "active": true,
+        "skippedPeriods": []
+      }
+    ],
+    "history": [
+      {
+        "id": "bcd4ef51-a495-4722-af60-6d247c921109",
+        "ts": 1793516208203,
+        "type": "add_tx",
+        "after": {
+          "id": "manual",
+          "type": "expense",
+          "cat": "housing",
+          "amount": 200,
+          "date": "2026-11-01",
+          "accountId": "a",
+          "note": "ЖКХ уже записано",
+          "currency": "RUB",
+          "amountRub": 200,
+          "accountAmount": 200,
+          "revision": 1,
+          "updatedAt": "2026-11-01T06:56:48.202Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "",
+      "modules": {
+        "plans": true
+      },
+      "notificationMode": "manual"
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}
