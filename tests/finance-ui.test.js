@@ -23,7 +23,7 @@ test('Payments use one-level sections, retain the extra calendar, and open share
  const v=mount('PaymentsPage',{data,cats:CATEGORIES,onPrepare:d=>draft=d});
  const nav=v.root.findByProps({'aria-label':'Разделы платежей'});assert.deepEqual(nav.findAllByType('button').map(b=>text(b)),['Ближайшие','Сплиты и кредиты','Регулярные','Разовые','Долги']);assert.equal(v.root.findAllByProps({className:'payment-source-grid'}).length,0);assert.equal(v.root.findAllByProps({className:'money-calendar '}).length,0);
  click(v,b=>b.props.className==='upcoming-payment');assert.equal(draft,undefined);assert.deepEqual(data,before);click(v,b=>text(b)==='Записать оплату');assert.equal(draft.recurringId,'due');assert.equal(draft.amount,'100');assert.deepEqual(data,before);
- click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Календарь денег'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('Ближайшие 30 дней'));
+ click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Календарь денег'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('На 30 дней и ранее без отметки'));
  click(v,b=>text(b)==='Регулярные');assert.ok(text(v.toJSON()).includes('ЖКХ'));v.unmount();
 });
 test('Monthly editor exposes amount, day and account first, preserves paid constraints and previews before saving',()=>{

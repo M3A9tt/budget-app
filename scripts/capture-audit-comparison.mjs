@@ -1,3 +1,4 @@
+import {selectPaymentSection} from './browser-payment-section.mjs';
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
 import {execFileSync} from 'node:child_process';
@@ -30,7 +31,7 @@ try{
    await page.route('https://telegram.org/**',route=>route.abort());
    await page.route('**/api/v1/**',route=>route.fulfill({json:{revision:1,data:structuredClone(fixture)}}));
    const origin='http://127.0.0.1:'+server.httpServer.address().port;
-   await page.goto(origin+'/?payments=1');await page.getByRole('button',{name:/^(Постоянные|Регулярные)$/,exact:true}).click();
+   await page.goto(origin+'/?payments=1');await selectPaymentSection(page,/^(Постоянные|Регулярные)$/);
    const card=page.locator('.mini-card').filter({has:page.getByText('Оплата интернета',{exact:true})});await card.waitFor();
    if(label==='after'){if(await card.locator('.planned-actions>summary').count())await card.locator('.planned-actions>summary').click();await card.locator('.plan-skipped summary').click();await card.getByRole('button',{name:'Вернуть в план 2026-10',exact:true}).waitFor();}
    else assert.equal(await card.getByRole('button',{name:/Вернуть в план/}).count(),0);

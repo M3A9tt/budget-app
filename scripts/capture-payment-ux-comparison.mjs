@@ -1,3 +1,4 @@
+import {selectPaymentSection} from './browser-payment-section.mjs';
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
 import {execFileSync} from 'node:child_process';
@@ -25,7 +26,7 @@ try{
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(date+'T09:00:00Z')});
    await page.route('**/telegram.org/**',r=>r.abort());await page.route('**/api/v1/**',r=>r.fulfill({json:{revision:1,data:structuredClone(fixture),isOwner:true}}));
    await page.goto('http://127.0.0.1:'+server.httpServer.address().port+'/?payments=1');
-   if(await page.getByRole('button',{name:'Сплиты и кредиты',exact:true}).count())await page.getByRole('button',{name:'Сплиты и кредиты',exact:true}).click();else {await page.getByRole('button',{name:'До погашения',exact:true}).click();await page.getByRole('button',{name:/Кредиты, сплит, рассрочки/}).click();}
+   if(await page.locator('.payments-management').count()||await page.getByRole('button',{name:'Сплиты и кредиты',exact:true}).count())await selectPaymentSection(page,'Сплиты и кредиты');else {await page.getByRole('button',{name:'До погашения',exact:true}).click();await page.getByRole('button',{name:/Кредиты, сплит, рассрочки/}).click();}
    const disclosure=label==='before'?page.locator('details.mini-disclosure').filter({has:page.getByText('Добавить обязательство',{exact:true})}):page.locator('.installment-create');
    await disclosure.locator(':scope>summary').click();
    for(const key of ['name','total','count','firstDate'])await disclosure.locator(`[name="${key}"]`).fill(input[key]);

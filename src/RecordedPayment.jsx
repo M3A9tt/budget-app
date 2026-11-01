@@ -12,8 +12,8 @@ export default function RecordedPayment({data,id,period,mutate,busy}){
   <div className="recorded-payment-modes" role="group" aria-label="Как учтена сумма">{[['link','Есть запись в истории'],['skip','Учтено в остатке / не нужно']].map(([id,label])=><button type="button" key={id} aria-pressed={mode===id} disabled={busy} onClick={()=>{setMode(id);setError('');}}>{label}</button>)}</div>
   {mode==='link'?<>
    <p className="mini-small mini-muted">Свяжи существующую операцию с этим периодом. Ещё одного списания или поступления не будет.</p>
-   <label>Найти запись<input type="search" value={query} onChange={e=>{setQuery(e.target.value);setSelected('');}} placeholder="Сумма, дата или описание"/></label>
-   <label>Уже записанная операция<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Выбрать из истории…</option>{visible.slice(0,100).map(t=><option value={t.id} key={t.id}>{t.date} · {money(t.amount,t.currency)} · {t.note||'Без описания'}</option>)}</select></label>
+   <label>Найти запись<input type="search" aria-label="Найти запись" value={query} onChange={e=>{setQuery(e.target.value);setSelected('');}} placeholder="Сумма, дата или описание"/></label>
+   <label>Уже записанная операция<select aria-label="Уже записанная операция" value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Выбрать из истории…</option>{visible.slice(0,100).map(t=><option value={t.id} key={t.id}>{t.date} · {money(t.amount,t.currency)} · {t.note||'Без описания'}</option>)}</select></label>
    {rows.length>0&&!visible.length&&<p role="status">По этому запросу записей нет.</p>}{visible.length>100&&<p className="mini-small">Первые 100 записей. Уточни поиск.</p>}
    {!rows.length&&<p className="mini-small mini-muted">Нет свободных записей того же типа, счёта и валюты. Если сумма уже включена в начальный остаток, выбери второй вариант выше.</p>}
    {tx&&<p className="mini-small">Свяжем {money(tx.amount,tx.currency)} от {tx.date}. Сумма плана: {money(rule.amount,rule.currency)}. Эта запись завершит выбранный период; счета и суммы истории сохранятся.</p>}
