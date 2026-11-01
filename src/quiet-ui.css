@@ -39,3 +39,6 @@
 .entry-composer .account-choices{flex-wrap:wrap;overflow:visible}.entry-composer .account-choices button{border-radius:9px;padding:10px;min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}.account-choices button>span{min-width:0}
 @media(max-width:359px){.mini-shell{padding-left:16px;padding-right:16px}.ins-home .ins-actions button{padding:10px 8px;font-size:12px}.home-attention-toggle{gap:8px}.entry-composer .category-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:1080px){.ins-home>.home-budget,.ins-home>.home-accounts,.ins-home>.home-entry-block{grid-row:auto}.ins-home>.home-budget{grid-column:1}.ins-home>.home-entry-block{grid-column:2}.ins-home>.home-accounts{grid-column:1/-1}.ins-home>.home-recent{grid-column:1/-1}.more-menu{max-width:760px}.more-menu section button{padding:18px 0}}
+
+/* Confirmation stays after the fields, so it never covers the date control. */
+.entry-composer .entry-submit{position:static;background:none;padding:16px 0 0}.mini-toast{pointer-events:none}

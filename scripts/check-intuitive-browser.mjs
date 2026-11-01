@@ -27,7 +27,7 @@ try{
   const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
   let data=structuredClone(seed),revision=1;const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
-  const shot=async(name,fullPage=true)=>page.screenshot({path:path.join(out,label+'-'+name+'.png'),fullPage});
+  const shot=async(name,fullPage=true)=>{await page.locator('.mini-toast').waitFor({state:'hidden'});return page.screenshot({path:path.join(out,label+'-'+name+'.png'),fullPage});};
   const noOverflow=async name=>assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,name);
   try{
    await page.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'application/javascript'}));
