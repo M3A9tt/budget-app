@@ -1,3 +1,4 @@
+import {categoryEmoji} from './category-customization.js';
 import {CATEGORIES} from './categories.js';
 import {companyLunch,lunchDeletionRecords,validateLunchLinks} from './lunch-records.js';
 import {validateHome} from './home-layout.js';
@@ -214,7 +215,7 @@ export function migrateData(input, defaults) {
   const accountIds=new Set(data.accounts.map(a=>a.id));
   const moneyValid=(n,positive=false)=>Number.isFinite(n)&&n>=(positive?0.01:0)&&n<=1e12&&Math.abs(n*100-Math.round(n*100))<0.001;
   const catIds=new Set([...CATEGORIES.map(c=>c.id),'income','lunch']);
-  for(const c of data.customCats){if(!c.id||catIds.has(c.id))throw Error('Повторяющийся ID категории: '+c.id);catIds.add(c.id);}
+  for(const c of data.customCats){if(c.emoji!==undefined)categoryEmoji(c.emoji);if(!c.id||catIds.has(c.id))throw Error('Повторяющийся ID категории: '+c.id);catIds.add(c.id);}
   for(const d of data.debts){
    if(!currencies.has(d.currency||'RUB')||d.type!==undefined&&!['my','iowe','tome','transit'].includes(d.type)||!moneyValid(d.amount,true))throw Error('Неверная сумма, тип или валюта долга');
    for(const x of d.payments||[])if(!moneyValid(x.amount,true)||!dateValid(x.date))throw Error('Неверное погашение долга');

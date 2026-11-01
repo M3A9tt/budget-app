@@ -1,3 +1,4 @@
+import RecordedPayment from './RecordedPayment.jsx';
 import React,{useState} from 'react';
 import {money,todayMoscow} from './mini-model.js';
 import {plannedOccurrences,planType,plannedPaid,billingPeriod} from './planned-model.js';
@@ -24,6 +25,7 @@ export default function PlannedOperations({data,mutate,busy,cats,onPrepare,onEdi
  {editing===r.id?<PlannedForm incomeOnly={incomeOnly} key={r.id} data={data} cats={cats} busy={busy} initial={r} onCancel={()=>setEditing(null)} save={async v=>{if(await mutate(d=>updatePlanned(d,r.id,v),'План обновлён, записанные оплаты сохранены')){setEditing(null);return true;}return false;}}/>:<>
  {item&&r.active&&(asking?.id===r.id&&asking?.period===item.period?<div className="planned-confirm"><p>{income?'Сколько поступило?':'Сколько списали?'} <small>За дату {paymentDate(item.date)}</small></p><div className="mini-two"><button className="mini-primary" disabled={busy} onClick={()=>prepare(r,item,false)}>{r.variable?'Указать сумму':money(item.remaining??r.amount,r.currency)}</button><button className="mini-secondary" disabled={busy} onClick={()=>prepare(r,item,true)}>Другая сумма</button></div><button className="mini-text-button" onClick={()=>setAsking(null)}>Отмена</button></div>:<button className="mini-secondary" disabled={busy} onClick={()=>setAsking({id:r.id,period:item.period})}>{income?'Отметить поступление':'Отметить оплату'}</button>)}
  {item&&mutate&&<><button type="button" className="mini-text-button income-move" disabled={busy} onClick={()=>setMoving(moving===r.id?null:r.id)}>Перенести дату</button>{moving===r.id&&<OccurrenceDateForm event={{sourceId:r.id,period:item.period,date:item.date}} today={today} mutate={mutate} busy={busy} onCancel={()=>setMoving(null)} onDone={()=>setMoving(null)}/>}</>}
+ {item&&r.active&&<RecordedPayment data={data} id={r.id} period={item.period} mutate={mutate} busy={busy}/>}
  <details className="payment-settings planned-actions"><summary>Настроить и посмотреть историю</summary>
  <button className="mini-text-button" disabled={busy} onClick={()=>{setAsking(null);setEditing(r.id);}}>Изменить план</button>
  {r.frequency==='monthly'&&<p className="mini-small mini-muted">Период учёта: {item?billingPeriod(r,item.period):'месяц'}. Планируемая оплата: {item?.date||'по графику'}. Перенос меняет только этот платёж. В коротком месяце — последний день.</p>}

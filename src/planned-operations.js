@@ -1,4 +1,4 @@
-import {parseMoney} from './ledger.js';
+import {putTransaction,parseMoney} from './ledger.js';
 import {plannedOccurrences,planType,plannedPaid,validPlannedPeriod,validatePlannedOverrides} from './planned-model.js';
 function plannedValues(data,values){
  const account=data.accounts.find(a=>a.id===values.accountId),amount=values.type==='income'&&values.variable===true?0:parseMoney(values.amount),date=values.startDate;
@@ -26,7 +26,8 @@ export function skipPlanned(data,id,period){
  const r=data.recurring.find(x=>x.id===id);
  if(!r?.active||!validPlannedPeriod(r,period)||plannedPaid(data,r,period))throw Error('План отсутствует, приостановлен, уже подтверждён или период не входит в график');
  if((r.skippedPeriods||[]).includes(period))return data;
- return {...data,recurring:data.recurring.map(x=>x.id===id?{...x,skippedPeriods:[...(x.skippedPeriods||[]),period]}:x)};
+ const paymentReminders={...data.paymentReminders};delete paymentReminders['plan:'+id+':'+period];
+ return {...data,paymentReminders,recurring:data.recurring.map(x=>x.id===id?{...x,skippedPeriods:[...(x.skippedPeriods||[]),period]}:x)};
 }
 export function restorePlanned(data,id,period){
  const r=data.recurring.find(x=>x.id===id);
@@ -61,4 +62,20 @@ export function reschedulePlanned(data,id,period,date,today){
  const next={...rule,dateOverrides};validatePlannedOverrides(next);
  const paymentReminders={...data.paymentReminders};delete paymentReminders['plan:'+id+':'+period];
  return {...data,paymentReminders,recurring:data.recurring.map(r=>r.id===id?next:r)};
+}
+
+// Linking changes the relationship of an existing fact, never creates another debit.
+export function plannedLinkCandidates(data,id,period){
+ const rule=data.recurring.find(r=>r.id===id);
+ if(!rule?.active||!validPlannedPeriod(rule,period)||plannedPaid(data,rule,period)||(rule.skippedPeriods||[]).includes(period))return [];
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date());
+ return data.transactions.filter(t=>t.date<=today&&t.type===planType(rule)&&t.cat!=='lunch'&&!t.lunchId&&!t._lunchCheckDay&&!t.recurringId&&!t.installmentPaymentId&&!t.installmentRefundId&&!t.debtId&&!t.transferId&&t.accountId===rule.accountId&&(t.currency||'RUB')===(rule.currency||'RUB')).sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id));
+}
+export function linkPlannedTransaction(data,id,period,transactionId){
+ const old=data.transactions.find(t=>t.id===transactionId);
+ if(old?.recurringId===id&&old.recurringPeriod===period)return data;
+ if(!plannedLinkCandidates(data,id,period).some(t=>t.id===transactionId))throw Error('Запись или план изменились. Выбери свободную операцию того же счёта, типа и валюты');
+ const next=putTransaction(data,{...old,recurringId:id,recurringPeriod:period,recurringPartial:false});
+ const paymentReminders={...next.paymentReminders};delete paymentReminders['plan:'+id+':'+period];
+ return {...next,paymentReminders};
 }

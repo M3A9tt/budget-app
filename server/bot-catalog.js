@@ -1,3 +1,6 @@
+import {categoryCatalog} from '../src/categories.js';
+import {CATEGORY_EMOJIS,saveCustomCategory} from '../src/category-customization.js';
+import {plannedLinkCandidates,linkPlannedTransaction} from '../src/planned-operations.js';
 import {changeInstallmentPayment,installmentReturnStatus,refundInstallment} from '../src/installment-actions.js';
 import {setPaymentReminder} from '../src/payment-reminders.js';
 import {reschedulePlanned} from '../src/planned-operations.js';
@@ -24,7 +27,7 @@ import {MODULES,setModule} from '../src/modules.js';
 import {validZone} from '../src/time-settings.js';
 import {setLunchWorkday} from '../src/lunch-schedule.js';
 const text=(key,label,extra={})=>({key,label,type:'text',...extra}),num=(key,label,extra={})=>text(key,label,{type:'money',...extra}),date=(key,label,extra={})=>text(key,label,{type:'date',...extra}),choice=(key,label,choices,extra={})=>text(key,label,{type:'choice',choices,...extra});
-const yesno=[[true,'Да'],[false,'Нет']],currencies=d=>Object.keys(d.rates).map(x=>[x,x]),accounts=(d,filter=()=>true)=>orderedAccounts(d).filter(filter).map(a=>[a.id,a.name+' · '+a.currency]),cats=d=>CATEGORIES.concat(d.customCats||[]).map(c=>[c.id,c.name]);
+const yesno=[[true,'Да'],[false,'Нет']],currencies=d=>Object.keys(d.rates).map(x=>[x,x]),accounts=(d,filter=()=>true)=>orderedAccounts(d).filter(filter).map(a=>[a.id,a.name+' · '+a.currency]),cats=d=>categoryCatalog(d.customCats).map(c=>[c.id,c.name]);
 const source=(d,a,key,list)=>{const row=list.find(x=>x.id===a[key]);if(!row)throw Error('Запись больше не существует');return row;};
 export const SETTING_GROUPS={
  reminders:[['expenseCheckEnabled','Проверка расходов','bool'],['checkTime','Время проверки','time'],['checkRepeats','Повторы (0–3)','integer'],['checkInterval','Интервал в часах (1–4)','integer'],['checkEscalation','Усиление при пропусках','bool'],['checkEscalationDays','После скольких дней (1–7)','integer'],['reminderStyle','Стиль текста','style'],['reminderText','Свой текст','text'],['lunchAskEnabled','Вопрос об обеде','bool'],['lunchAskTime','Время вопроса об обеде','time'],['lunchAskDays','Дни вопроса: 1,2,3,4,5 (вс=0)','days'],['plannedReminders','Напоминания о платежах','bool'],['plannedReminderTime','Время напоминания о платежах','time'],['reportTime','Время сводок','time'],['dailyReport','Сводка дня','bool'],['weeklyReport','Сводка недели','bool'],['monthlyReport','Сводка месяца','bool'],['timeZone','Часовой пояс','zone']],
@@ -59,7 +62,8 @@ export function fieldsFor(d,op,args={},values={}){
  if(op==='installment')return [text('name','За что платишь?',{hint:'Например: телефон или заказ в Маркете. Добавим только будущие платежи — деньги сейчас не спишутся.'}),choice('obligationKind','Тип графика',[['installment','Рассрочка'],['split','Сплит'],['loan','Кредит'],['mortgage','Ипотека']]),choice('cadence','Как часто списывают деньги?',[['monthly','Раз в месяц'],['biweekly','Каждые 2 недели'],['weekly','Каждую неделю']],{default:'monthly',hint:'Частоту возьми из графика банка или сервиса.'}),num('total','Сколько ещё осталось заплатить?',{hint:'Только неоплаченная часть, включая известные проценты и комиссии. Например: из 12 000 уже оплатил 3 000 — введи 9 000.'}),text('count','Сколько платежей ещё осталось? (1–600)',{type:'integer',hint:'Уже оплаченные части не считай. Остаток разделим поровну.'}),date('firstDate','Дата ближайшего неоплаченного платежа',{default:today,hint:'Следующее списание по графику банка, а не дата покупки.'}),choice('accountId','С какого счёта платить?',accounts(d)),choice('cat','Категория расходов',cats(d),{default:'other',advanced:true})];
  if(op==='payInstallment'){const plan=source(d,args,'id',d.installments||[]),payment=plan.payments.find(p=>p.id===args.paymentId);return [num('amount','Фактическая сумма (можно частично)',{default:installmentRemaining(d,payment),advanced:true}),choice('accountId','Откуда оплатил',accounts(d,a=>(a.currency||'RUB')===plan.currency),{default:plan.accountId,advanced:true}),date('date','Фактическая дата оплаты',{default:today,hint:payment.date>today?'Досрочная оплата. По графику: '+payment.date:''})];}
  if(op==='limit')return [choice('cat','Категория',cats(d)),num('amount','Лимит, ₽ (0 — убрать)')];
- if(op==='category')return [text('name','Название категории')];
+ if(op==='category')return [text('name','Название категории',{default:d.customCats.find(c=>c.id===args.id)?.name||''}),choice('emoji','Эмодзи перед названием',CATEGORY_EMOJIS.map(x=>[x,x||'Без эмодзи']),{default:d.customCats.find(c=>c.id===args.id)?.emoji||''})];
+ if(op==='linkPlan')return [choice('transactionId','Уже записанная операция — без повторного списания',plannedLinkCandidates(d,args.id,args.period).map(t=>[t.id,`${t.date} · ${t.amount} ${t.currency||'RUB'} · ${t.note||'Без описания'}`]))];
  if(op==='rate')return [choice('currency','Валюта',currencies(d).filter(([c])=>c!=='RUB')),num('rate','Рублей за единицу валюты')];
  if(op==='dayOff')return [date('date','Дата',{default:today}),choice('ratio','Работал в этот день?',[[1,'Да · полный день'],[0.5,'Да · полдня'],[0,'Нет · выходной / отпуск'],['reset','Как в обычном графике']],{hint:'Можно отметить работу в выходной или праздник. Лимит на обед добавится один раз за эту дату.'})];
  if(op==='calculator')return [text('items','Блюда: каждое с новой строки, например Суп;150;1',{type:'items'})];
@@ -123,7 +127,8 @@ export function applyBotAction(d,op,args={},v={}){
  if(op==='payInstallment'&&v.date>today)throw Error('Подтверди платёж после фактической оплаты');
  if(op==='payInstallment')return payInstallment(d,{planId:args.id,paymentId:args.paymentId,...v});
  if(op==='limit'){if(v.amount<0)throw Error('Лимит не может быть отрицательным');return {...d,categoryBudgets:{...d.categoryBudgets,[v.cat]:v.amount}};}
- if(op==='category'){if(!v.name?.trim())throw Error('Введите название');return {...d,customCats:[...d.customCats,{id:args.newId,name:v.name.trim(),icon:'other',color:'#b8dec4'}]};}
+ if(op==='category')return saveCustomCategory(d,{...v,id:args.newId},args.id);
+ if(op==='linkPlan')return linkPlannedTransaction(d,args.id,args.period,v.transactionId);
  if(op==='rate'){if(v.currency==='RUB')throw Error('Базовый курс рубля всегда 1');if(v.rate<=0)throw Error('Курс должен быть положительным');return {...d,rates:{...d.rates,[v.currency]:v.rate}};}
  if(op==='module')return setModule(d,args.key,args.enabled);
  if(op==='homeLayout')return customizeHome(d,args);

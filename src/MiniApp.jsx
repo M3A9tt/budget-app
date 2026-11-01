@@ -1,3 +1,4 @@
+import {categoryCatalog} from './categories.js';
 import AttentionPanel from './AttentionPanel.jsx';
 import {loadEntryDraft,saveEntryDraft,clearEntryDrafts} from './entry-draft.js';
 import {updateTransfer,reverseTransfer} from './transfer-actions.js';
@@ -62,7 +63,7 @@ export default function MiniApp(){
   const [page,setPage]=useState(()=>new URLSearchParams(location.search).get('lunch')==='1'?'lunch':new URLSearchParams(location.search).get('updates')==='1'?'updates':new URLSearchParams(location.search).get('settings')==='1'||new URLSearchParams(location.search).get('payments')==='1'?'more':'overview'),[tab,setTab]=useState(()=>new URLSearchParams(location.search).get('payments')==='1'?'payments':new URLSearchParams(location.search).get('settings')==='1'?'settings':'accounts'),[toast,setToast]=useState(''),[draft,setDraft]=useState(null),[last,setLast]=useState(null),[search,setSearch]=useState(''),[historyDate,setHistoryDate]=useState(''),[historyType,setHistoryType]=useState('all'),[chartFilter,setChartFilter]=useState(null),[quick,setQuick]=useState('');
   const [historyLimit,setHistoryLimit]=useState(100),[wishOpen,setWishOpen]=useState('');
   useEffect(()=>setHistoryLimit(100),[search,historyDate,chartFilter,historyType]);
-  const data=useMemo(()=>({...state.data,accounts:orderedAccounts(state.data)}),[state.data]),today=todayMoscow(data.settings.timeZone),cats=useMemo(()=>CATEGORIES.concat(data.customCats||[]),[data.customCats]);
+  const data=useMemo(()=>({...state.data,accounts:orderedAccounts(state.data)}),[state.data]),today=todayMoscow(data.settings.timeZone),cats=useMemo(()=>categoryCatalog(data.customCats),[data.customCats]);
   const track=useTelemetry(loaded&&!demo&&data.settings.telemetryEnabled!==false,page==='more'?tab:page,wide);
   const defaults=useMemo(()=>entryDefaults(data,'expense',today,cats),[data,today,cats]),suggestions=useMemo(()=>repeatSuggestions(data,today),[data,today]);
   const notify=text=>{setToast(text);try{tg?.HapticFeedback?.notificationOccurred('success');}catch{};setTimeout(()=>setToast(''),2600);};

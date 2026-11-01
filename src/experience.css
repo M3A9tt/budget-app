@@ -41,3 +41,11 @@
 .desktop-transfer strong{font-size:12px;font-weight:600}
 .desktop-transfer small{display:block;color:#9da9ba;font-size:11px;line-height:1.6;margin-top:5px}
 .desktop-transactions .desktop-transfer .desktop-number{color:#a9cbe0}
+
+/* Clear accents keep status readable without relying on colour alone. */
+.attention-center{background:linear-gradient(145deg,#1c2939,#29251f)}
+.attention-item{border-inline-start:4px solid #7798d4!important;background:var(--mini-panel,#191c22)}
+.attention-overdue{border-inline-start-color:#cf7852!important}.attention-income{border-inline-start-color:#3f986d!important}.attention-check{border-inline-start-color:#a083c6!important}
+.recorded-payment-panel{margin:8px 0;padding:14px;border:1px solid #a6b7d1;border-radius:14px;background:#202d3d;color:#edf3fc}
+.recorded-payment-panel select{width:100%;min-width:0;margin:8px 0;padding:10px;border-radius:10px;background:#192532;color:#edf3fc}
+.category-chips,.emoji-options{display:flex;flex-wrap:wrap;gap:8px}.emoji-options{border:0;padding:10px 0}.emoji-options button{min-width:42px;min-height:42px;border:1px solid #bdc9dd;border-radius:12px;background:#253242;color:#edf3fc;font-size:22px}.emoji-options button[aria-pressed=true]{outline:2px solid #8abaff;background:#334a66}.category-chips button{padding:8px 12px;border-radius:14px;border:1px solid #bdc9dd;background:#253242;color:#edf3fc}.category-chips small{display:block;font-size:11px}.category-preview{border-inline-start:5px solid;padding:12px;background:#22322f;border-radius:10px;color:#edf3fc}.category-preview span{font-size:24px}
