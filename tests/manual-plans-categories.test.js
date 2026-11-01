@@ -1,3 +1,4 @@
+import {botView} from '../server/bot-views.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EMPTY,todayMoscow} from '../src/mini-model.js';
@@ -26,6 +27,7 @@ test('Bot and app share links, exclude other accounts/types/linked facts, and ca
 test('Emoji categories edit stable IDs without losing budgets or operations and survive restore and bot creation',()=>{
  let d=saveCustomCategory(fixture(),{name:'Коты',emoji:'🐈',color:'#abc123'});const id=d.customCats[0].id;d.categoryBudgets[id]=500;d=putTransaction(d,{id:'food',amount:50,type:'expense',cat:id,accountId:'a',date:today});d=saveCustomCategory(d,{name:'Мои коты',emoji:'❤️',color:'#112233'},id);
  assert.equal(d.customCats[0].id,id);assert.equal(d.transactions[0].cat,id);assert.equal(d.categoryBudgets[id],500);assert.equal(categoryCatalog(d.customCats).find(c=>c.id===id).name,'❤️ Мои коты');assert.equal(migrateData(d,EMPTY).customCats[0].emoji,'❤️');
+ const many={...d,customCats:Array.from({length:30},(_,i)=>({id:'c'+i,name:'Категория '+i,emoji:'🐈'}))};assert.ok(botView(many,'customCategories').actions.length<=10);
  const bot=applyBotAction(fixture(),'category',{newId:'custom-cat'},{name:'Учёба',emoji:'🎓'});assert.equal(bot.customCats[0].id,'custom-cat');assert.equal(bot.customCats[0].emoji,'🎓');
  for(const s of ['word','🐈🐈','<img>'])assert.throws(()=>categoryEmoji(s));for(const s of ['👨‍👩‍👧','🇷🇺','❤️',''])assert.equal(categoryEmoji(s),s);
 });
