@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import assert from 'node:assert/strict';
-import {EMPTY,todayMoscow} from '../src/mini-model.js';
+import {EMPTY,todayMoscow,money} from '../src/mini-model.js';
 import {createPlanned} from '../src/planned-operations.js';
 import {putTransaction} from '../src/ledger.js';
 const baseline='a60e3ee88d1abceb6c3db16919f2ae9ea44d2c9d';
@@ -82,7 +82,7 @@ try{
     await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:/Записать.*37,50/}).click();
     await page.locator('.report-spending-hero').waitFor();assert.equal(data.accounts[0].balance,1762.5);assert.equal(data.transactions.length,2);assert.equal(data.transactions.at(-1).cat,'cat');
     await page.locator('.mini-nav').getByRole('button',{name:'История',exact:true}).click();await page.getByLabel('Поиск операций',{exact:true}).fill('Покупка для котов');await page.getByText('Покупка для котов',{exact:true}).waitFor();
-    await page.locator('.mini-nav').getByRole('button',{name:'Главная',exact:true}).click();await page.getByRole('button',{name:/Карта.*1\s*762,50/}).waitFor();
+    await page.locator('.mini-nav').getByRole('button',{name:'Главная',exact:true}).click();const accountAmount=page.locator('.home-accounts button').filter({hasText:'Карта'}).locator('strong');await accountAmount.waitFor();assert.equal(await accountAmount.textContent(),money(1762.5));await shot('recorded-expense-390');
    }
    await page.goto(origin+'/?settings=1');await page.getByRole('button',{name:/Свои категории/}).click();
    if(label==='after'){
