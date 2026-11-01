@@ -49,3 +49,7 @@ test('Far future explicit appointment is visible in preview and undated income n
  assert.equal(previewPlanned(seed(),{...values,startDate:day(180)},today).items[0].date,day(180));
  const d=createPlanned(seed(),{...values,type:'income',budgetAnchor:true});assert.equal(dashboard(d,today).income,0);assert.equal(dashboard(d,today).free,10000);assert.equal(events(d).length,0);
 });
+test('Bot card stays bounded for many explicit dates and uses current overrides',()=>{
+ const d=create(),dates=Array.from({length:600},(_,i)=>day(i));d.recurring[0].scheduledDates=dates;d.recurring[0].dateOverrides={[today]:day(700)};
+ const card=botView(d,'plan',{id:'therapy'});assert.ok(card.lines.join('\n').length<500);assert.match(card.lines.join('\n'),/ещё 595/);assert.ok(card.lines.join('\n').includes(day(1)));
+});
