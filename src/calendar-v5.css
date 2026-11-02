@@ -101,8 +101,8 @@
 .mini-shell.personal-calendar .calendar-symbol-key svg{color:#c4d1e4;flex-shrink:0}
 .mini-shell.personal-calendar .calendar-symbol-key .calendar-key-dot{display:block;width:5px;height:5px;background:#c4d1e4;border-radius:50%;margin-inline:6px 7px}
 .mini-shell.personal-calendar .calendar-symbol-help p{font-size:11px;line-height:1.5;margin:8px 0;color:#9fafc7}
-.mini-shell.personal-calendar dialog.calendar-event-sheet{position:fixed;inset:auto 0 0;margin:0 auto;width:min(100%,480px);max-width:100%;max-height:88dvh;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(155deg,#263247 0%,#1b2332 48%,#191f2c 100%);color:#eef2f7;border:1px solid #53607970;border-bottom:0;border-radius:28px 28px 0 0;padding:26px 24px max(24px,env(safe-area-inset-bottom));box-shadow:0 -20px 80px #050a1670,inset 0 1px #ffffff0b;text-align:left}
-.mini-shell.personal-calendar dialog.calendar-event-sheet::backdrop{background:#080d198c;backdrop-filter:blur(3px)}
+.mini-shell.personal-calendar dialog.calendar-event-sheet{position:fixed;inset:auto 0 0;margin:0 auto;width:min(100%,480px);max-width:100%;max-height:88dvh;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(145deg,#2c354b 0%,#1b2232 45%,#171e2c 100%);color:#eef2f7;border:1px solid #53607970;border-bottom:0;border-radius:28px 28px 0 0;padding:26px 24px max(24px,env(safe-area-inset-bottom));box-shadow:0 -20px 80px #050a1670,inset 0 1px #ffffff0b;text-align:left}
+.mini-shell.personal-calendar dialog.calendar-event-sheet::backdrop{background:#080d198c;backdrop-filter:blur(5px)}
 .mini-shell.personal-calendar .event-sheet-heading{display:flex;align-items:center;gap:13px}
 .mini-shell.personal-calendar .event-sheet-heading>div{flex:1;min-width:0}
 .mini-shell.personal-calendar .event-sheet-category{display:grid;place-items:center;flex-shrink:0;width:46px;height:46px;border-radius:15px;background:linear-gradient(145deg,#e9bb9225,#b2856310);border:1px solid #d5a77d2e;box-shadow:inset 0 1px #f3d2b21a;color:#e8ba94}
@@ -110,24 +110,28 @@
 .mini-shell.personal-calendar .calendar-event-sheet h3{font-size:21px;font-weight:600;letter-spacing:-.4px;margin:0;line-height:1.3;overflow-wrap:anywhere}
 .mini-shell.personal-calendar .event-sheet-date{display:block;font-size:11px;color:#a4b3cd;margin-top:5px;line-height:1.4}
 .mini-shell.personal-calendar .calendar-event-sheet .event-sheet-close{min-height:44px;min-width:44px;align-self:flex-start;margin:-8px -10px 0 0;color:#abbad1;font-size:25px;font-weight:300;border-radius:50%;background:#0d142328;border:1px solid #b0c2e313}
-.mini-shell.personal-calendar .event-sheet-amount{padding:28px 0 22px;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
-.mini-shell.personal-calendar .event-sheet-amount>strong{font-size:52px;line-height:1.1;letter-spacing:-2px;font-weight:600;font-variant-numeric:tabular-nums;color:#f0f3f9;overflow-wrap:anywhere;max-width:100%}
-.mini-shell.personal-calendar .event-sheet-currency{font-size:.62em;font-weight:400;color:#9fadc5;letter-spacing:-.5px}
-.mini-shell.personal-calendar .event-sheet-amount>button{font-size:12px;color:#b8c5dc;padding:0;min-height:36px;border-radius:0}
-.mini-shell.personal-calendar .event-sheet-account{display:flex;align-items:center;gap:9px;padding:14px 0;border-block:1px solid #91a6c720;font-size:12px;color:#c3cee0}
-.mini-shell.personal-calendar .event-sheet-account>svg{color:#8e9eb9;flex-shrink:0}
+.mini-shell.personal-calendar .event-sheet-amount{padding:22px 22px 0;margin-top:24px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;background:linear-gradient(125deg,#d8efc5,#b4d99c 85%);border:1px solid #e3f4d4b3;border-radius:22px;box-shadow:0 10px 28px #070e1933,inset 0 1px #f6ffe1a6;overflow:hidden}
+.mini-shell.personal-calendar .event-sheet-amount>strong{font-size:62px;line-height:1.1;letter-spacing:-2.5px;font-weight:600;font-variant-numeric:tabular-nums;color:#243829;overflow-wrap:anywhere;max-width:100%}
+.mini-shell.personal-calendar .event-sheet-currency{font-size:.62em;font-weight:400;color:#526c46;letter-spacing:-.5px}
+.mini-shell.personal-calendar .event-sheet-amount>button{font-size:12px;color:#3e5937;padding:0;min-height:36px;border-radius:0;text-decoration:underline;text-decoration-color:#56724755;text-underline-offset:4px}
+.mini-shell.personal-calendar .event-sheet-account{display:flex;align-items:center;gap:9px;align-self:stretch;padding:14px 22px;margin:12px -22px 0;border-top:1px solid #486c3330;font-size:12px;color:#3a5533;background:#405d3010}
+.mini-shell.personal-calendar .event-sheet-account>svg{color:#4d6e42;flex-shrink:0}
 .mini-shell.personal-calendar .event-sheet-account>span{overflow-wrap:anywhere}
-.mini-shell.personal-calendar .event-sheet-account>small{margin-left:auto;font-size:10px;color:#b9d79f}
+.mini-shell.personal-calendar .event-sheet-account>small{margin-left:auto;font-size:10px;color:#4b673f}
 .mini-shell.personal-calendar .calendar-event-sheet>p.event-sheet-status{font-size:12px;line-height:1.6;color:#aab9d1;margin:15px 0 19px}
 .mini-shell.personal-calendar .calendar-event-sheet>p.event-sheet-status.future{color:#c6b9a1}
 .mini-shell.personal-calendar .calendar-event-sheet .money-confirm-actions{display:block;margin-bottom:15px}
 .mini-shell.personal-calendar .calendar-event-sheet button{min-height:44px}
-.mini-shell.personal-calendar .calendar-event-sheet .money-confirm-actions>.mini-primary{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:52px;padding:0 18px;border-radius:14px;background:linear-gradient(125deg,#c1eda0,#9ed383);color:#203323;border:1px solid #c8f0a98c;box-shadow:0 5px 15px #07170e30,inset 0 1px #edffd04d;font-size:14px;font-weight:600}
-.mini-shell.personal-calendar .calendar-event-sheet .calendar-reschedule,.mini-shell.personal-calendar .calendar-event-sheet .recorded-payment>button{display:flex;align-items:center;gap:12px;width:100%;min-height:51px;padding:0 2px;margin:0;border-bottom:1px solid #91a6c71c;border-radius:0;color:#ced8e9;font-size:13px;text-align:left}
+.mini-shell.personal-calendar .calendar-event-sheet .money-confirm-actions>.mini-primary{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:52px;padding:0 18px;border-radius:16px;background:linear-gradient(125deg,#b6e68d,#99cd7f);color:#203323;border:1px solid #c8f0a98c;box-shadow:0 5px 15px #07170e30,inset 0 1px #edffd04d;font-size:14px;font-weight:600}
+.mini-shell.personal-calendar .calendar-event-sheet .calendar-reschedule,.mini-shell.personal-calendar .calendar-event-sheet .recorded-payment>button{display:flex;align-items:center;gap:12px;width:100%;min-height:54px;padding:0 13px;margin:0;background:#10182770;border-bottom:1px solid #91a6c71c;border-radius:0;color:#ced8e9;font-size:13px;text-align:left}
 .mini-shell.personal-calendar .calendar-event-sheet .calendar-reschedule>svg:first-child,.mini-shell.personal-calendar .calendar-event-sheet .recorded-payment>button>svg:first-child{color:#92a4c4}
 .mini-shell.personal-calendar .calendar-event-sheet .calendar-reschedule>svg:last-child,.mini-shell.personal-calendar .calendar-event-sheet .recorded-payment>button>svg:last-child{margin-left:auto;color:#7c90b0}
 .mini-shell.personal-calendar .calendar-event-sheet>small{display:block;font-size:10px;color:#8596b2;margin-top:20px;text-align:center;line-height:1.5}
 .mini-shell.personal-calendar .calendar-event-sheet .recorded-payment-panel{margin-block:12px;background:#10182766;border-color:#3a4860;border-radius:14px}
-@media(max-width:350px){.mini-shell.personal-calendar dialog.calendar-event-sheet{padding-inline:20px}.mini-shell.personal-calendar .event-sheet-amount>strong{font-size:46px}}
+@media(max-width:350px){.mini-shell.personal-calendar dialog.calendar-event-sheet{padding-inline:20px}.mini-shell.personal-calendar .event-sheet-amount>strong{font-size:52px}}
 @media(max-width:350px){.mini-shell.personal-calendar .calendar-presence{gap:1px}.mini-shell.personal-calendar .calendar-symbol svg{width:11px;height:11px}}
-@media(prefers-reduced-motion:no-preference){.mini-shell.personal-calendar dialog.calendar-event-sheet[open]{animation:calendar-sheet-enter 380ms cubic-bezier(.16,1,.3,1) both}@keyframes calendar-sheet-enter{from{transform:translateY(36px);opacity:0}to{transform:translateY(0);opacity:1}}}
+@media(prefers-reduced-motion:no-preference){.mini-shell.personal-calendar dialog.calendar-event-sheet[open]{animation:calendar-sheet-enter 380ms cubic-bezier(.16,1,.3,1) both}@keyframes calendar-sheet-enter{from{transform:translateY(64px);opacity:0}to{transform:translateY(0);opacity:1}}}
+
+.mini-shell.personal-calendar .calendar-event-sheet .calendar-reschedule{border-radius:16px 16px 0 0;border-top:1px solid #8198c21c}
+.mini-shell.personal-calendar .calendar-event-sheet .recorded-payment>button{border-radius:0 0 16px 16px;border-bottom-color:#8198c21c}
+.mini-shell.personal-calendar .calendar-event-sheet .calendar-reschedule>svg:first-child,.mini-shell.personal-calendar .calendar-event-sheet .recorded-payment>button>svg:first-child{color:#c2b8e3;background:#b7a2e411;padding:6px;border-radius:9px;box-sizing:content-box;flex-shrink:0}
