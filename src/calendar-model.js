@@ -1,4 +1,5 @@
 import {activityEntries} from './activity-history.js';
+import {categoryCatalog} from './categories.js';
 import {scheduledEvents,moveDate} from './finance-events.js';
 
 export function shiftMonth(month,offset){
@@ -22,3 +23,20 @@ export const CALENDAR_MARKS=[
 ];
 // A marker describes a direction, not a count or a paid/unpaid state.
 export function calendarDayMarks(day){const rows=[...(day.events||[]),...(day.transactions||[])];return CALENDAR_MARKS.filter(mark=>rows.some(row=>row.type===mark.type));}
+
+// Use category/source metadata, never guess a purpose from the event name.
+export function calendarEventMark(data,row){
+ const direction=CALENDAR_MARKS.find(mark=>mark.type===row.type)||CALENDAR_MARKS[0];
+ if(row.type==='income')return {...direction,icon:'wallet'};
+ if(row.type==='transfer'||row.type==='lunch')return direction;
+ const source=row.source==='plan'?(data.recurring||[]).find(rule=>rule.id===row.sourceId):null;
+ const category=categoryCatalog(data.customCats).find(cat=>cat.id===(source?.cat||row.cat));
+ const recognizable=['food','transport','home','health','play','repeat'];
+ const icon=category?.id==='subs'?'subscription':recognizable.includes(category?.icon)?category.icon:(source?.cat||row.cat)==='home'?'home':source&&['daily','weekly','monthly'].includes(source.frequency)?'refresh':null;
+ return {...direction,icon};
+}
+export function calendarDaySymbols(data,day){
+ const rows=[...(day.events||[]),...(day.transactions||[])];
+ const first=rows[0],second=rows.find(row=>row.type!==first?.type)||rows[1];
+ return {marks:[first,second].filter(Boolean).map(row=>({...calendarEventMark(data,row),key:row.id})),remaining:Math.max(0,rows.length-2)};
+}
