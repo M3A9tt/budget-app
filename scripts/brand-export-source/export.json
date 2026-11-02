@@ -1,0 +1,57 @@
+{
+  "public/brand/wordmark.webp": {
+    "width": 1024,
+    "height": 269,
+    "crop": {
+      "left": 43,
+      "top": 109,
+      "width": 2087,
+      "height": 548
+    },
+    "transparentPixels": 1113365
+  },
+  "public/brand/symbol.webp": {
+    "width": 256,
+    "height": 256,
+    "crop": {
+      "left": 56.5,
+      "top": 52,
+      "width": 1135,
+      "height": 1135
+    },
+    "transparentPixels": 941250
+  },
+  "public/brand/symbol-64.png": {
+    "width": 64,
+    "height": 64,
+    "crop": {
+      "left": 56.5,
+      "top": 52,
+      "width": 1135,
+      "height": 1135
+    },
+    "transparentPixels": 941250
+  },
+  "public/brand/symbol-180.png": {
+    "width": 180,
+    "height": 180,
+    "crop": {
+      "left": 56.5,
+      "top": 52,
+      "width": 1135,
+      "height": 1135
+    },
+    "transparentPixels": 941250
+  },
+  "public/brand/symbol-512.png": {
+    "width": 512,
+    "height": 512,
+    "crop": {
+      "left": 56.5,
+      "top": 52,
+      "width": 1135,
+      "height": 1135
+    },
+    "transparentPixels": 941250
+  }
+}

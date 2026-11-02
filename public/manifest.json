@@ -1,16 +1,23 @@
 {
-  "name": "Финансы",
-  "short_name": "Финансы",
+  "name": "Бюрджет",
+  "short_name": "Бюрджет",
   "description": "Учёт расходов, доходов, долгов и обедов",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0b",
-  "theme_color": "#0a0a0b",
+  "background_color": "#10131d",
+  "theme_color": "#10131d",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>💰</text></svg>",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "src": "/brand/symbol-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/symbol-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
