@@ -111,6 +111,7 @@ export function botView(d,name='home',a={},owner=false){
  if(pictureKind&&!a.textOnly&&(name!=='home'||homeVisible(d,'budget')))r.picture={kind:pictureKind,...(name==='analytics'?{days:a.days===7?7:30}:{}),...(pictureKind==='lunch'?{month:a.month||today.slice(0,7)}:{}),...(pictureKind==='savings'?{page:Math.max(0,Number(a.page)||0)}:{})};
  if(name==='analytics')r.actions.unshift(...[['📈 Расходы','analytics'],['🎨 Категории','categories'],['🔮 Прогноз','forecast']].map(([label,chart])=>view(label,'analytics',{chart,days:a.days===7?7:30})),...[7,30].map(days=>view(`${days} дней`,'analytics',{chart:a.chart,days})));
 
+ if(d.settings.interfaceVersion===2){r.title=({history:'Операции',payments:'Календарь',home:'Бюджет',more:'Ещё'})[name]||r.title;r.actions=r.actions.map(action=>({...action,label:({history:'Операции',payments:'Календарь'})[action.view]||action.label}));}
  if(['more','payments','analytics','categories','pictures'].includes(name))r.actions=r.actions.filter(x=>{const module=({goals:'goals',wishes:'goals',plans:'plans',installments:'installments',debts:'debts',limits:'limits'})[x.view]||(x.args?.chart==='forecast'||x.args?.kind==='forecast'?'forecast':null);return !module||moduleEnabled(d,module);});
  r.lines=r.lines.filter(Boolean);if(name!=='home')r.actions.push(view('⌂ Главное меню','home'));return r;
 }

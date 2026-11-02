@@ -1,0 +1,120 @@
+/* Pilot presentation. Financial commands and profile state are shared with v1.
+   Keep v1 until two stable releases and observed user acceptance; see docs/personal-interface.md. */
+.mini-shell.personal-ui{--mini-bg:#171a18;--mini-surface:#202421;--mini-line:#353c36;--mini-text:#f1f2eb;--mini-muted:#a6afa5;--mini-accent:#bdd7b0;background:#171a18;color:#f1f2eb;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.015em;min-height:100dvh}
+.mini-shell.personal-ui button,.mini-shell.personal-ui input,.mini-shell.personal-ui select{font:inherit}
+.mini-shell.personal-ui button{touch-action:manipulation}
+.mini-shell.personal-ui :focus-visible,.entry-picker :focus-visible{outline:2px solid #c4e5ad;outline-offset:4px}
+.mini-shell.personal-ui .mini-header{background:#171a18;border-bottom:1px solid #353c36;padding-block:18px}
+.mini-shell.personal-ui .mini-brand strong{font-size:20px;letter-spacing:-.05em;font-weight:650}
+.mini-shell.personal-ui .mini-mark{background:none;color:#bdd7b0;border-radius:0}
+.mini-shell.personal-ui .mini-page{padding-bottom:160px}
+.mini-shell.personal-ui .mini-title,.mini-shell.personal-ui h1{font-size:28px;font-weight:550;letter-spacing:-.045em}
+.mini-shell.personal-ui .mini-card,.mini-shell.personal-ui .mini-rows,.mini-shell.personal-ui .home-accounts,.mini-shell.personal-ui .home-recent,.mini-shell.personal-ui .payments-management{box-shadow:none;background:transparent;border-radius:0}
+.mini-shell.personal-ui .ins-page-head{margin:4px 0 28px}
+.mini-shell.personal-ui .ins-page-head h1{margin:5px 0 0}
+.mini-shell.personal-ui .home-heading-actions .mini-text-button{font-size:0;min-width:44px;min-height:44px}
+.mini-shell.personal-ui .home-heading-actions .mini-text-button svg{width:19px;height:19px}
+.mini-shell.personal-ui .ins-kicker{color:#a6afa5;font-size:13px;letter-spacing:0;text-transform:none}
+.personal-budget{padding:12px 0 0;border:0;background:none}
+.personal-budget-label{font-size:15px;color:#b6c3b2}
+.personal-budget-amount{font-size:clamp(40px,10.8vw,68px);line-height:1.22;letter-spacing:-.065em;font-weight:500;margin:8px 0 5px;overflow-wrap:anywhere}
+.personal-budget-horizon{font-size:14px;color:#a6afa5;margin-bottom:24px}
+.personal-daily{display:flex;gap:12px;align-items:center;font-size:13px;color:#a6afa5;margin-bottom:16px}
+.personal-daily strong{font-size:15px;color:#d2e8c5;font-weight:500}
+.personal-budget-details{border-top:1px solid #394137;padding-top:16px;font-size:14px;color:#b6c3b2}
+.personal-budget-details summary{cursor:pointer;min-height:32px}
+.personal-budget-details p{line-height:1.55;color:#b6c3b2}
+.personal-budget-details small{color:#a6afa5;line-height:1.5}
+.personal-equation{display:grid;gap:1px;margin-top:12px}
+.personal-equation button{background:none;border:0;display:flex;justify-content:space-between;gap:12px;padding:12px 0;color:#dce4d8;text-align:left}
+.personal-reserve{display:flex;gap:12px;align-items:center;width:100%;background:transparent;border:0;border-bottom:1px solid #353c36;padding:18px 0;color:#b6c3b2;font-size:14px}
+.personal-reserve b{margin-left:auto;font-weight:500;color:#f1f2eb}
+.mini-shell.personal-ui .ins-home{gap:28px;display:flex;flex-direction:column}
+.personal-next-event{display:flex;align-items:center;gap:12px;width:100%;background:#242b23;border:1px solid #3a4736;border-radius:10px;padding:17px 14px;text-align:left;color:#eef2e9}
+.personal-next-date{font-size:13px;line-height:1.3;max-width:42px;flex-shrink:0;color:#c4d8b8}
+.personal-next-event>span:nth-child(2){display:grid;gap:5px;min-width:0;flex:1}
+.personal-next-event small{color:#a6afa5;font-size:11px}
+.personal-next-event strong{font-weight:500;overflow-wrap:anywhere;font-size:14px}
+.personal-next-event b{font-size:14px;white-space:nowrap;font-weight:500}
+.personal-next-clear{color:#a6afa5;font-size:13px;border-top:1px solid #353c36;padding-top:16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.mini-shell.personal-ui .mini-section-title h2,.mini-shell.personal-ui .home-accounts h2{font-size:16px;font-weight:500}
+.mini-shell.personal-ui .ins-account-strip{display:flex;flex-direction:column;gap:0}
+.mini-shell.personal-ui .ins-account-strip>button{background:transparent;border:0;border-bottom:1px solid #353c36;border-radius:0;padding:15px 0;display:flex;width:100%;gap:12px;text-align:left}
+.mini-shell.personal-ui .ins-account-initial{display:none}
+.mini-shell.personal-ui .ins-account-strip>button>span:last-child{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
+.mini-shell.personal-ui .ins-account-strip small{font-size:14px;color:#bdc6b9}
+.mini-shell.personal-ui .ins-account-strip strong{font-size:17px;font-weight:500}
+.mini-shell.personal-ui .mini-tx{border:0;border-bottom:1px solid #353c36;border-radius:0;background:none;padding:17px 0;gap:12px;min-height:72px}
+.mini-shell.personal-ui .mini-tx-icon{border-radius:6px;width:32px;height:32px;background:none!important;color:#a6afa5!important}
+.mini-shell.personal-ui .mini-tx-center strong{font-weight:450;font-size:14px}
+.mini-shell.personal-ui .mini-tx-center small{font-size:11px;color:#a6afa5;margin-top:5px}
+.mini-shell.personal-ui .mini-tx-sum{font-size:15px;font-weight:500;letter-spacing:-.03em}
+.mini-shell.personal-ui .mini-income{color:#bdd7b0}
+.mini-shell.personal-ui .mini-day-label{padding-top:26px;font-size:12px;color:#a6afa5}
+.mini-shell.personal-ui .mini-nav{grid-template-columns:repeat(4,1fr);background:#1c201c;border-top:1px solid #353c36;padding-block:8px calc(8px + var(--mini-safe-bottom,0px));gap:0}
+.mini-shell.personal-ui .mini-nav button{min-height:48px;color:#a6afa5}
+.mini-shell.personal-ui .mini-nav button[aria-current=page]{background:none;color:#d2e8c5}
+.mini-shell.personal-ui .mini-nav button[aria-current=page]::after{display:none}
+.mini-shell.personal-ui .mini-nav span{font-size:10px;font-weight:500}
+.personal-add{position:fixed;z-index:35;right:max(20px,calc((100vw - 720px)/2));bottom:calc(87px + var(--mini-safe-bottom,0px));display:flex;align-items:center;gap:8px;min-height:52px;padding:12px 19px;border:1px solid #c6deba;border-radius:18px;background:#bdd7b0;color:#182016;box-shadow:0 5px 18px #0005;font-size:14px!important;font-weight:600!important}
+.personal-add:disabled{opacity:.5}
+.mini-shell.personal-ui .mini-primary{background:#bdd7b0;color:#182016;border-color:#bdd7b0;border-radius:9px;min-height:48px;box-shadow:none}
+.mini-shell.personal-ui .mini-secondary{background:#242b23;border:1px solid #45503e;border-radius:9px;box-shadow:none;color:#e0eadb}
+.mini-shell.personal-ui .mini-text-button{color:#c0d7b4}
+.mini-shell.personal-ui .mini-search,.mini-shell.personal-ui input,.mini-shell.personal-ui select{border-color:#414b3c;background:#20261f;color:#eef2e9;border-radius:8px;min-height:44px}
+.mini-shell.personal-ui .mini-tabs{border:0;padding:0;background:none;gap:5px;overflow-x:auto}
+.mini-shell.personal-ui .mini-tabs button{border:1px solid #414b3c;border-radius:8px;padding:10px 13px;color:#b6c3b2;background:none;min-height:42px;white-space:nowrap}
+.mini-shell.personal-ui .mini-tabs button.selected{background:#303d2b;color:#e3efd9;border-color:#77906b}
+.mini-shell.personal-ui .entry-composer{background:none;border:0;padding:0;box-shadow:none}
+.mini-shell.personal-ui .entry-amount{border:0;background:none;padding:26px 0 20px}
+.mini-shell.personal-ui .entry-amount label{font-size:13px;font-weight:400;color:#a6afa5}
+.mini-shell.personal-ui .entry-amount input{background:none;border:0;font-size:54px;letter-spacing:-.05em;padding:5px 0;box-shadow:none;border-radius:0}
+.mini-shell.personal-ui .entry-timing{order:0;background:none;margin-block:16px 0}
+.mini-shell.personal-ui .entry-timing button{border-radius:7px;background:#222921;border:1px solid #414b3c;font-size:12px;min-height:42px}
+.mini-shell.personal-ui .entry-timing button[aria-pressed=true]{background:#303d2b;border-color:#77906b;color:#e3efd9}
+.entry-picker-trigger{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #414b3c;padding:19px 0;color:#f1f2eb;min-height:58px}
+.entry-picker-trigger>span{color:#a6afa5;font-size:13px}
+.entry-picker-trigger strong{margin-left:auto;font-size:15px;font-weight:500;overflow-wrap:anywhere}
+.entry-picker{background:#20261f;color:#f1f2eb;border:1px solid #515f49;border-radius:14px;width:calc(100% - 32px);max-width:460px;max-height:75dvh;padding:20px;box-sizing:border-box;box-shadow:0 20px 80px #0009}
+.entry-picker::backdrop{background:#090e0ac4}
+.entry-picker-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.entry-picker-head h2{font-size:21px;font-weight:500;margin:0}
+.entry-picker input{box-sizing:border-box;width:100%;margin:18px 0 6px;min-height:44px;background:#171c16;color:#f1f2eb;border:1px solid #515f49;border-radius:8px;padding:10px;font:inherit}
+.entry-picker-options{overflow:auto;max-height:48dvh}
+.entry-picker-options button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:52px;text-align:left;color:#f1f2eb;border:0;border-bottom:1px solid #414b3c;background:none;padding:14px 3px;font:inherit}
+.entry-picker-options button[aria-pressed=true]{color:#c9e3b9}
+.entry-picker-options small{display:block;font-size:12px;color:#a6afa5;margin-top:5px}
+.mini-shell.personal-ui .entry-visible-date{display:flex;align-items:center;gap:12px;border-bottom:1px solid #414b3c;padding:10px 0;color:#a6afa5;font-size:13px}
+.mini-shell.personal-ui .entry-visible-date input{margin-left:auto;width:auto;background:none;border:0;color:#f1f2eb;max-width:190px}
+.mini-shell.personal-ui .entry-note{margin-top:14px;background:none;border:0;border-bottom:1px solid #414b3c;border-radius:0}
+.mini-shell.personal-ui .entry-note input{background:none;border:0;padding-inline:0}
+.mini-shell.personal-ui .entry-submit{background:#171a18;border-top:1px solid #353c36}
+.mini-shell.personal-ui .entry-submit>small{display:none}
+.mini-shell.personal-ui .entry-detail-toggle{color:#a6afa5;background:none;border:0;font-size:13px}
+.mini-shell.personal-ui .entry-detail-toggle>span{font-size:0}
+.mini-shell.personal-ui .entry-repeat summary{font-size:12px;color:#a6afa5}
+.personal-calendar-views{display:flex;gap:3px;padding:3px;background:#222921;border:1px solid #414b3c;border-radius:9px;margin-bottom:20px}
+.personal-calendar-views button{flex:1;min-height:42px;border:0;background:none;color:#a6afa5;border-radius:6px}
+.personal-calendar-views button[aria-pressed=true]{background:#3a4b31;color:#e3efd9}
+.mini-shell.personal-ui .payments-page-heading h2{font-size:28px;font-weight:500;letter-spacing:-.04em}
+.mini-shell.personal-ui .payments-management{padding:14px 0;border:0;border-bottom:1px solid #414b3c}
+.mini-shell.personal-ui .payments-budget-line,.mini-shell.personal-ui .payments-income-entry{background:none;border-radius:0;border:0;border-bottom:1px solid #353c36;padding:18px 0}
+.mini-shell.personal-ui .payment-event,.mini-shell.personal-ui .payment-card,.mini-shell.personal-ui .payment-event-row{box-shadow:none}
+.mini-shell.personal-ui .more-menu section>div{background:none;border:0;border-radius:0}
+.mini-shell.personal-ui .more-menu section>div>button{border-bottom:1px solid #353c36;padding:19px 0;background:none;border-radius:0}
+.mini-shell.personal-ui .more-menu h2{font-size:12px;color:#a6afa5;font-weight:400;margin-top:30px}
+.mini-shell.personal-ui .more-menu strong{font-size:16px;font-weight:450}
+.interface-invite,.interface-guide{padding:18px;border:1px solid #414b3c;border-radius:10px;margin-bottom:24px;background:#242b23;color:#e3efd9}
+.interface-invite p,.interface-guide p{font-size:13px;line-height:1.6;color:#b6c3b2}
+.interface-invite .mini-primary{margin-right:10px}
+.mini-shell.personal-ui .desktop-nav-help,.mini-shell.personal-ui .desktop-nav-brand small{display:none}
+@media(min-width:1080px){.mini-shell.personal-ui .mini-nav{display:flex;gap:10px;padding:30px 20px;background:#1c201c;border-right:1px solid #353c36;border-top:0}.mini-shell.personal-ui .mini-nav button{justify-content:flex-start;padding:14px 18px;border-radius:8px;gap:14px;width:100%}.mini-shell.personal-ui .mini-nav span{font-size:14px}.mini-shell.personal-ui .mini-nav button[aria-current=page]{background:#303d2b}.mini-shell.personal-ui .desktop-nav-brand{margin-bottom:40px}.mini-shell.personal-ui .mini-page{max-width:1010px;padding:32px 42px 120px}.mini-shell.personal-ui .ins-home{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:30px 48px}.mini-shell.personal-ui .ins-page-head{grid-column:1/-1;margin:0 0 10px}.mini-shell.personal-ui .home-budget{grid-column:1;grid-row:2/4}.mini-shell.personal-ui .personal-next{grid-column:2;grid-row:2}.mini-shell.personal-ui .home-accounts{grid-column:2}.mini-shell.personal-ui .home-recent{grid-column:1/-1}.personal-budget-amount{font-size:64px}.mini-shell.personal-ui .mini-header .desktop-context strong{display:none}.personal-add{bottom:28px;right:30px}.mini-shell.personal-ui .mini-page[data-page=add]{grid-template-columns:minmax(0,1fr) 270px}.mini-shell.personal-ui .desktop-entry-aside{background:none;border-left:1px solid #353c36;border-radius:0}.mini-shell.personal-ui .desktop-tx-table{background:none;box-shadow:none;border:0}.mini-shell.personal-ui .desktop-tx-row{border-bottom:1px solid #353c36;background:none}.mini-shell.personal-ui .desktop-tx-row:hover{background:#242b23}}
+@media(prefers-reduced-motion:reduce){.mini-shell.personal-ui *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.mini-shell.personal-ui .home-budget{margin-bottom:0}.mini-shell.personal-ui .entry-amount{text-align:left}.mini-shell.personal-ui .entry-amount>div{justify-content:flex-start}.mini-shell.personal-ui .entry-amount input{text-align:left}.mini-shell.personal-ui .entry-submit{bottom:16px;background:#171a18}.mini-shell.personal-ui .entry-timing{margin:0 0 12px}
+
+.mini-shell.personal-ui .account-grid{display:flex;flex-direction:column;gap:0}.mini-shell.personal-ui .account-tile{display:flex;align-items:center;gap:16px;border:0;border-bottom:1px solid #353c36;border-radius:0;background:none;color:#f1f2eb;padding:22px 0;min-height:78px}.mini-shell.personal-ui .personal-account-name{flex:1;font-size:16px}.mini-shell.personal-ui .personal-account-name small{margin-top:5px;font-size:11px;color:#a6afa5}.mini-shell.personal-ui .account-tile strong{font-size:21px;font-weight:500}.mini-shell.personal-ui .account-action-bar button{border-radius:8px;background:#242b23;color:#c0d7b4;border-color:#414b3c;font-size:12px}.mini-shell.personal-ui .account-action-panel{border-radius:8px;background:#20261f;border-color:#414b3c}.mini-shell.personal-ui .account-action-panel h2{font-size:20px}.mini-shell.personal-ui .experience-empty{background:none}.mini-shell.personal-ui .mini-header-actions>.icon-button[aria-label="Настройки"],.mini-shell.personal-ui .mini-header-menu{display:none}
+
+.mini-shell.personal-ui{--mini-panel:#202421;--mini-raised:#2b3328;--mini-nav-background:#1c201c}.mini-shell.personal-ui .mini-header{position:sticky;top:0;z-index:40;margin-bottom:16px;min-height:65px;padding-block:12px}.mini-shell.personal-ui .personal-add{position:static;min-height:44px;padding:9px 11px;border-radius:10px;box-shadow:none}.mini-shell.personal-ui .personal-add span{display:none}.mini-shell.personal-ui .desktop-table-wrap{background:none;border:0;border-radius:0}.mini-shell.personal-ui .desktop-transactions th{background:none;color:#a6afa5;font-weight:400;border-bottom:1px solid #414b3c}.mini-shell.personal-ui .desktop-transactions td{border-color:#353c36}.mini-shell.personal-ui .desktop-transactions tbody tr:hover{background:#242b23}.mini-shell.personal-ui .desktop-category{background:none;border:0;padding:0;color:#b6c3b2!important}.mini-shell.personal-ui .desktop-repeat{border-color:#414b3c;background:#242b23;color:#c0d7b4}.mini-shell.personal-ui .payment-search{background:#20261f;border-color:#414b3c}.mini-shell.personal-ui .upcoming-payment-icon{background:none;color:#a6afa5;border-radius:0}.mini-shell.personal-ui .payments-management{margin-bottom:8px}.mini-shell.personal-ui .payment-event-actions>.payment-hint:last-of-type{font-size:12px}.mini-shell.personal-ui .desktop-context{display:none!important}@media(min-width:1080px){.mini-shell.personal-ui .personal-add span{display:inline}.mini-shell.personal-ui .mini-header{justify-content:flex-end}.mini-shell.personal-ui .mini-nav{border-radius:0}.mini-shell.personal-ui .mini-header-actions{margin-left:auto}}
+
+.mini-shell.personal-ui .ins-home .ins-page-head{margin:0}

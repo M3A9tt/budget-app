@@ -1,0 +1,20 @@
+[
+  {
+    "version": 1,
+    "revision": 11,
+    "balance": 46690,
+    "transactions": 3,
+    "plans": 1,
+    "profileSwitchCleared": false,
+    "pageErrors": []
+  },
+  {
+    "version": 2,
+    "revision": 3,
+    "balance": 46690,
+    "transactions": 3,
+    "plans": 2,
+    "profileSwitchCleared": true,
+    "pageErrors": []
+  }
+]

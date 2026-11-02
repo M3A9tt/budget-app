@@ -1,3 +1,4 @@
+import {validateTransactionRoles} from './transaction-roles.js';
 // Installment balances share the exact same transactions as the account ledger.
 const cents=n=>Math.round(n*100);
 export function installmentRemainders(data){
@@ -12,6 +13,7 @@ export function validateInstallmentLinks(data){
  const payments=new Map();
  for(const plan of data.installments||[])for(const payment of plan.payments){if(payments.has(payment.id))throw Error('Повторяющийся ID платежа рассрочки');payments.set(payment.id,{plan,payment,paid:0});}
  for(const t of data.transactions.filter(t=>t.installmentPaymentId)){
+  validateTransactionRoles(t);
   const link=payments.get(t.installmentPaymentId);
   if(!link||t.type!=='expense'||t.debtId||t.recurringId||t.cat==='lunch'||!data.accounts.some(a=>a.id===t.accountId)||(t.currency||'RUB')!==link.plan.currency)throw Error('Платёж должен оставаться расходом в валюте связанной рассрочки и со счётом');
   link.paid+=cents(t.amount);

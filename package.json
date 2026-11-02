@@ -1,7 +1,7 @@
 {
   "name": "finance-app",
   "private": true,
-  "version": "4.15.0",
+  "version": "4.16.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,6 +19,7 @@
     "test:payments": "node scripts/check-payment-experience.mjs",
     "test:ondemand": "node scripts/check-on-demand-browser.mjs",
     "test:calendar": "node scripts/check-connected-calendar.mjs",
+    "test:personal": "node scripts/check-personal-interface.mjs",
     "test:entry": "node scripts/check-unified-entry.mjs"
   },
   "dependencies": {

@@ -61,6 +61,11 @@ jobs:
         run: npm run test:entry
         env:
           ENTRY_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/unified-entry
+      - name: Check personal interface and reversible pilot
+        if: runner.os == 'Linux'
+        run: npm run test:personal
+        env:
+          PERSONAL_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/personal
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4

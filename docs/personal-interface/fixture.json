@@ -1,0 +1,144 @@
+{
+  "fictional": true,
+  "today": "2026-11-02",
+  "future": "2026-11-04",
+  "beforeRevision": "63d4b40c93f330c163e7e298c3dfa7d8fa2b057b",
+  "afterRevision": "c8995ed9c8576ff519e46db78dd8d5f3f5bbf7d9",
+  "comparison": "revisions",
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [
+      {
+        "type": "expense",
+        "cat": "food",
+        "amount": 1340,
+        "currency": "RUB",
+        "accountId": "a",
+        "date": "2026-11-02",
+        "note": "Продукты на неделю",
+        "id": "74e56f7b-1ce1-44a6-9cbc-e130b0b2f68d",
+        "amountRub": 1340,
+        "accountAmount": 1340,
+        "revision": 1,
+        "updatedAt": "2026-11-02T08:15:16.866Z"
+      },
+      {
+        "type": "expense",
+        "cat": "transport",
+        "amount": 320,
+        "currency": "RUB",
+        "accountId": "a",
+        "date": "2026-11-02",
+        "note": "Такси домой",
+        "id": "47d1ca13-39f1-436e-a0cc-1b6dce6af06a",
+        "amountRub": 320,
+        "accountAmount": 320,
+        "revision": 1,
+        "updatedAt": "2026-11-02T08:15:16.866Z"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "a",
+        "name": "Основная карта",
+        "balance": 46940,
+        "currency": "RUB"
+      },
+      {
+        "id": "b",
+        "name": "Наличные",
+        "balance": 3500,
+        "currency": "RUB"
+      },
+      {
+        "id": "s",
+        "name": "На отпуск",
+        "balance": 42000,
+        "currency": "RUB",
+        "accType": "savings"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [],
+    "transfers": [],
+    "recurring": [
+      {
+        "id": "r",
+        "name": "Интернет",
+        "type": "expense",
+        "amount": 800,
+        "currency": "RUB",
+        "accountId": "a",
+        "cat": "home",
+        "frequency": "once",
+        "startDate": "2026-11-04",
+        "active": true
+      }
+    ],
+    "history": [
+      {
+        "id": "b086cca7-4e3d-47da-9762-bdd024e3eeed",
+        "ts": 1793607316866,
+        "type": "add_tx",
+        "after": {
+          "type": "expense",
+          "cat": "transport",
+          "amount": 320,
+          "currency": "RUB",
+          "accountId": "a",
+          "date": "2026-11-02",
+          "note": "Такси домой",
+          "id": "47d1ca13-39f1-436e-a0cc-1b6dce6af06a",
+          "amountRub": 320,
+          "accountAmount": 320,
+          "revision": 1,
+          "updatedAt": "2026-11-02T08:15:16.866Z"
+        }
+      },
+      {
+        "id": "a4f142bf-6e22-473d-b4a2-0a2bc77c3604",
+        "ts": 1793607316866,
+        "type": "add_tx",
+        "after": {
+          "type": "expense",
+          "cat": "food",
+          "amount": 1340,
+          "currency": "RUB",
+          "accountId": "a",
+          "date": "2026-11-02",
+          "note": "Продукты на неделю",
+          "id": "74e56f7b-1ce1-44a6-9cbc-e130b0b2f68d",
+          "amountRub": 1340,
+          "accountAmount": 1340,
+          "revision": 1,
+          "updatedAt": "2026-11-02T08:15:16.866Z"
+        }
+      }
+    ],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "2026-11-14",
+      "notificationMode": "manual",
+      "modules": {
+        "plans": true,
+        "lunch": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}

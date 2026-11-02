@@ -171,3 +171,15 @@ test('API rejects detached plan edits and malformed restore rows without changin
  assert.equal(sqlite.prepare("SELECT count(*) n FROM user_idempotency WHERE id IN ('plan-detach','state:bad-restore')").get().n,0);
  }finally{sqlite.close();}
 });
+
+// Public API must enforce the same rules as the shared commands and UI.
+test('G01/G02/G07 API refuses fee edits, mixed financial roles and expense-as-company-lunch atomically',async()=>{
+ const {call,sqlite}=fixture();try{
+ const {EMPTY,todayMoscow}=await import('../src/mini-model.js'),{transferMoney}=await import('../src/ledger.js');
+ let data={...structuredClone(EMPTY),accounts:[{id:'a',name:'Карта',balance:1000,currency:'RUB'},{id:'b',name:'Наличные',balance:0,currency:'RUB'}]};data=transferMoney(data,{from:'a',to:'b',amount:200,fee:5,date:todayMoscow()});assert.equal((await call('state','PUT',{expectedRevision:0,data})).status,200);const before=await(await call('state')).json(),fee=before.data.transactions[0];
+ assert.equal((await call('transactions','POST',{...fee,amount:10},{'Idempotency-Key':'bad-fee'})).status,400);
+ assert.equal((await call('transactions','POST',{type:'expense',cat:'lunch',amount:100,currency:'RUB',accountId:'a',date:todayMoscow()},{'Idempotency-Key':'bad-lunch'})).status,400);
+ const mixed={...before.data,transactions:[{...fee,debtId:'someone'}]};assert.equal((await call('state','PUT',{expectedRevision:1,data:mixed})).status,400);
+ assert.deepEqual(await(await call('state')).json(),before);
+ }finally{sqlite.close();}
+});

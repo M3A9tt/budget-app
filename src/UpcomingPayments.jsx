@@ -7,7 +7,7 @@ import RecordedPayment from './RecordedPayment.jsx';
 import OccurrenceDateForm from './OccurrenceDateForm.jsx';
 import Icon from './mini-icons.jsx';
 
-export default function UpcomingPayments({data,busy,onPrepare,mutate,onSource=()=>{}}){
+export default function UpcomingPayments({personal=false,data,busy,onPrepare,mutate,onSource=()=>{}}){
  const today=todayMoscow(data.settings.timeZone),[limit,setLimit]=useState(6),[error,setError]=useState('');
  const [query,setQuery]=useState(''),[scope,setScope]=useState('all'),[selected,setSelected]=useState(''),[moving,setMoving]=useState('');
  const events=useMemo(()=>scheduledEvents(data,today,moveDate(today,30)),[data,today]);
@@ -19,8 +19,8 @@ export default function UpcomingPayments({data,busy,onPrepare,mutate,onSource=()
  const open=event=>{try{setError('');onPrepare(prepareEvent(data,event,today));}catch(e){setError(e.message);}};
  const reset=()=>{setQuery('');setScope('all');setLimit(6);setSelected('');setMoving('');};
  return <section className="payments-upcoming" aria-label="Ближайшие платежи">
-  <div className="mini-between"><h3>На 30 дней и ранее без отметки</h3><span className="mini-small mini-muted">{events.length} событий</span></div>
-  <p className="payment-hint">Нажми на строку, чтобы выбрать действие.</p>
+  <div className="mini-between"><h3>{personal?'Ближайшие события':'На 30 дней и ранее без отметки'}</h3><span className="mini-small mini-muted">{events.length} событий</span></div>
+  {!personal&&<p className="payment-hint">Нажми на строку, чтобы выбрать действие.</p>}
   <label className="payment-search"><Icon name="search" size={17}/><input type="search" aria-label="Найти платёж" placeholder="Название, счёт, дата или сумма" value={query} onChange={e=>{setQuery(e.target.value);setLimit(6);setSelected('');}}/></label>
   <div className="payment-list-filters" role="group" aria-label="Срок платежей">{[['all','Все'],['unmarked','Без отметки'],['week','7 дней']].map(([id,name])=><button type="button" key={id} aria-pressed={scope===id} onClick={()=>{setScope(id);setLimit(6);setSelected('');setMoving('');}}>{name}<span>{events.filter(e=>matchesScope(e,id)).length}</span></button>)}</div>
   {error&&<p role="alert" className="mini-warning">{error}</p>}
