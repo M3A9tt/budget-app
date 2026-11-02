@@ -1,12 +1,5 @@
 /* Glass home for the 5.0 pilot. Shared financial components and commands stay unchanged. */
-.mini-shell.personal-ui.personal-home{--mini-bg:#101722;--mini-panel:#1b2734;--mini-line:#c7dce320;--mini-muted:#afbdcc;--mini-accent:#b4d5c5;--mini-nav-background:linear-gradient(145deg,#21303bf5,#172230f5);background:radial-gradient(ellipse at 92% 8%,#679e8e30,transparent 37%),radial-gradient(ellipse at 3% 47%,#8977ad24,transparent 41%),radial-gradient(ellipse at 78% 93%,#557b9830,transparent 44%),linear-gradient(155deg,#111d29,#101520 68%);color:#edf3f5;font-family:Manrope,system-ui,sans-serif}
-.mini-shell.personal-home .mini-header{background:linear-gradient(125deg,#253742f2,#192632f2);border:1px solid #deeff220;border-top-color:#edf8fa38;border-radius:20px;min-height:58px;padding:8px 10px;margin-bottom:16px;box-shadow:0 8px 28px #050c1726,inset 0 1px #ffffff08}
-.mini-shell.personal-home .personal-add{background:linear-gradient(145deg,#c4decf,#9abdaf);border:1px solid #d7ede299;border-radius:14px;color:#19352d;box-shadow:inset 0 1px #f0fff580,0 4px 12px #071c181f}
-.mini-shell.personal-home .icon-button{background:#d7e8f508;border-color:#d9e8f224;color:#c5d5e0;box-shadow:inset 0 1px #ffffff08}
-.mini-shell.personal-home .mini-header-menu>div{background:#20303af5;border-color:#a4bbc844;box-shadow:0 15px 45px #040b194d}
-.mini-shell.personal-home .mini-nav{background:var(--mini-nav-background);border:1px solid #c6dce32b;box-shadow:0 -8px 35px #040b1838,inset 0 1px #ffffff0a}
-.mini-shell.personal-home .mini-nav button{color:#aebdca}
-.mini-shell.personal-home .mini-nav button[aria-current=page]{color:#d4e9df;background:#c6e3d412;box-shadow:inset 0 0 0 1px #d7ede320;border-radius:13px}
+
 .mini-shell.personal-home .ins-home{gap:16px}
 .mini-shell.personal-home .ins-page-head{min-height:42px;align-items:center;margin:2px 0 0}
 .mini-shell.personal-home .ins-page-head h1{font-size:23px;font-weight:600;margin-top:2px;letter-spacing:-.7px;color:#f0f4f7}
@@ -41,7 +34,7 @@
 .mini-shell.personal-home .ins-account-strip small{font-size:11px;color:#b6c6d7;overflow-wrap:anywhere}
 .mini-shell.personal-home .ins-account-strip strong{font-size:17px;font-weight:600;color:#edf3f7;letter-spacing:-.5px}
 .mini-shell.personal-home .mini-tx{padding:12px 0;min-height:59px;border-color:#c9dce214}
-.mini-shell.personal-home .mini-tx-icon{background:linear-gradient(140deg,#bca3e222,#a7b6db09)!important;color:#cbbfe6!important;border:1px solid #cab9e323;border-radius:11px;width:33px;height:33px;box-shadow:inset 0 1px #ffffff0b}
+.mini-shell.personal-home .mini-tx-icon{background:color-mix(in srgb,var(--category-color,#bca3e2) 12%,transparent)!important;color:color-mix(in srgb,var(--category-color,#cbbfe6) 65%,#d2dfe5)!important;border:1px solid #cab9e323;border-radius:11px;width:33px;height:33px;box-shadow:inset 0 1px #ffffff0b}
 .mini-shell.personal-home .mini-tx-center strong{font-size:12px;font-weight:500;color:#e7edf4}
 .mini-shell.personal-home .mini-tx-center small{font-size:10px;color:#a6b5c9;margin-top:4px}
 .mini-shell.personal-home .mini-tx-sum{font-size:13px;color:#e4edf4}
@@ -51,19 +44,17 @@
 .mini-shell.personal-home :focus-visible{outline:2px solid #c6e4df;outline-offset:4px}
 /* Opaque surfaces above are the fallback; blur-capable browsers use true translucent layers. */
 @supports((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
- .mini-shell.personal-ui.personal-home{--mini-nav-background:linear-gradient(145deg,#263641bd,#162232cf)}
- .mini-shell.personal-home .mini-header{background:linear-gradient(125deg,#d8edf213,#c4d6ef07)}
  .mini-shell.personal-home .home-budget{background:radial-gradient(ellipse at 10% 0%,#b0d9bd23,transparent 65%),linear-gradient(135deg,#c2e8d11e,#9cbad20b 75%)}
  .mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#d3e8f011,#c8b7e616)}
  .mini-shell.personal-home .ins-account-strip>button{background:linear-gradient(135deg,#bad7e719,#b7d4e50a)}
  .mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(135deg,#c7b7e820,#bba5db0a)}
- .mini-shell.personal-home .mini-header,.mini-shell.personal-home .home-budget,.mini-shell.personal-home .personal-next-event,.mini-shell.personal-home .ins-account-strip>button,.mini-shell.personal-home .mini-nav{-webkit-backdrop-filter:blur(20px) saturate(115%);backdrop-filter:blur(20px) saturate(115%)}
+ .mini-shell.personal-home .home-budget,.mini-shell.personal-home .personal-next-event,.mini-shell.personal-home .ins-account-strip>button{-webkit-backdrop-filter:blur(20px) saturate(115%);backdrop-filter:blur(20px) saturate(115%)}
 }
 @media(min-width:1080px){
  .mini-shell.personal-home .ins-home{gap:22px 30px}.mini-shell.personal-home .home-budget{align-self:start}.mini-shell.personal-home .personal-budget{padding:27px 28px 4px}.mini-shell.personal-home .personal-budget-amount{font-size:59px}.mini-shell.personal-home .personal-reserve{padding-inline:28px}
  .mini-shell.personal-home .home-recent{padding:20px 24px;border:1px solid #c7dce320;border-top-color:#e1edf132;border-radius:20px;background:linear-gradient(135deg,#c4dce90b,#b7cde105);box-shadow:0 12px 35px #040b1826,inset 0 1px #ffffff05}
- .mini-shell.personal-home .ins-page-head h1{font-size:28px}.mini-shell.personal-home .mini-nav{border-radius:24px;border:1px solid #c6dce32b}
- .mini-shell.personal-home .mini-nav button[aria-current=page]{background:linear-gradient(110deg,#bedfce1c,#c5d9e20a);box-shadow:inset 0 0 0 1px #cfe5dc25;color:#dfede6}
+ .mini-shell.personal-home .ins-page-head h1{font-size:28px}
+
  .mini-shell.personal-home .desktop-transactions{border-color:#c6dce320;background:transparent}.mini-shell.personal-home .desktop-transactions th{background:#cfdeee07;color:#b3c3d2}.mini-shell.personal-home .desktop-transactions td{border-color:#c6dce318}.mini-shell.personal-home .desktop-category{background:#c6b5e511;border-color:#d1c2eb23;color:#d2c6e6}
 }
 @keyframes home-arrive{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}

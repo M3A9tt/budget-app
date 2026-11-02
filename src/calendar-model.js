@@ -1,4 +1,5 @@
 import {activityEntries} from './activity-history.js';
+import {isIcon} from './icon-catalog.js';
 import {categoryCatalog} from './categories.js';
 import {scheduledEvents,moveDate} from './finance-events.js';
 
@@ -31,8 +32,7 @@ export function calendarEventMark(data,row){
  if(row.type==='transfer'||row.type==='lunch')return direction;
  const source=row.source==='plan'?(data.recurring||[]).find(rule=>rule.id===row.sourceId):null;
  const category=categoryCatalog(data.customCats).find(cat=>cat.id===(source?.cat||row.cat));
- const recognizable=['food','transport','home','health','play','repeat'];
- const icon=category?.id==='subs'?'subscription':recognizable.includes(category?.icon)?category.icon:(source?.cat||row.cat)==='home'?'home':source&&['daily','weekly','monthly'].includes(source.frequency)?'refresh':null;
+ const icon=category?.id==='subs'?'subscription':isIcon(category?.icon)&&category.icon!=='other'?category.icon:(source?.cat||row.cat)==='home'?'home':source&&['daily','weekly','monthly'].includes(source.frequency)?'refresh':null;
  return {...direction,icon};
 }
 export function calendarDaySymbols(data,day){

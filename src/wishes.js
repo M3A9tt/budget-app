@@ -1,3 +1,4 @@
+import {iconAppearance} from './appearance.js';
 import {orderedAccounts} from './account-balances.js';
 import {parseMoney} from './ledger.js';
 export const savingAccount=a=>a?.accType==='savings'||a?.savingsKind==='deposit';
@@ -9,12 +10,13 @@ export function validateWishes(data){
   ids.add(w.id);if(!w.done&&w.accountId){if(linked.has(w.accountId))throw Error('Накопления уже связаны с другой целью');linked.add(w.accountId);}
  }
 }
-export function saveWish(data,{id,name,note='',priority='main',target='',currency='RUB',accountId='',done=false}){
+export function saveWish(data,{id,name,note='',priority='main',target='',currency='RUB',accountId='',done=false,icon,emoji}){
  const old=(data.wishes||[]).find(w=>w.id===id);if(id&&!old)throw Error('Заметка больше не существует');
  const amount=String(target).trim()===''?0:parseMoney(target),account=accountId?data.accounts.find(a=>a.id===accountId):null;
  if(accountId&&(!account||!savingAccount(account)))throw Error('Выберите накопительный счёт или вклад');
  if(accountId&&amount>0&&currency!==(account.currency||'RUB'))throw Error('Валюта цели должна совпадать с накоплениями');
  const row={id:old?.id||crypto.randomUUID(),name:String(name||'').trim(),note:String(note||'').trim(),priority,target:amount,currency:account?.currency||currency,accountId,done};
+ if(icon!==undefined||emoji!==undefined||old?.icon||old?.emoji)Object.assign(row,iconAppearance({icon,emoji},old));
  const next={...data,wishes:old?data.wishes.map(w=>w.id===id?row:w):[...(data.wishes||[]),row]};validateWishes(next);return next;
 }
 export function completeWish(data,id,done){const old=(data.wishes||[]).find(w=>w.id===id);if(!old)throw Error('Заметка больше не существует');return saveWish(data,{...old,done});}

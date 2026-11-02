@@ -1,3 +1,4 @@
+import {ICON_CATALOG} from '../src/icon-catalog.js';
 import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +11,7 @@ import {EMPTY,CATEGORIES,dashboard,todayMoscow,money} from '../src/mini-model.js
 import {orderedAccounts,accountTotals} from '../src/account-balances.js';
 import {createPlanned,skipPlanned} from '../src/planned-operations.js';
 import {putTransaction} from '../src/ledger.js';
-const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as AppErrorBoundary} from './src/AppErrorBoundary.jsx';export {default as PlannedOperations} from './src/PlannedOperations.jsx';export {default as PlannedForm} from './src/PlannedForm.jsx';export {default as PaymentsPage} from './src/PaymentsPage.jsx';export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
+const require=createRequire(import.meta.url),bundle=buildSync({stdin:{contents:"export {default as Icon} from './src/mini-icons.jsx';export {default as SymbolPicker} from './src/SymbolPicker.jsx';export {default as CategorySettings} from './src/CategorySettings.jsx';export {default as AppErrorBoundary} from './src/AppErrorBoundary.jsx';export {default as PlannedOperations} from './src/PlannedOperations.jsx';export {default as PlannedForm} from './src/PlannedForm.jsx';export {default as PaymentsPage} from './src/PaymentsPage.jsx';export {default as LunchPage} from './src/LunchPage.jsx';export {default as AccountsPage} from './src/AccountsPage.jsx';export {default as EntryComposer} from './src/EntryComposer.jsx';export {BudgetHero,HomeAccounts} from './src/Insights.jsx';export {AccountTools} from './src/FinancePanels.jsx';export {default as AnalyticsPage} from './src/AnalyticsPage.jsx';export {default as MoneyCalendar} from './src/MoneyCalendar.jsx';export {default as InstallmentCards} from './src/InstallmentCards.jsx';export {default as TransferForm} from './src/TransferForm.jsx';",resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'jsx'},bundle:true,write:false,format:'cjs',platform:'node',external:['react','react-dom'],define:{'process.env.NODE_ENV':'"production"'}}).outputFiles[0].text;
 const ctx={module:{exports:{}},exports:{},require,Intl,Date,console,structuredClone,window:{scrollTo:()=>{},confirm:()=>true},crypto:globalThis.crypto};ctx.exports=ctx.module.exports;vm.runInNewContext(bundle,ctx);const ui=ctx.module.exports;
 const state=()=>({...structuredClone(EMPTY),accounts:[{id:'zero',name:'Пустой счёт',balance:0,currency:'RUB'},{id:'small',name:'Малый счёт',balance:100,currency:'RUB'},{id:'fx',name:'Доллары',balance:20,currency:'USD'},{id:'large',name:'Большой счёт',balance:1000,currency:'RUB'},{id:'reserve',name:'Резервный счёт',balance:3000,currency:'RUB',savingsKind:'deposit'}]});
 const text=x=>typeof x==='string'?x:Array.isArray(x)?x.map(text).join(''):x?.children?text(x.children):'';
@@ -194,4 +195,21 @@ test('Calendar moves a debt through its source and displays transfers as editabl
 
 test('Calendar can create another irregular template when saved templates already exist',()=>{
  const data=createPlanned(state(),{id:'saved',name:'Сохранённый',type:'expense',frequency:'manual',amount:100,accountId:'large'}),today=todayMoscow(),v=mount('MoneyCalendar',{data,mutate:()=>assert.fail('Choosing a form must not save')});click(v,b=>text(b)==='Добавить на этот день');const kinds=v.root.findByProps({'aria-label':'Что добавить в календарь'});act(()=>v.root.findByProps({'aria-label':'Как учесть'}).props.onChange({target:{value:'manual'}}));assert.ok(v.root.findByProps({'aria-label':'Сохранённая операция'}));click(v,b=>text(b)==='Создать другую операцию');assert.equal(v.root.findByType(ui.PlannedForm).props.initial.frequency,'manual');assert.equal(v.root.findByType(ui.PlannedForm).props.initial.startDate,today);click(v,b=>text(b)==='Выбрать сохранённую операцию');assert.ok(v.root.findByProps({'aria-label':'Сохранённая операция'}));v.unmount();
+});
+
+test('Every local gallery symbol renders its SVG; untrusted names cannot reach arbitrary object properties',()=>{
+ for(const item of ICON_CATALOG){const v=mount('Icon',{name:item.id});assert.equal(v.root.findByType('svg').props['data-icon'],item.id);v.unmount();}
+ for(const name of ['constructor','__proto__','https://example.com/icon.svg','<svg onload=alert(1)>']){const v=mount('Icon',{name});assert.equal(v.root.findByType('svg').props['data-icon'],'other');v.unmount();}
+ let chosen;const v=mount('SymbolPicker',{value:{icon:'food',emoji:'🍔'},onChange:value=>chosen=value});click(v,b=>b.props['aria-label']==='Значок: Кофе');assert.equal(chosen.icon,'coffee');assert.equal(chosen.emoji,'');v.unmount();
+});
+test('An unsuccessful category save retains its name, selected SVG and color for retry',async()=>{
+ const data=state(),before=structuredClone(data),v=mount('CategorySettings',{data,busy:false,mutate:async()=>false});
+ act(()=>v.root.findByProps({'aria-label':'Название категории'}).props.onChange({target:{value:'Кофе с собой'}}));
+ click(v,b=>b.props['aria-label']==='Значок: Кофе');
+ act(()=>v.root.findByProps({type:'color'}).props.onChange({target:{value:'#aabbcc'}}));
+ await act(async()=>v.root.findByType('form').props.onSubmit({preventDefault(){}}));
+ assert.equal(v.root.findByProps({'aria-label':'Название категории'}).props.value,'Кофе с собой');
+ assert.equal(v.root.findByProps({type:'color'}).props.value,'#aabbcc');
+ assert.equal(v.root.findAllByType('button').find(b=>b.props['aria-label']==='Значок: Кофе').props['aria-pressed'],true);
+ assert.deepEqual(data,before);v.unmount();
 });
