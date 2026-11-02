@@ -3,7 +3,7 @@
   "today": "2026-11-02",
   "future": "2026-11-04",
   "beforeRevision": "63d4b40c93f330c163e7e298c3dfa7d8fa2b057b",
-  "afterRevision": "6037e6c6a20e199efd1951b0747300c11bafa906",
+  "afterRevision": "c8995ed9c8576ff519e46db78dd8d5f3f5bbf7d9",
   "comparison": "revisions",
   "data": {
     "schemaVersion": 2,
@@ -16,11 +16,11 @@
         "accountId": "a",
         "date": "2026-11-02",
         "note": "Продукты на неделю",
-        "id": "eb123566-2767-42ad-922e-52efa4720b74",
+        "id": "74e56f7b-1ce1-44a6-9cbc-e130b0b2f68d",
         "amountRub": 1340,
         "accountAmount": 1340,
         "revision": 1,
-        "updatedAt": "2026-11-02T08:05:39.545Z"
+        "updatedAt": "2026-11-02T08:15:16.866Z"
       },
       {
         "type": "expense",
@@ -30,11 +30,11 @@
         "accountId": "a",
         "date": "2026-11-02",
         "note": "Такси домой",
-        "id": "1616f963-2e1b-4d62-ba3b-428d14835069",
+        "id": "47d1ca13-39f1-436e-a0cc-1b6dce6af06a",
         "amountRub": 320,
         "accountAmount": 320,
         "revision": 1,
-        "updatedAt": "2026-11-02T08:05:39.546Z"
+        "updatedAt": "2026-11-02T08:15:16.866Z"
       }
     ],
     "accounts": [
@@ -79,8 +79,8 @@
     ],
     "history": [
       {
-        "id": "0385c5d5-5c84-4218-a83d-e3f14be1dd03",
-        "ts": 1793606739546,
+        "id": "b086cca7-4e3d-47da-9762-bdd024e3eeed",
+        "ts": 1793607316866,
         "type": "add_tx",
         "after": {
           "type": "expense",
@@ -90,16 +90,16 @@
           "accountId": "a",
           "date": "2026-11-02",
           "note": "Такси домой",
-          "id": "1616f963-2e1b-4d62-ba3b-428d14835069",
+          "id": "47d1ca13-39f1-436e-a0cc-1b6dce6af06a",
           "amountRub": 320,
           "accountAmount": 320,
           "revision": 1,
-          "updatedAt": "2026-11-02T08:05:39.546Z"
+          "updatedAt": "2026-11-02T08:15:16.866Z"
         }
       },
       {
-        "id": "464cd49d-2287-4c16-9e3d-4e63289303f9",
-        "ts": 1793606739546,
+        "id": "a4f142bf-6e22-473d-b4a2-0a2bc77c3604",
+        "ts": 1793607316866,
         "type": "add_tx",
         "after": {
           "type": "expense",
@@ -109,11 +109,11 @@
           "accountId": "a",
           "date": "2026-11-02",
           "note": "Продукты на неделю",
-          "id": "eb123566-2767-42ad-922e-52efa4720b74",
+          "id": "74e56f7b-1ce1-44a6-9cbc-e130b0b2f68d",
           "amountRub": 1340,
           "accountAmount": 1340,
           "revision": 1,
-          "updatedAt": "2026-11-02T08:05:39.545Z"
+          "updatedAt": "2026-11-02T08:15:16.866Z"
         }
       }
     ],
