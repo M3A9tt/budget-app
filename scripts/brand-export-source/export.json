@@ -1,4 +1,15 @@
 {
+  "public/brand/lockup-flow.webp": {
+    "width": 1024,
+    "height": 297,
+    "crop": {
+      "left": 93,
+      "top": 108,
+      "width": 1908,
+      "height": 553
+    },
+    "transparentPixels": 1128812
+  },
   "public/brand/wordmark-tail.webp": {
     "width": 1024,
     "height": 287,

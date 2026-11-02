@@ -1,18 +1,14 @@
-.burget-brand{display:inline-flex;align-items:center;gap:1px;flex:0 0 auto;vertical-align:middle;line-height:1}
+.burget-brand{display:inline-block;flex:0 0 auto;vertical-align:middle;line-height:0}
 .burget-symbol{display:block;width:42px;height:42px;flex:0 0 auto;object-fit:contain}
-.burget-wordmark{display:block;width:128px;height:auto;transform:translateY(2px);flex:0 0 auto;object-fit:contain}
+.burget-lockup{display:block;width:178px;height:auto;object-fit:contain}
 .mini-header .mini-brand{min-width:0}
 .mini-header .brand-caption{display:block;margin:3px 0 0 43px;color:var(--mini-muted);font-size:10px}
 .auth-gate>.burget-symbol{width:52px;height:52px}
 @media(max-width:380px){
- .mini-header .burget-brand{gap:0}
- .mini-header .burget-symbol{width:36px;height:36px}
- .mini-header .burget-wordmark{width:112px}
+ .mini-header .burget-lockup{width:154px}
  .mini-header .brand-caption{margin-left:36px}
 }
 @media(min-width:1080px){
  .mini-shell .desktop-nav-brand{padding:8px 0 26px}
- .desktop-nav-brand .burget-brand{gap:0}
- .desktop-nav-brand .burget-symbol{width:34px;height:34px}
- .desktop-nav-brand .burget-wordmark{width:112px}
+ .desktop-nav-brand .burget-lockup{width:150px}
 }
