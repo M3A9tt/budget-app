@@ -39,3 +39,9 @@ test('G06 a delayed state read cannot cross logout/login or erase a newer pendin
  const shared=apiRequest('state');assert.equal(pending.length,2);pending[1](Response.json({userId:'b',revision:1}));assert.deepEqual(await fresh,await shared);invalidateSessionReads();
 });
 test('Bot pilot speaks the same concepts, and old commands still resolve',()=>{assert.deepEqual(botKeyboard('',setInterfaceVersion(base(),2)).keyboard.map(row=>row.map(b=>b.text)),[['Бюджет','Записать'],['Календарь','Ещё']]);assert.equal(navigationCommand('🕘 История'),'/history');assert.equal(navigationCommand('📅 Планы'),'/payments');assert.equal(navigationCommand('Операции'),'/history');assert.equal(navigationCommand('Календарь'),'/payments');});
+
+test('A legacy commission selected explicitly is cancelled and restored as the same fee record',()=>{
+ const d=transfer(),fee=d.transactions[0];delete fee.transferId;delete d.transfers[0].feeTransactionId;
+ const cancelled=reverseTransfer(d,'move',{legacyFeeId:fee.id});assert.deepEqual(cancelled.accounts,base().accounts);
+ const restored=undoTransaction(cancelled,cancelled.history[0]);assert.deepEqual(restored.accounts,d.accounts);assert.equal(restored.transactions[0].id,fee.id);assert.equal(restored.transactions[0].transferId,'move');assert.equal(restored.transfers[0].feeTransactionId,fee.id);migrateData(restored,EMPTY);
+});

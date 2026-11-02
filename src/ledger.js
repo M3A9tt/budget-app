@@ -317,7 +317,7 @@ export function undoTransfer(data,event){
   if((event.feeRecords||[]).some(f=>next.transactions.some(t=>t.id===f.id)))throw Error('Запись комиссии уже существует');
   next=transferMoney(next,event.before);const generated=next.transactions.find(t=>t.transferId===id),original=event.feeRecords?.[0];
   if(original&&generated){if(original.amountAccount!==undefined&&original.amountAccount!==generated.amountAccount)throw Error('Для восстановления комиссии нужна сверка');next={...next,transactions:next.transactions.map(t=>t.id===generated.id?{...original,transferId:id}:t)};}
-  next={...next,transfers:next.transfers.map(t=>t.id===id?{...event.before,...(original?.transferId?{feeTransactionId:original.id}:generated?{feeTransactionId:generated.id}:{feeTransactionId:''})}:t)};
+  next={...next,transfers:next.transfers.map(t=>t.id===id?{...event.before,...(original&&generated?{feeTransactionId:original.id}:generated?{feeTransactionId:generated.id}:{feeTransactionId:''})}:t)};
  }
  return validateTransferLinks({...next,history:data.history.filter(h=>h.id!==event.id)});
 }
