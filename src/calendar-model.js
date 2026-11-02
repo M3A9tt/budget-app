@@ -13,3 +13,12 @@ export function calendarMonth(data,today,month=today.slice(0,7)){
  const days=Array.from({length:42},(_,i)=>{const date=moveDate(start,i),rows=byDate.get(date)||{events:[],transactions:[]};return {date,inMonth:date.startsWith(month),...rows};});
  return {month,start,end,days,overdue:scheduledEvents(data,today,today).filter(e=>e.date<today)};
 }
+
+export const CALENDAR_MARKS=[
+ {type:'expense',label:'Расход',icon:'up',tone:'out'},
+ {type:'income',label:'Доход',icon:'down',tone:'in'},
+ {type:'transfer',label:'Перевод',icon:'repeat',tone:'transfer'},
+ {type:'lunch',label:'Обед компании',icon:'lunch',tone:'company'}
+];
+// A marker describes a direction, not a count or a paid/unpaid state.
+export function calendarDayMarks(day){const rows=[...(day.events||[]),...(day.transactions||[])];return CALENDAR_MARKS.filter(mark=>rows.some(row=>row.type===mark.type));}

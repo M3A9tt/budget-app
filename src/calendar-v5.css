@@ -56,3 +56,17 @@
 @media(min-width:1080px){.mini-shell.personal-calendar .money-calendar{max-width:780px;padding:24px}.mini-shell.personal-calendar .calendar-month-grid>button{min-height:56px}.mini-shell.personal-calendar .calendar-month-grid>button b{font-size:15px}.mini-shell.personal-calendar .personal-calendar-views{max-width:780px}}
 .mini-shell.personal-calendar .mini-nav{background:#191e2bf5;border-color:#30364b}
 @media(prefers-reduced-motion:no-preference){.mini-shell.personal-calendar .calendar-month-grid{animation:home-arrive 300ms cubic-bezier(.16,1,.3,1) both}}
+.mini-shell.personal-calendar .calendar-presence{display:flex;align-items:center;justify-content:center;gap:4px;min-height:7px}
+.mini-shell.personal-calendar .calendar-presence i{width:5px;height:5px;display:block;border-radius:50%;flex-shrink:0}
+.mini-shell.personal-calendar .calendar-presence .out,.mini-shell.personal-calendar .calendar-meaning .out{background:#e3b18c}
+.mini-shell.personal-calendar .calendar-presence .in,.mini-shell.personal-calendar .calendar-meaning .in{background:#a5d78a}
+.mini-shell.personal-calendar .calendar-presence .transfer,.mini-shell.personal-calendar .calendar-meaning .transfer{background:#96bfe9}
+.mini-shell.personal-calendar .calendar-presence .company,.mini-shell.personal-calendar .calendar-meaning .company{background:#c3a5ed}
+.mini-shell.personal-calendar .calendar-month-grid>button[aria-pressed=true]{background:#2f4534;border-color:#a4d180;color:#e0efda;box-shadow:inset 0 0 0 1px #a4d18022}
+.mini-shell.personal-calendar .calendar-month-grid>button[aria-pressed=true] b{color:#e0efda}
+.mini-shell.personal-calendar .calendar-meaning{gap:10px 16px;color:#b0bfd6;font-size:11px;margin-top:6px;margin-bottom:14px}
+.mini-shell.personal-calendar .calendar-meaning>span{gap:4px;min-height:24px}
+.mini-shell.personal-calendar .calendar-meaning .meaning-out>svg,.mini-shell.personal-calendar .money-event-icon:has(svg){color:#e3b18c}
+.mini-shell.personal-calendar .calendar-meaning .meaning-in>svg,.mini-shell.personal-calendar .money-event-icon.income,.mini-shell.personal-calendar .money-event-icon.fact-direction-income{color:#a5d78a}
+.mini-shell.personal-calendar .calendar-meaning .meaning-transfer>svg,.mini-shell.personal-calendar .money-event-icon.fact-direction-transfer{color:#96bfe9}
+.mini-shell.personal-calendar .calendar-meaning .meaning-company>svg,.mini-shell.personal-calendar .money-event-icon.fact-direction-lunch{color:#c3a5ed}
