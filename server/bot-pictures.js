@@ -112,5 +112,5 @@ export async function uploadPicture(env,userId,picture,markup,original=false,cap
   if(!picture.file_id)form.set('photo',new Blob([picture.bytes],{type:'image/png'}),`byurdzhet-${picture.params.kind}.png`);
  }else if(!original&&picture.file_id)form.set('photo',picture.file_id);else form.set(original?'document':'photo',new Blob([picture.bytes],{type:'image/png'}),`byurdzhet-${picture.params.kind}.png`);
  const response=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',body:form,signal:AbortSignal.timeout(20000)}),result=await response.json();if(!response.ok||!result.ok){if(messageId&&response.status===400)return uploadPicture(env,userId,picture,markup,original,caption);throw Error('Telegram не принял картинку');}
- const id=result.result?.photo?.at(-1)?.file_id;if(id)await env.DB.prepare('UPDATE bot_pictures SET file_id=? WHERE user_id=? AND cache_key=?').bind(id,String(userId),picture.cache_key).run();return result.result;
+ const id=result.result?.photo?.at(-1)?.file_id;if(id){try{await env.DB.prepare('UPDATE bot_pictures SET file_id=? WHERE user_id=? AND cache_key=?').bind(id,String(userId),picture.cache_key).run();}catch{console.warn(JSON.stringify({event:'picture_cache_write_failed'}));}}return result.result;
 }

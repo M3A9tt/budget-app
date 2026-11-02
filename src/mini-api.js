@@ -6,6 +6,8 @@ export async function waitTelegramSDK(timeout=6000){
 }
 export function telegramClient(){return typeof window!=='undefined'?window.Telegram?.WebApp:null;}
 const pendingState=new Map();
+let sessionGeneration=0;
+export function invalidateSessionReads(){sessionGeneration++;pendingState.clear();}
 async function request(path,options,initData){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15_000);
  const signal=options.signal?AbortSignal.any([options.signal,controller.signal]):controller.signal;
@@ -28,13 +30,16 @@ export async function apiRequest(path,options={}){
  // Merge only overlapping, plain GET state requests. Never cache completed data or writes.
  if(path==='state'&&Object.keys(options).length===0){
   const key=initData||'web-session';
-  if(!pendingState.has(key))pendingState.set(key,request(path,options,initData).finally(()=>pendingState.delete(key)));
-  return structuredClone(await pendingState.get(key));
+  const generation=sessionGeneration;
+  if(!pendingState.has(key)){const flight=request(path,options,initData).finally(()=>{if(pendingState.get(key)===flight)pendingState.delete(key);});pendingState.set(key,flight);}
+  const result=await pendingState.get(key);
+  if(generation!==sessionGeneration){const error=new Error('Сеанс изменился. Обнови данные.');error.code='STALE_SESSION';throw error;}
+  return structuredClone(result);
  }
  // Repeat the exact state payload with the same receipt key after a lost response.
  if(path==='state'&&options.method==='PUT'){
   const stable={...options,headers:{'Idempotency-Key':crypto.randomUUID(),...options.headers}};
   for(let attempt=0;attempt<2;attempt++)try{return await request(path,stable,initData);}catch(error){if(error.status>=400&&error.status<500)throw error;if(options.signal?.aborted||attempt===1){error.uncertain=true;throw error;}}
  }
- return request(path,options,initData);
+ const result=await request(path,options,initData);if(['auth/login','auth/logout'].includes(path))invalidateSessionReads();return result;
 }

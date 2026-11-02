@@ -1,3 +1,5 @@
+import {validateInterface} from './interface-settings.js';
+import {validateTransactionRoles,validateTransferLinks} from './transaction-roles.js';
 import {categoryEmoji} from './category-customization.js';
 import {CATEGORIES} from './categories.js';
 import {companyLunch,lunchDeletionRecords,validateLunchLinks} from './lunch-records.js';
@@ -96,6 +98,9 @@ function reconcileRecurring(data,...ids) {
 }
 export function putTransaction(data, input) {
   const old = data.transactions.find(t => t.id === input.id);
+  validateTransactionRoles(input);
+  if(old?.transferId)throw Error('Измени комиссию в самом переводе');
+  if(input.cat==='lunch'&&input.type!=='lunch'&&!(old&&old.cat==='lunch'&&old.type===input.type&&!input.accountId&&old.amount===parseMoney(input.amount)&&(old.currency||'RUB')===(input.currency||'RUB')))throw Error('Личный расход и обед компании — разные операции. Выбери обычную категорию или обед компании');
   if(old?.recurringId&&input.recurringId!==old.recurringId)throw Error('Связь операции с планом нельзя удалить или заменить при редактировании');
   if(old?.installmentPaymentId&&input.installmentPaymentId!==old.installmentPaymentId)throw Error('Связь операции с рассрочкой нельзя удалить при редактировании');
   if(old?.installmentRefundId&&input.installmentRefundId!==old.installmentRefundId)throw Error('Связь возврата с графиком нельзя удалить');
@@ -127,6 +132,7 @@ export function putTransaction(data, input) {
 export function deleteTransaction(data, id) {
   const tx = data.transactions.find(t => t.id === id);
   if (!tx) return data;
+  if(tx.transferId)throw Error('Удали или измени комиссию в самом переводе');
   const removed=lunchDeletionRecords(data,id),ids=new Set(removed.map(t=>t.id));
   let next=data;for(const row of removed)next=apply(next,row,-1);
   return log(validateLunchLinks(reconcileRecurring({...next,transactions:next.transactions.filter(t=>!ids.has(t.id))},...removed.map(t=>t.recurringId))),{type:'delete_tx',before:tx,relatedBefore:removed.filter(t=>t.id!==id)});
@@ -134,7 +140,9 @@ export function deleteTransaction(data, id) {
 export function undoTransaction(data, entry) {
   // Only a still-available journal event can be reversed. Never trust cached fields.
   entry=(data.history||[]).find(h=>h.id===entry?.id);
+  if(entry&&['add_transfer','edit_transfer','reverse_transfer'].includes(entry.type))return undoTransfer(data,entry);
   if(!entry||!['add_tx','edit_tx','delete_tx'].includes(entry.type))throw Error('Это изменение уже отменено или отсутствует в истории. Обновите данные');
+  if(entry.before?.transferId||entry.after?.transferId)throw Error('Измени комиссию в самом переводе');
   if(entry.recurringBefore&&(!entry.recurringAfter||!samePlan(data.recurring.find(r=>r.id===entry.recurringAfter.id),entry.recurringAfter)))throw Error('После этого действия план изменялся или был удалён. Откат отменён, чтобы сохранить актуальные настройки');
   let next = data;
   const current = entry.after && data.transactions.find(t => t.id === entry.after.id);
@@ -174,7 +182,7 @@ export function transferMoney(data, {id,from,to,amount,fee=0,note='',date,extern
   let next = {...data, accounts:balanceEffect==='history-only'?data.accounts:data.accounts.map(x => x.id === from ? {...x,balance:roundMoney(x.balance-a)} : x.id === to ? {...x,balance:roundMoney(x.balance+a)} : x),
     transfers:[...(data.transfers||[]),{id:transferId,revision:1,from,to,amount:a,fee:f,currency:source.currency||'RUB',note,date,externalId,...(externalAccountId!==undefined?{externalAccountId}:{}),balanceEffect,updatedAt:new Date().toISOString()}]};
   if (f) next = putTransaction(next,{transferId,type:'expense',cat:'other',amount:f,currency:source.currency||'RUB',note:'Комиссия за перевод'+(note?' · '+note:''),date,tags:['комиссия'],accountId:from,balanceEffect});
-  return next;
+  next={...next,transfers:next.transfers.map(t=>t.id===transferId?{...t,feeTransactionId:f?next.history[0].after.id:''}:t)};return recordTransferChange(data,next,'add_transfer',undefined,next.transfers.find(t=>t.id===transferId));
 }
 export function migrateData(input, defaults) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Нужен JSON-бэкап приложения');
@@ -208,7 +216,7 @@ export function migrateData(input, defaults) {
   if(data.settings.lunchLearningEnabled!==undefined&&typeof data.settings.lunchLearningEnabled!=='boolean')throw Error('Неверная настройка обучения обедов');
   if(data.settings.reserveNote!==undefined&&(typeof data.settings.reserveNote!=='string'||data.settings.reserveNote.length>160))throw Error('Назначение резерва — до 160 символов');
   validateWishes(data);
-  validateReminderSettings(data.settings);validateModules(data.settings);validateHome(data.settings);validateLunchSchedule(data);
+  validateReminderSettings(data.settings);validateModules(data.settings);validateHome(data.settings);validateInterface(data.settings);validateLunchSchedule(data);
   if(data.settings.rememberEntryChoices!==undefined&&typeof data.settings.rememberEntryChoices!=='boolean')throw Error('Неверная настройка быстрого ввода');
   for (const a of data.accounts) if (!a.id || (!Number.isFinite(a.balance)||Math.abs(a.balance)>1e14) || !currencies.has(a.currency||'RUB')) throw new Error('Неверный счёт в бэкапе');
   for(const a of data.accounts){if(a.storageKind!==undefined&&!['bank','cash','other'].includes(a.storageKind))throw Error('Неверное место хранения денег');if(a.savingsKind==='deposit'&&a.storageKind&&a.storageKind!=='bank')throw Error('Вклад хранится в банке');if(a.annualRate!==undefined&&(!Number.isFinite(a.annualRate)||a.annualRate<0))throw Error('Неверная ставка вклада');if(a.maturityDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(a.maturityDate)||Number.isNaN(Date.parse(a.maturityDate))||new Date(a.maturityDate+'T12:00:00Z').toISOString().slice(0,10)!==a.maturityDate))throw Error('Неверная дата окончания вклада');}
@@ -251,7 +259,7 @@ export function migrateData(input, defaults) {
   data.migrationWarnings = data.transactions.filter(t=>t.accountId && !Number.isFinite(t.accountAmount) && (t.currency||'RUB') !== (data.accounts.find(a=>a.id===t.accountId)?.currency||'RUB')).map(t=>t.id);
   for(const d of data.debts){if(d.dueDate&&!dateValid(d.dueDate))throw Error('Неверный срок возврата долга');}
   for(const t of data.transactions.filter(t=>t.installmentRefundId)){const plan=data.installments.find(p=>p.id===t.installmentRefundId);if(!plan||t.type!=='income'||t.currency!==plan.currency||!t.accountId)throw Error('Неверный возврат по графику');}
-  validatePlannedLinks(data);validateDebtLinks(data);validateInstallmentLinks(data);validateLunchLinks(data);delete data._pinHash;
+  validateTransferLinks(data);validatePlannedLinks(data);validateDebtLinks(data);validateInstallmentLinks(data);validateLunchLinks(data);delete data._pinHash;
   // Preserve supplied balances. Historical bank exchange rates cannot be reconstructed.
   return data;
 }
@@ -259,9 +267,57 @@ export function migrateData(input, defaults) {
 // Changes to live facts must obey the same date rule for whole-state saves and bot commands.
 export function validateStateChange(previous,next){
  const today=clockAt(new Date(),next.settings?.timeZone||DEFAULT_ZONE).date;
+ validateTransferLinks(next);
+ for(const t of next.transfers){const prior=previous.transfers?.find(x=>x.id===t.id);if(prior&&previous.transactions.some(x=>x.transferId===t.id)&&!next.transactions.some(x=>x.transferId===t.id)&&t.fee>0)throw Error('Перевод и комиссия должны изменяться вместе');}
+ for(const tx of next.transactions){if(tx.type!=='lunch'&&tx.cat==='lunch'){const old=previous.transactions?.find(t=>t.id===tx.id);if(!old||old.cat!=='lunch'||old.type!==tx.type||old.accountId!==tx.accountId||old.amount!==tx.amount)throw Error('Личный расход нельзя записать как корпоративный обед');}}
  for(const key of ['transactions','transfers']){
   const old=new Map((previous[key]||[]).map(x=>[x.id,JSON.stringify(x)]));
   for(const x of next[key]||[])if(x.balanceEffect!=='history-only'&&x.date>today&&old.get(x.id)!==JSON.stringify(x))throw Error('Будущие операции оставьте планами; они не должны менять текущие остатки');
  }
  return next;
+}
+
+// Reverse only explicit links. Legacy commissions require an explicit selection.
+export function reverseTransfer(data,id,{revision,legacyFeeId}={}){
+ const tx=data.transfers.find(t=>t.id===id);if(!tx)return data;
+ if(revision!==undefined&&(tx.revision||1)!==revision)throw Error('Перевод изменён. Открой его заново');
+ const fees=data.transactions.filter(t=>t.transferId===id);
+ if(tx.fee&&!fees.length){
+  const fee=data.transactions.find(t=>t.id===legacyFeeId);
+  if(!fee||fee.transferId||fee.type!=='expense'||fee.amount!==tx.fee||fee.accountId!==tx.from||(fee.currency||'RUB')!==(tx.currency||'RUB')||(fee.balanceEffect||'normal')!==(tx.balanceEffect||'normal'))throw Error('У старого перевода комиссия не связана. Выбери её запись явно перед отменой.');
+  fees.push(fee);
+ }
+ // Detach the fee only inside this compound command; its journal entries are internal.
+ let next={...data,transactions:data.transactions.map(t=>fees.some(f=>f.id===t.id)?{...t,transferId:undefined}:t)};for(const fee of fees)next=deleteTransaction(next,fee.id);
+ const feeIds=new Set(fees.map(f=>f.id));next={...next,history:next.history.filter(h=>!(h.type==='delete_tx'&&feeIds.has(h.before?.id)))};
+ if(tx.balanceEffect!=='history-only'){
+  if(!next.accounts.some(a=>a.id===tx.from)||!next.accounts.some(a=>a.id===tx.to))throw Error('Для отмены восстанови оба счёта');
+  next={...next,accounts:next.accounts.map(a=>a.id===tx.from?{...a,balance:roundMoney(a.balance+tx.amount)}:a.id===tx.to?{...a,balance:roundMoney(a.balance-tx.amount)}:a)};
+ }
+ next={...next,transfers:next.transfers.filter(t=>t.id!==id)};return recordTransferChange(data,next,'reverse_transfer',tx,undefined,fees);
+}
+export function updateTransfer(data,values){
+ const old=data.transfers.find(t=>t.id===values.id);if(!old)throw Error('Перевод больше не существует');
+ const next=reverseTransfer(data,old.id,values);
+ const result=transferMoney(next,{...old,...values,balanceEffect:old.balanceEffect||'normal'});
+ const revised={...result,transfers:result.transfers.map(t=>t.id===old.id?{...t,revision:(old.revision||1)+1}:t)};return recordTransferChange(data,revised,'edit_transfer',old,revised.transfers.find(t=>t.id===old.id),next.history[0].feeRecords);
+}
+
+export function recordTransferChange(before,next,type,old,after,fees){
+ const event={id:crypto.randomUUID(),ts:Date.now(),type,...(old?{before:old}:{}),...(after?{after}:{}),feeRecords:fees||[],feeRecordsAfter:after?next.transactions.filter(t=>t.transferId===after.id):[]};
+ return {...next,history:[event,...(before.history||[])].slice(0,200)};
+}
+export function undoTransfer(data,event){
+ event=data.history.find(h=>h.id===event?.id);if(!event||!['add_transfer','edit_transfer','reverse_transfer'].includes(event.type))throw Error('Изменение уже отменено');
+ const id=(event.after||event.before).id,current=data.transfers.find(t=>t.id===id);
+ if(event.after){if(JSON.stringify(current)!==JSON.stringify(event.after)||JSON.stringify(data.transactions.filter(t=>t.transferId===id))!==JSON.stringify(event.feeRecordsAfter))throw Error('После этого действия перевод изменялся. Откат отменён');}
+ else if(current)throw Error('Перевод уже восстановлен');
+ let next=current?reverseTransfer(data,id):data;
+ if(event.before){
+  if((event.feeRecords||[]).some(f=>next.transactions.some(t=>t.id===f.id)))throw Error('Запись комиссии уже существует');
+  next=transferMoney(next,event.before);const generated=next.transactions.find(t=>t.transferId===id),original=event.feeRecords?.[0];
+  if(original&&generated){if(original.amountAccount!==undefined&&original.amountAccount!==generated.amountAccount)throw Error('Для восстановления комиссии нужна сверка');next={...next,transactions:next.transactions.map(t=>t.id===generated.id?{...original,transferId:id}:t)};}
+  next={...next,transfers:next.transfers.map(t=>t.id===id?{...event.before,...(original?.transferId?{feeTransactionId:original.id}:generated?{feeTransactionId:generated.id}:{feeTransactionId:''})}:t)};
+ }
+ return validateTransferLinks({...next,history:data.history.filter(h=>h.id!==event.id)});
 }

@@ -1,7 +1,7 @@
 import {financialCommand} from './financial-command.js';
 import {recordOperation,operationsReport,pruneOperations} from './operations.js';
 import {periodSummary} from './period-summary.js';
-import {createBackupDownload,backupFile} from './backup-download.js';
+import {createBackupDownload,backupFile,pruneBackupDownloads} from './backup-download.js';
 export {periodSummary} from './period-summary.js';
 import {sendSummary} from './summary-delivery.js';
 import {lunchEntryArgs} from './lunch-entry.js';
@@ -294,6 +294,7 @@ export default {
       await env.DB.prepare('DELETE FROM user_reports_sent WHERE created_at<?').bind(Date.now()-90*86400000).run();
       await env.DB.prepare('DELETE FROM user_day_checks WHERE day<?').bind(new Date(Date.now()-30*86400000).toISOString().slice(0,10)).run();
       await env.DB.prepare('DELETE FROM user_feedback WHERE delivered=1 AND created_at<?').bind(Date.now()-90*86400000).run();
+      await pruneBackupDownloads(env,now.getTime());
       await pruneTelemetry(env,now);
       await pruneOperations(env,now.getTime());
       await pruneLearning(env);

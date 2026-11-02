@@ -1,3 +1,4 @@
+import {validateTransactionRoles} from './transaction-roles.js';
 export function billingPeriod(rule,period){if((rule.frequency||'monthly')!=='monthly'||!/^\d{4}-\d{2}$/.test(period||''))return period;const date=new Date(period+'-01T12:00Z');date.setUTCMonth(date.getUTCMonth()+(rule.billingMonthOffset||0));return date.toISOString().slice(0,7);}
 export const planType=r=>r.type||'expense';
 export const planPeriod=(r,date)=>r.frequency==='once'?'once':['daily','weekly','manual'].includes(r.frequency)?date:date.slice(0,7);
@@ -39,7 +40,7 @@ export function validatePlannedLinks(data){
  const rules=new Map((data.recurring||[]).map(r=>[r.id,r])),seen=new Map();
  for(const r of rules.values()){validatePlannedOverrides(r);if((r.skippedPeriods||[]).some(period=>!validPlannedPeriod(r,period,r.frequency==='manual')))throw Error('Неверный пропущенный период плана');}
  for(const tx of data.transactions){
-  if(!tx.recurringId)continue;
+  if(!tx.recurringId)continue;validateTransactionRoles(tx);
   const rule=rules.get(tx.recurringId);if(!rule)continue; // Deleted plans retain their financial history.
   const period=tx.recurringPeriod||planPeriod(rule,tx.date);
   // A changed future schedule must not invalidate the already recorded dates.

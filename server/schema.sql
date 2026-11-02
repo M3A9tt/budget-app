@@ -55,3 +55,6 @@ CREATE TABLE IF NOT EXISTS user_notification_outbox(user_id TEXT NOT NULL,id TEX
 -- Reusable invitations and membership are independent of link lifetime.
 CREATE TABLE IF NOT EXISTS user_join_links(hash TEXT PRIMARY KEY,owner_id TEXT NOT NULL,created_at INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS user_memberships(user_id TEXT NOT NULL,owner_id TEXT NOT NULL,invite_hash TEXT,status TEXT NOT NULL DEFAULT 'active',created_at INTEGER NOT NULL,PRIMARY KEY(user_id,owner_id));
+
+-- Short-lived immutable exports; independent from the 50-revision backup ring.
+CREATE TABLE IF NOT EXISTS user_backup_exports(user_id TEXT NOT NULL,revision INTEGER NOT NULL,data TEXT NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(user_id,revision));
