@@ -1,5 +1,7 @@
 # Selected brand assets
 
+The current application uses the circular symbol as the initial Б and the separate suffix юрджет. The earlier full wordmark is retained as a source of the local edit, not used by Brand.jsx.
+
 Generated with built-in image_gen using the approved third handwritten lettering and the original folded Б with currency strokes and a ring. These PNG files are the transparent creative masters. export-brand-assets.mjs performs deterministic web export; export.json records dimensions and framing.
 
 ## Wordmark prompt

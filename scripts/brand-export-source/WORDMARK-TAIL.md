@@ -1,0 +1,7 @@
+# Unified wordmark edit
+
+Built-in image_gen edit. Source: wordmark.png, result: wordmark-tail.png. The circular Б is used as the initial letter; the suffix is exported to public/brand/wordmark-tail.webp. Its placement is controlled by the shared Brand component, so both server-backed interfaces use one complete accessible name Бюрджет.
+
+## Prompt
+
+Edit the provided transparent wordmark asset. Make ONLY the user's requested local change: REMOVE the initial capital Cyrillic Б. The remaining text MUST be exactly «юрджет» (ю р д ж е т), lowercase, with no initial Б and no extra characters. Preserve the existing flowing handwritten forms, stroke thickness, slant, optical spacing, letter joins, warm off-white color, and all the remaining letters as faithfully as possible. Refine only the left edge of ю where it was formerly beside Б so it has a clean natural starting stroke; no disconnected stub from the removed initial. The application already uses a separate circular currency-Б symbol immediately before this lettering, so this asset is the continuation of the SAME name, not a new logo. No icon, no ring, no added Б, no labels, no mockup, no background or shadows. Genuine transparent background, solid off-white lettering, clean antialiased edges. Tightly framed horizontal transparent canvas with a small safety margin. One instance of the exact suffix юрджет only. This is a faithful edit of this source image, NOT a redesigned font.

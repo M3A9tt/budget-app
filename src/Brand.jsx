@@ -8,6 +8,6 @@ export function BrandSymbol(){
 export default function Brand(){
  return <span className="burget-brand" role="img" aria-label="Бюрджет">
   <BrandSymbol/>
-  <img className="burget-wordmark" src="/brand/wordmark.webp" width="1024" height="269" alt="" decoding="async"/>
+  <img className="burget-wordmark" src="/brand/wordmark-tail.webp" width="1024" height="287" alt="" decoding="async"/>
  </span>;
 }
