@@ -1,4 +1,26 @@
 {
+  "public/brand/lockup-refined-a.webp": {
+    "width": 1024,
+    "height": 292,
+    "crop": {
+      "left": 187,
+      "top": 94,
+      "width": 1837,
+      "height": 524
+    },
+    "transparentPixels": 1168015
+  },
+  "public/brand/lockup-refined-b.webp": {
+    "width": 1024,
+    "height": 298,
+    "crop": {
+      "left": 68,
+      "top": 62,
+      "width": 2042,
+      "height": 595
+    },
+    "transparentPixels": 1025246
+  },
   "public/brand/lockup-flow.webp": {
     "width": 1024,
     "height": 297,
