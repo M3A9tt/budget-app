@@ -1,6 +1,6 @@
 # Short-junction refinements
 
-Mode: built-in image_gen edits. Both creative masters are preserved as lockup-refined-a.png and lockup-refined-b.png. The prior lockup-flow.png is preserved. Web exports are in public/brand. A is the current local review default, chosen by the assistant after comparison; user acceptance remains pending.
+Mode: built-in image_gen edits. Both creative masters are preserved as lockup-refined-a.png and lockup-refined-b.png. The prior lockup-flow.png is preserved. Web exports are in public/brand. The user selected B (the tighter shared junction). B is now used by Brand.jsx; A and the earlier version remain preserved.
 
 The actual header comparison is reproduced by scripts/compare-brand-junctions.mjs and saved to outputs/brand-junction-comparison.png. The headers are real application screenshots at 390px, with additional 320px checks. The large logo specimens are the same exported assets. No financial data is changed in this comparison.
 
