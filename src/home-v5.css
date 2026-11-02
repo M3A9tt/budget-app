@@ -1,7 +1,7 @@
-/* Glass home for the 5.0 pilot. Shared financial components and commands stay unchanged. */
-.mini-shell.personal-ui.personal-home{--mini-bg:#101722;--mini-panel:#1b2734;--mini-line:#c7dce320;--mini-muted:#afbdcc;--mini-accent:#b4d5c5;--mini-nav-background:linear-gradient(145deg,#21303bf5,#172230f5);background:radial-gradient(ellipse at 92% 8%,#679e8e30,transparent 37%),radial-gradient(ellipse at 3% 47%,#8977ad24,transparent 41%),radial-gradient(ellipse at 78% 93%,#557b9830,transparent 44%),linear-gradient(155deg,#111d29,#101520 68%);color:#edf3f5;font-family:Manrope,system-ui,sans-serif}
+/* Glass home variant 2 for the 5.0 pilot. Shared financial components and commands stay unchanged. */
+.mini-shell.personal-ui.personal-home{--mini-bg:#121722;--mini-panel:#222b38;--mini-line:#d5dfec24;--mini-muted:#b4c0cf;--mini-accent:#bdcfd1;--mini-nav-background:linear-gradient(145deg,#21303bf5,#172230f5);background:radial-gradient(ellipse at 98% 2%,#91a9b63d,transparent 40%),radial-gradient(ellipse at 0% 46%,#9b88a830,transparent 44%),radial-gradient(ellipse at 84% 98%,#8296aa32,transparent 46%),linear-gradient(155deg,#131c28,#141823 68%);color:#edf3f5;font-family:Manrope,system-ui,sans-serif}
 .mini-shell.personal-home .mini-header{background:linear-gradient(125deg,#253742f2,#192632f2);border:1px solid #deeff220;border-top-color:#edf8fa38;border-radius:20px;min-height:58px;padding:8px 10px;margin-bottom:16px;box-shadow:0 8px 28px #050c1726,inset 0 1px #ffffff08}
-.mini-shell.personal-home .personal-add{background:linear-gradient(145deg,#c4decf,#9abdaf);border:1px solid #d7ede299;border-radius:14px;color:#19352d;box-shadow:inset 0 1px #f0fff580,0 4px 12px #071c181f}
+.mini-shell.personal-home .personal-add{background:linear-gradient(145deg,#d4e0e4,#a9bec9);border:1px solid #e7f0f6b3;border-radius:14px;color:#233542;box-shadow:inset 0 1px #f4faffb3,0 5px 14px #07111f40}
 .mini-shell.personal-home .icon-button{background:#d7e8f508;border-color:#d9e8f224;color:#c5d5e0;box-shadow:inset 0 1px #ffffff08}
 .mini-shell.personal-home .mini-header-menu>div{background:#20303af5;border-color:#a4bbc844;box-shadow:0 15px 45px #040b194d}
 .mini-shell.personal-home .mini-nav{background:var(--mini-nav-background);border:1px solid #c6dce32b;box-shadow:0 -8px 35px #040b1838,inset 0 1px #ffffff0a}
@@ -11,14 +11,14 @@
 .mini-shell.personal-home .ins-page-head{min-height:42px;align-items:center;margin:2px 0 0}
 .mini-shell.personal-home .ins-page-head h1{font-size:23px;font-weight:600;margin-top:2px;letter-spacing:-.7px;color:#f0f4f7}
 .mini-shell.personal-home .ins-kicker{font-size:11px;color:#b0bfcd}
-.mini-shell.personal-home .home-budget{position:relative;border:1px solid #bbd6d447;border-top-color:#d5ebe56e;border-left-color:#c5dedd54;border-radius:25px;background:radial-gradient(ellipse at 12% 0%,#83bba42e,transparent 65%),linear-gradient(145deg,#2b4345,#1b2d39 75%);box-shadow:0 17px 40px #020a1930,inset 0 1px #eefcf018,inset 1px 0 #eef6ff08;overflow:hidden}
+.mini-shell.personal-home .home-budget{position:relative;isolation:isolate;border:1px solid #d4dfe850;border-top-color:#f0f5fc99;border-left-color:#e1e9f26b;border-radius:25px;background:radial-gradient(ellipse at 10% 0%,#b8cadf26,transparent 65%),linear-gradient(145deg,#344553,#252e3e 75%);box-shadow:0 20px 45px #040b1a40,0 1px 0 #c2d0ec12,inset 0 1px #ffffff26,inset 1px 0 #f1f6ff10;overflow:hidden}
 .mini-shell.personal-home .personal-budget{padding:21px 21px 0}
-.mini-shell.personal-home .personal-budget-label{color:#c2d7d0;font-size:13px}
-.mini-shell.personal-home .personal-budget-amount{font-size:clamp(39px,11.4vw,56px);font-weight:600;letter-spacing:-1.8px;line-height:1.15;margin:9px 0;color:#f0f6f2;text-shadow:0 2px 16px #071a201c}
+.mini-shell.personal-home .personal-budget-label{color:#cbd7df;font-size:13px}
+.mini-shell.personal-home .personal-budget-amount{font-size:clamp(39px,11.4vw,56px);font-weight:600;letter-spacing:-1.8px;line-height:1.15;margin:9px 0;color:#f2f5fa;text-shadow:0 2px 16px #071a201c}
 .mini-shell.personal-home .personal-budget-amount.ins-danger{color:#ffc0ba}
-.mini-shell.personal-home .personal-budget-horizon{font-size:11px;color:#b2c9c8;margin-bottom:15px}
+.mini-shell.personal-home .personal-budget-horizon{font-size:11px;color:#b9c9d5;margin-bottom:15px}
 .mini-shell.personal-home .personal-daily{justify-content:space-between;color:#b2c9c8;margin-bottom:12px;font-size:11px}
-.mini-shell.personal-home .personal-daily strong{font-size:14px;color:#d4e4dd;font-weight:600}
+.mini-shell.personal-home .personal-daily strong{font-size:14px;color:#dce5ed;font-weight:600}
 .mini-shell.personal-home .personal-budget-details{border-color:#d1e7e123;padding-top:10px;font-size:11px;color:#bdcecc;padding-bottom:3px}
 .mini-shell.personal-home .personal-budget-details summary{min-height:28px;line-height:22px}
 .mini-shell.personal-home .personal-budget-details p{color:#bdcecc;font-size:12px}
@@ -26,7 +26,7 @@
 .mini-shell.personal-home .personal-reserve{padding:12px 21px;border:0;border-top:1px solid #d4d5ed23;background:linear-gradient(100deg,#b3a0dd0f,#b3a0dd04);color:#bfb7d9;font-size:11px;gap:9px;box-shadow:inset 0 1px #ffffff04}
 .mini-shell.personal-home .personal-reserve b{font-size:14px;color:#d7d1e9}
 .mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#263644,#242d40);border:1px solid #c1d3e02d;border-top-color:#e2edf345;border-radius:18px;padding:12px 14px;box-shadow:0 9px 25px #040b1829,inset 0 1px #ffffff06}
-.mini-shell.personal-home .personal-next-date{color:#d0c5e6;font-size:11px;line-height:1.5;min-width:40px;text-align:center;border-radius:10px;background:#cfb8f70a;border:1px solid #d4c7ef19;padding:5px 3px}
+.mini-shell.personal-home .personal-next-date{display:block;color:#c6c9df;font-size:12px;font-variant-numeric:tabular-nums;line-height:20px;white-space:nowrap;width:52px;min-width:52px;max-width:none;text-align:left;border-radius:0;background:none;border:0;border-right:1px solid #d5dce62e;padding:6px 10px 6px 0}
 .mini-shell.personal-home .personal-next-event small{color:#b2c0d0;font-size:10px}
 .mini-shell.personal-home .personal-next-event strong{font-size:13px;color:#edf2f6;font-weight:600}
 .mini-shell.personal-home .personal-next-event b{color:#dde8e5;font-size:13px}
@@ -51,14 +51,15 @@
 .mini-shell.personal-home :focus-visible{outline:2px solid #c6e4df;outline-offset:4px}
 /* Opaque surfaces above are the fallback; blur-capable browsers use true translucent layers. */
 @supports((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
- .mini-shell.personal-ui.personal-home{--mini-nav-background:linear-gradient(145deg,#263641bd,#162232cf)}
- .mini-shell.personal-home .mini-header{background:linear-gradient(125deg,#d8edf213,#c4d6ef07)}
- .mini-shell.personal-home .home-budget{background:radial-gradient(ellipse at 10% 0%,#b0d9bd23,transparent 65%),linear-gradient(135deg,#c2e8d11e,#9cbad20b 75%)}
- .mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#d3e8f011,#c8b7e616)}
- .mini-shell.personal-home .ins-account-strip>button{background:linear-gradient(135deg,#bad7e719,#b7d4e50a)}
- .mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(135deg,#c7b7e820,#bba5db0a)}
- .mini-shell.personal-home .mini-header,.mini-shell.personal-home .home-budget,.mini-shell.personal-home .personal-next-event,.mini-shell.personal-home .ins-account-strip>button,.mini-shell.personal-home .mini-nav{-webkit-backdrop-filter:blur(20px) saturate(115%);backdrop-filter:blur(20px) saturate(115%)}
+ .mini-shell.personal-ui.personal-home{--mini-nav-background:linear-gradient(145deg,#b9cad024,#182131c9)}
+ .mini-shell.personal-home .mini-header{background:linear-gradient(115deg,#e5effc1f,#d2daec08 48%,#d8e6f111)}
+ .mini-shell.personal-home .home-budget{background:radial-gradient(ellipse at 0% 0%,#edf3ff21,transparent 59%),linear-gradient(135deg,#d3e0f018,#bbcce811 75%)}
+ .mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#e4edf71a,#c8bfd817)}
+ .mini-shell.personal-home .ins-account-strip>button{background:linear-gradient(135deg,#e3edf925,#b7c6e30b)}
+ .mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(135deg,#dcd2e929,#b7b1d00c)}
+ .mini-shell.personal-home .mini-header,.mini-shell.personal-home .home-budget,.mini-shell.personal-home .personal-next-event,.mini-shell.personal-home .ins-account-strip>button,.mini-shell.personal-home .mini-nav{-webkit-backdrop-filter:blur(26px) saturate(100%);backdrop-filter:blur(20px) saturate(115%)}
 }
+.mini-shell.personal-home .home-budget::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;background:linear-gradient(118deg,#ffffff0c,transparent 43%,#d7e1f205 68%,transparent);box-shadow:inset 0 1px 0 #f8fbff21}
 @media(min-width:1080px){
  .mini-shell.personal-home .ins-home{gap:22px 30px}.mini-shell.personal-home .home-budget{align-self:start}.mini-shell.personal-home .personal-budget{padding:27px 28px 4px}.mini-shell.personal-home .personal-budget-amount{font-size:59px}.mini-shell.personal-home .personal-reserve{padding-inline:28px}
  .mini-shell.personal-home .home-recent{padding:20px 24px;border:1px solid #c7dce320;border-top-color:#e1edf132;border-radius:20px;background:linear-gradient(135deg,#c4dce90b,#b7cde105);box-shadow:0 12px 35px #040b1826,inset 0 1px #ffffff05}
