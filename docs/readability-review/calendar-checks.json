@@ -1,0 +1,14 @@
+{
+  "defaultMonth": true,
+  "selectedDate": "2026-11-04",
+  "returnPreservesDate": true,
+  "listSwitchPreservesDate": true,
+  "balanceUnchanged": 46940,
+  "widths": [
+    320,
+    390,
+    768,
+    1280
+  ],
+  "pageErrors": []
+}
