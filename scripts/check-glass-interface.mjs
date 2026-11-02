@@ -11,11 +11,11 @@ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Fi
 let data=JSON.parse(fs.readFileSync('docs/personal-interface/fixture.json','utf8')).data,revision=1;
 data.settings={...data.settings,interfaceVersion:2,interfaceGuideSeen:true,modules:{...data.settings.modules,goals:true,lunch:true,limits:true}};
 data.wishes=[{id:'wish',name:'Камера в поездку',note:'Компактная, с хорошим объективом',target:65000,currency:'RUB',priority:'main',accountId:'',done:false}];
-const original=structuredClone(data),errors=[],screens=[],writes=[];
+const original=structuredClone(data),errors=[],screens=[],writes=[];fs.writeFileSync(path.join(out,'fixture.json'),JSON.stringify({fictional:true,data:original},null,2));
 const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});page.on('pageerror',e=>errors.push(e.message));
 const nav=name=>page.locator('.mini-nav').getByRole('button',{name,exact:true});
 const more=async name=>{await nav('Ещё').click();await page.getByRole('button',{name,exact:true}).last().click();};
-const shot=async name=>{await page.locator('.mini-section-loading').waitFor({state:'hidden'});await page.evaluate(()=>document.fonts.ready);for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),name+' overflow '+width);if([390,1280].includes(width))await page.screenshot({path:path.join(out,(baseline?'before-':'after-')+name+'-'+width+'.png'),fullPage:false});screens.push({name,width,noOverflow:true});}await page.setViewportSize({width:390,height:844});};
+const shot=async name=>{await page.locator('.mini-section-loading').waitFor({state:'hidden'});await page.evaluate(()=>document.fonts.ready);for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),name+' overflow '+width);if([390,1280].includes(width))await page.screenshot({path:path.join(out,(baseline?'before-':'after-')+name+'-'+width+'.jpg'),type:'jpeg',quality:90,fullPage:false});screens.push({name,width,noOverflow:true});}await page.setViewportSize({width:390,height:844});};
 try{
  await page.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'application/javascript'}));
  await page.route('**/api/v1/**',r=>{const url=new URL(r.request().url());if(url.pathname==='/api/v1/telemetry')return r.fulfill({json:{ok:true}});if(url.pathname!=='/api/v1/state')return r.fulfill({status:503,json:{error:'Вымышленный профиль: сервис недоступен'}});if(r.request().method()==='PUT'){const body=r.request().postDataJSON();assert.equal(body.expectedRevision,revision);data=body.data;writes.push(structuredClone(data));revision++;}return r.fulfill({json:{data,revision,userId:'fictional-glass-interface'}});});
@@ -48,6 +48,6 @@ try{
   await page.getByRole('button',{name:'Новый вид · пилот',exact:true}).click();await page.locator('.personal-ui').waitFor();
  }
  assert.deepEqual(errors,[]);if(baseline)assert.deepEqual(data,original);
- fs.writeFileSync(path.join(out,(baseline?'before':'after')+'-checks.json'),JSON.stringify({fictional:true,baseline:baseline||null,screens,writes:writes.length,errors,iconRoundtrip:!baseline,expenseDebitedOnce:!baseline,legacySwitch:!baseline},null,2));
+ fs.writeFileSync(path.join(out,(baseline?'before':'after')+'-checks.json'),JSON.stringify({fictional:true,baseline:baseline||null,sourceRevision:execFileSync('git',['-c','safe.directory='+process.cwd().replaceAll('\\','/'),'rev-parse','HEAD'],{encoding:'utf8'}).trim(),screens,writes:writes.length,errors,iconRoundtrip:!baseline,expenseDebitedOnce:!baseline,legacySwitch:!baseline},null,2));
  console.log('PASS whole glass interface: '+screens.length+' viewport checks; '+(baseline?'baseline unchanged':'local SVG picker, metadata-only account changes, reload, expense, history and server-shell roundtrip')+'.');
 }catch(error){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true}).catch(()=>{});console.log({error:String(error),pageErrors:errors});console.log((await page.locator('body').innerText()).slice(0,3500));throw error;}finally{await browser.close();await server.close();}

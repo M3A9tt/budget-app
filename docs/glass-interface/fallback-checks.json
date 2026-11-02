@@ -1,0 +1,34 @@
+{
+  "beforeRevision": null,
+  "fallbackSimulation": true,
+  "checks": [
+    {
+      "width": 320,
+      "noOverflow": true,
+      "budgetAndNextEventVisible": true
+    },
+    {
+      "width": 390,
+      "noOverflow": true,
+      "budgetAndNextEventVisible": true
+    },
+    {
+      "width": 768,
+      "noOverflow": true,
+      "budgetAndNextEventVisible": true
+    },
+    {
+      "width": 1280,
+      "noOverflow": true,
+      "budgetAndNextEventVisible": true
+    }
+  ],
+  "total": "49 640 ₽",
+  "disclosure": true,
+  "accountNavigation": true,
+  "eventNavigation": true,
+  "keyboardFocus": true,
+  "reducedMotion": true,
+  "financesUnchanged": true,
+  "errors": []
+}

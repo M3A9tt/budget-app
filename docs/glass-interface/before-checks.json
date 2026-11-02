@@ -1,0 +1,332 @@
+{
+  "fictional": true,
+  "baseline": "ae15d18",
+  "sourceRevision": "02863b6038d9276446c9bbf9089e9ca7c1d606d0",
+  "screens": [
+    {
+      "name": "home",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "home",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "home",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "home",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 1280,
+      "noOverflow": true
+    }
+  ],
+  "writes": 0,
+  "errors": [],
+  "iconRoundtrip": false,
+  "expenseDebitedOnce": false,
+  "legacySwitch": false
+}
