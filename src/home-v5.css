@@ -1,52 +1,71 @@
-/* Home review for 5.0. Other screens keep their current presentation. */
-.mini-shell.personal-ui.personal-home{--mini-bg:#10131d;--mini-panel:#1a1e2a;--mini-line:#30364b;--mini-muted:#a9b2c9;--mini-nav-background:#191e2b;background:radial-gradient(ellipse at 95% 0%,#28264744,transparent 42%),#10131d;color:#eef2f7;font-family:Manrope,system-ui,sans-serif}
-.mini-shell.personal-home .mini-header{background:#10131df5;border-color:#30364b;min-height:58px;padding-block:8px;margin-bottom:12px}
-.mini-shell.personal-home .mini-mark{background:linear-gradient(140deg,#c4f99a,#87cd87);color:#203323;border-radius:12px;box-shadow:0 4px 20px #a4e48816}
-.mini-shell.personal-home .personal-add{background:#b4ec8b;border-color:#b4ec8b;border-radius:13px;color:#203323}
-.mini-shell.personal-home .mini-nav{background:#191e2bf5;border-color:#30364b}
-.mini-shell.personal-home .mini-nav button[aria-current=page]{color:#c8efa9}
+/* Glass home for the 5.0 pilot. Shared financial components and commands stay unchanged. */
+.mini-shell.personal-ui.personal-home{--mini-bg:#101722;--mini-panel:#1b2734;--mini-line:#c7dce320;--mini-muted:#afbdcc;--mini-accent:#b4d5c5;--mini-nav-background:linear-gradient(145deg,#21303bf5,#172230f5);background:radial-gradient(ellipse at 92% 8%,#679e8e30,transparent 37%),radial-gradient(ellipse at 3% 47%,#8977ad24,transparent 41%),radial-gradient(ellipse at 78% 93%,#557b9830,transparent 44%),linear-gradient(155deg,#111d29,#101520 68%);color:#edf3f5;font-family:Manrope,system-ui,sans-serif}
+.mini-shell.personal-home .mini-header{background:linear-gradient(125deg,#253742f2,#192632f2);border:1px solid #deeff220;border-top-color:#edf8fa38;border-radius:20px;min-height:58px;padding:8px 10px;margin-bottom:16px;box-shadow:0 8px 28px #050c1726,inset 0 1px #ffffff08}
+.mini-shell.personal-home .personal-add{background:linear-gradient(145deg,#c4decf,#9abdaf);border:1px solid #d7ede299;border-radius:14px;color:#19352d;box-shadow:inset 0 1px #f0fff580,0 4px 12px #071c181f}
+.mini-shell.personal-home .icon-button{background:#d7e8f508;border-color:#d9e8f224;color:#c5d5e0;box-shadow:inset 0 1px #ffffff08}
+.mini-shell.personal-home .mini-header-menu>div{background:#20303af5;border-color:#a4bbc844;box-shadow:0 15px 45px #040b194d}
+.mini-shell.personal-home .mini-nav{background:var(--mini-nav-background);border:1px solid #c6dce32b;box-shadow:0 -8px 35px #040b1838,inset 0 1px #ffffff0a}
+.mini-shell.personal-home .mini-nav button{color:#aebdca}
+.mini-shell.personal-home .mini-nav button[aria-current=page]{color:#d4e9df;background:#c6e3d412;box-shadow:inset 0 0 0 1px #d7ede320;border-radius:13px}
 .mini-shell.personal-home .ins-home{gap:16px}
-.mini-shell.personal-home .ins-page-head{min-height:42px;align-items:center}
-.mini-shell.personal-home .ins-page-head h1{font-size:23px;font-weight:650;margin-top:2px;letter-spacing:-.7px}
-.mini-shell.personal-home .ins-kicker{font-size:11px;color:#a9b2c9}
-.mini-shell.personal-home .home-budget{border:1px solid #93b57366;border-radius:22px;background:radial-gradient(ellipse at 95% 0%,#bddb9735,transparent 60%),linear-gradient(135deg,#2a412f,#1d2b31);box-shadow:0 12px 40px #0003,inset 0 1px #d9f8bb18;overflow:hidden}
-.mini-shell.personal-home .personal-budget{padding:20px 21px 0}
-.mini-shell.personal-home .personal-budget-label{color:#bfd3bc;font-size:13px}
-.mini-shell.personal-home .personal-budget-amount{font-size:clamp(39px,11.4vw,56px);font-weight:700;letter-spacing:-1.8px;line-height:1.15;margin:9px 0;color:#e7fad9}
-.mini-shell.personal-home .personal-budget-amount.ins-danger{color:#ffa9a9}
-.mini-shell.personal-home .personal-budget-horizon{font-size:11px;color:#a9bcb2;margin-bottom:15px}
-.mini-shell.personal-home .personal-daily{justify-content:space-between;color:#a9bcb2;margin-bottom:12px;font-size:11px}
-.mini-shell.personal-home .personal-daily strong{font-size:14px;color:#d2edbc;font-weight:600}
-.mini-shell.personal-home .personal-budget-details{border-color:#c0dfad22;padding-top:10px;font-size:11px;color:#b8cdbb;padding-bottom:3px}
+.mini-shell.personal-home .ins-page-head{min-height:42px;align-items:center;margin:2px 0 0}
+.mini-shell.personal-home .ins-page-head h1{font-size:23px;font-weight:600;margin-top:2px;letter-spacing:-.7px;color:#f0f4f7}
+.mini-shell.personal-home .ins-kicker{font-size:11px;color:#b0bfcd}
+.mini-shell.personal-home .home-budget{position:relative;border:1px solid #bbd6d447;border-top-color:#d5ebe56e;border-left-color:#c5dedd54;border-radius:25px;background:radial-gradient(ellipse at 12% 0%,#83bba42e,transparent 65%),linear-gradient(145deg,#2b4345,#1b2d39 75%);box-shadow:0 17px 40px #020a1930,inset 0 1px #eefcf018,inset 1px 0 #eef6ff08;overflow:hidden}
+.mini-shell.personal-home .personal-budget{padding:21px 21px 0}
+.mini-shell.personal-home .personal-budget-label{color:#c2d7d0;font-size:13px}
+.mini-shell.personal-home .personal-budget-amount{font-size:clamp(39px,11.4vw,56px);font-weight:600;letter-spacing:-1.8px;line-height:1.15;margin:9px 0;color:#f0f6f2;text-shadow:0 2px 16px #071a201c}
+.mini-shell.personal-home .personal-budget-amount.ins-danger{color:#ffc0ba}
+.mini-shell.personal-home .personal-budget-horizon{font-size:11px;color:#b2c9c8;margin-bottom:15px}
+.mini-shell.personal-home .personal-daily{justify-content:space-between;color:#b2c9c8;margin-bottom:12px;font-size:11px}
+.mini-shell.personal-home .personal-daily strong{font-size:14px;color:#d4e4dd;font-weight:600}
+.mini-shell.personal-home .personal-budget-details{border-color:#d1e7e123;padding-top:10px;font-size:11px;color:#bdcecc;padding-bottom:3px}
 .mini-shell.personal-home .personal-budget-details summary{min-height:28px;line-height:22px}
-.mini-shell.personal-home .personal-budget-details p{color:#b8cdbb;font-size:12px}
-.mini-shell.personal-home .personal-equation button{color:#e0ebdc;font-size:12px}
-.mini-shell.personal-home .personal-reserve{padding:12px 21px;border:0;border-top:1px solid #b5a5e02b;background:#a99aff0b;color:#bcb2da;font-size:11px;gap:9px}
-.mini-shell.personal-home .personal-reserve b{font-size:14px;color:#d6c9f4}
-.mini-shell.personal-home .personal-next-event{background:linear-gradient(110deg,#202637,#1b202b);border-color:#3c465e;border-radius:16px;padding:14px;box-shadow:0 5px 15px #0001}
-.mini-shell.personal-home .personal-next-date{color:#bcb0ed;font-size:12px}
-.mini-shell.personal-home .personal-next-event small{color:#9faac0;font-size:10px}
-.mini-shell.personal-home .personal-next-event strong{font-size:13px;color:#edf0f7;font-weight:600}
-.mini-shell.personal-home .personal-next-event b{color:#dceacb;font-size:13px}
-.mini-shell.personal-home .personal-next-clear{border-color:#30364b;color:#9faac0;padding-top:8px;font-size:12px}
-.mini-shell.personal-home .home-accounts h2,.mini-shell.personal-home .mini-section-title h2{font-size:14px;font-weight:600}
-.mini-shell.personal-home .mini-text-button{color:#c1dda9}
+.mini-shell.personal-home .personal-budget-details p{color:#bdcecc;font-size:12px}
+.mini-shell.personal-home .personal-equation button{color:#e4eeea;font-size:12px}
+.mini-shell.personal-home .personal-reserve{padding:12px 21px;border:0;border-top:1px solid #d4d5ed23;background:linear-gradient(100deg,#b3a0dd0f,#b3a0dd04);color:#bfb7d9;font-size:11px;gap:9px;box-shadow:inset 0 1px #ffffff04}
+.mini-shell.personal-home .personal-reserve b{font-size:14px;color:#d7d1e9}
+.mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#263644,#242d40);border:1px solid #c1d3e02d;border-top-color:#e2edf345;border-radius:18px;padding:12px 14px;box-shadow:0 9px 25px #040b1829,inset 0 1px #ffffff06}
+.mini-shell.personal-home .personal-next-date{color:#d0c5e6;font-size:11px;line-height:1.5;min-width:40px;text-align:center;border-radius:10px;background:#cfb8f70a;border:1px solid #d4c7ef19;padding:5px 3px}
+.mini-shell.personal-home .personal-next-event small{color:#b2c0d0;font-size:10px}
+.mini-shell.personal-home .personal-next-event strong{font-size:13px;color:#edf2f6;font-weight:600}
+.mini-shell.personal-home .personal-next-event b{color:#dde8e5;font-size:13px}
+.mini-shell.personal-home .personal-next-clear{border-color:#c6dae128;color:#b1bfd0;padding-top:8px;font-size:12px}
+.mini-shell.personal-home .home-accounts h2,.mini-shell.personal-home .mini-section-title h2{font-size:14px;font-weight:600;color:#e5edf3}
+.mini-shell.personal-home .mini-text-button{color:#c0d4d5}
 .mini-shell.personal-home .home-accounts>.mini-between{margin-bottom:10px}
 .mini-shell.personal-home .ins-account-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.mini-shell.personal-home .ins-account-strip>button{display:block;background:linear-gradient(130deg,#283346,#1a2230);border:1px solid #3b4961;border-radius:15px;padding:13px 14px;min-width:0;box-shadow:0 4px 15px #0001}
-.mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(130deg,#302d45,#211f30);border-color:#49415f}
+.mini-shell.personal-home .ins-account-strip>button{display:block;background:linear-gradient(145deg,#2b3e4e,#1d2a39);border:1px solid #c6dce32b;border-top-color:#deedf34a;border-radius:17px;padding:13px 14px;min-width:0;box-shadow:0 8px 24px #040b1826,inset 0 1px #ffffff07}
+.mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(145deg,#35354c,#242838);border-color:#cbbde12e;border-top-color:#dfd3f04a}
 .mini-shell.personal-home .ins-account-strip>button>span:last-child{display:grid;gap:7px}
-.mini-shell.personal-home .ins-account-strip small{font-size:11px;color:#b0bdd0;overflow-wrap:anywhere}
-.mini-shell.personal-home .ins-account-strip strong{font-size:17px;font-weight:650;color:#eef2f7;letter-spacing:-.5px}
-.mini-shell.personal-home .mini-tx{padding:12px 0;min-height:59px;border-color:#293245}
-.mini-shell.personal-home .mini-tx-icon{background:#a99aff12!important;color:#b7a7e6!important;border-radius:11px;width:33px;height:33px}
-.mini-shell.personal-home .mini-tx-center strong{font-size:12px;font-weight:500;color:#e7ebf2}
-.mini-shell.personal-home .mini-tx-center small{font-size:10px;color:#94a0b7;margin-top:4px}
-.mini-shell.personal-home .mini-tx-sum{font-size:13px;color:#e4eaf3}
-.mini-shell.personal-home .mini-tx-sum.mini-income{color:#b4ec8b}
+.mini-shell.personal-home .ins-account-strip small{font-size:11px;color:#b6c6d7;overflow-wrap:anywhere}
+.mini-shell.personal-home .ins-account-strip strong{font-size:17px;font-weight:600;color:#edf3f7;letter-spacing:-.5px}
+.mini-shell.personal-home .mini-tx{padding:12px 0;min-height:59px;border-color:#c9dce214}
+.mini-shell.personal-home .mini-tx-icon{background:linear-gradient(140deg,#bca3e222,#a7b6db09)!important;color:#cbbfe6!important;border:1px solid #cab9e323;border-radius:11px;width:33px;height:33px;box-shadow:inset 0 1px #ffffff0b}
+.mini-shell.personal-home .mini-tx-center strong{font-size:12px;font-weight:500;color:#e7edf4}
+.mini-shell.personal-home .mini-tx-center small{font-size:10px;color:#a6b5c9;margin-top:4px}
+.mini-shell.personal-home .mini-tx-sum{font-size:13px;color:#e4edf4}
+.mini-shell.personal-home .mini-tx-sum.mini-income{color:#bfdfce}
 .mini-shell.personal-home .home-recent{margin-top:0}
 .mini-shell.personal-home .mini-section-title{margin-top:0;margin-bottom:4px}
-@media(min-width:1080px){.mini-shell.personal-home .ins-home{gap:22px 30px}.mini-shell.personal-home .home-budget{align-self:start}.mini-shell.personal-home .personal-budget{padding:27px 28px 4px}.mini-shell.personal-home .personal-budget-amount{font-size:59px}.mini-shell.personal-home .personal-reserve{padding-inline:28px}.mini-shell.personal-home .home-recent{padding:20px 24px;border:1px solid #30364b;border-radius:19px;background:#191e2a80}.mini-shell.personal-home .ins-page-head h1{font-size:28px}.mini-shell.personal-home .mini-nav{border-radius:22px;border:1px solid #30364b}}
+.mini-shell.personal-home :focus-visible{outline:2px solid #c6e4df;outline-offset:4px}
+/* Opaque surfaces above are the fallback; blur-capable browsers use true translucent layers. */
+@supports((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+ .mini-shell.personal-ui.personal-home{--mini-nav-background:linear-gradient(145deg,#263641bd,#162232cf)}
+ .mini-shell.personal-home .mini-header{background:linear-gradient(125deg,#d8edf213,#c4d6ef07)}
+ .mini-shell.personal-home .home-budget{background:radial-gradient(ellipse at 10% 0%,#b0d9bd23,transparent 65%),linear-gradient(135deg,#c2e8d11e,#9cbad20b 75%)}
+ .mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#d3e8f011,#c8b7e616)}
+ .mini-shell.personal-home .ins-account-strip>button{background:linear-gradient(135deg,#bad7e719,#b7d4e50a)}
+ .mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(135deg,#c7b7e820,#bba5db0a)}
+ .mini-shell.personal-home .mini-header,.mini-shell.personal-home .home-budget,.mini-shell.personal-home .personal-next-event,.mini-shell.personal-home .ins-account-strip>button,.mini-shell.personal-home .mini-nav{-webkit-backdrop-filter:blur(20px) saturate(115%);backdrop-filter:blur(20px) saturate(115%)}
+}
+@media(min-width:1080px){
+ .mini-shell.personal-home .ins-home{gap:22px 30px}.mini-shell.personal-home .home-budget{align-self:start}.mini-shell.personal-home .personal-budget{padding:27px 28px 4px}.mini-shell.personal-home .personal-budget-amount{font-size:59px}.mini-shell.personal-home .personal-reserve{padding-inline:28px}
+ .mini-shell.personal-home .home-recent{padding:20px 24px;border:1px solid #c7dce320;border-top-color:#e1edf132;border-radius:20px;background:linear-gradient(135deg,#c4dce90b,#b7cde105);box-shadow:0 12px 35px #040b1826,inset 0 1px #ffffff05}
+ .mini-shell.personal-home .ins-page-head h1{font-size:28px}.mini-shell.personal-home .mini-nav{border-radius:24px;border:1px solid #c6dce32b}
+ .mini-shell.personal-home .mini-nav button[aria-current=page]{background:linear-gradient(110deg,#bedfce1c,#c5d9e20a);box-shadow:inset 0 0 0 1px #cfe5dc25;color:#dfede6}
+ .mini-shell.personal-home .desktop-transactions{border-color:#c6dce320;background:transparent}.mini-shell.personal-home .desktop-transactions th{background:#cfdeee07;color:#b3c3d2}.mini-shell.personal-home .desktop-transactions td{border-color:#c6dce318}.mini-shell.personal-home .desktop-category{background:#c6b5e511;border-color:#d1c2eb23;color:#d2c6e6}
+}
 @keyframes home-arrive{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes home-number{from{opacity:.25;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:no-preference){
@@ -58,5 +77,5 @@
  .mini-shell.personal-home .personal-budget-details[open]>:not(summary){animation:home-arrive 300ms cubic-bezier(.16,1,.3,1) both}
  @supports(interpolate-size:allow-keywords){.mini-shell.personal-home .personal-budget-details{interpolate-size:allow-keywords}.mini-shell.personal-home .personal-budget-details::details-content{height:0;opacity:0;overflow:clip;transition:height 420ms cubic-bezier(.16,1,.3,1),opacity 300ms,content-visibility 420ms allow-discrete}.mini-shell.personal-home .personal-budget-details[open]::details-content{height:auto;opacity:1}}
 }
-@media(hover:hover) and (prefers-reduced-motion:no-preference){.mini-shell.personal-home .ins-account-strip>button:hover,.mini-shell.personal-home .personal-next-event:hover{transform:translateY(-2px);border-color:#b4ec8b80;box-shadow:0 8px 24px #0003}}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){.mini-shell.personal-home .ins-account-strip>button:hover,.mini-shell.personal-home .personal-next-event:hover{transform:translateY(-2px);border-color:#d7ede170;box-shadow:0 12px 30px #0208143d,inset 0 1px #ffffff12}}
 @media(prefers-reduced-motion:reduce){.mini-shell.personal-home *,.mini-shell.personal-home *::details-content{animation:none!important;transition:none!important}}
