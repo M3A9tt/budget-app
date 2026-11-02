@@ -3,41 +3,41 @@
 .mini-shell.personal-home .ins-home{gap:16px}
 .mini-shell.personal-home .ins-page-head{min-height:42px;align-items:center;margin:2px 0 0}
 .mini-shell.personal-home .ins-page-head h1{font-size:23px;font-weight:600;margin-top:2px;letter-spacing:-.7px;color:#f0f4f7}
-.mini-shell.personal-home .ins-kicker{font-size:11px;color:#b0bfcd}
+.mini-shell.personal-home .ins-kicker{font-size:var(--type-caption);color:#b0bfcd}
 .mini-shell.personal-home .home-budget{position:relative;border:1px solid #bbd6d447;border-top-color:#d5ebe56e;border-left-color:#c5dedd54;border-radius:25px;background:radial-gradient(ellipse at 12% 0%,#83bba42e,transparent 65%),linear-gradient(145deg,#2b4345,#1b2d39 75%);box-shadow:0 17px 40px #020a1930,inset 0 1px #eefcf018,inset 1px 0 #eef6ff08;overflow:hidden}
 .mini-shell.personal-home .personal-budget{padding:21px 21px 0}
-.mini-shell.personal-home .personal-budget-label{color:#c2d7d0;font-size:13px}
+.mini-shell.personal-home .personal-budget-label{color:#c2d7d0;font-size:var(--type-label)}
 .mini-shell.personal-home .personal-budget-amount{font-size:clamp(39px,11.4vw,56px);font-weight:600;letter-spacing:-1.8px;line-height:1.15;margin:9px 0;color:#f0f6f2;text-shadow:0 2px 16px #071a201c}
 .mini-shell.personal-home .personal-budget-amount.ins-danger{color:#ffc0ba}
-.mini-shell.personal-home .personal-budget-horizon{font-size:11px;color:#b2c9c8;margin-bottom:15px}
-.mini-shell.personal-home .personal-daily{justify-content:space-between;color:#b2c9c8;margin-bottom:12px;font-size:11px}
-.mini-shell.personal-home .personal-daily strong{font-size:14px;color:#d4e4dd;font-weight:600}
-.mini-shell.personal-home .personal-budget-details{border-color:#d1e7e123;padding-top:10px;font-size:11px;color:#bdcecc;padding-bottom:3px}
+.mini-shell.personal-home .personal-budget-horizon{font-size:var(--type-caption);color:#b2c9c8;margin-bottom:15px}
+.mini-shell.personal-home .personal-daily{justify-content:space-between;color:#b2c9c8;margin-bottom:12px;font-size:var(--type-caption)}
+.mini-shell.personal-home .personal-daily strong{font-size:var(--type-label);color:#d4e4dd;font-weight:600}
+.mini-shell.personal-home .personal-budget-details{border-color:#d1e7e123;padding-top:10px;font-size:var(--type-caption);color:#bdcecc;padding-bottom:3px}
 .mini-shell.personal-home .personal-budget-details summary{min-height:28px;line-height:22px}
-.mini-shell.personal-home .personal-budget-details p{color:#bdcecc;font-size:12px}
-.mini-shell.personal-home .personal-equation button{color:#e4eeea;font-size:12px}
-.mini-shell.personal-home .personal-reserve{padding:12px 21px;border:0;border-top:1px solid #d4d5ed23;background:linear-gradient(100deg,#b3a0dd0f,#b3a0dd04);color:#bfb7d9;font-size:11px;gap:9px;box-shadow:inset 0 1px #ffffff04}
-.mini-shell.personal-home .personal-reserve b{font-size:14px;color:#d7d1e9}
+.mini-shell.personal-home .personal-budget-details p{color:#bdcecc;font-size:var(--type-caption)}
+.mini-shell.personal-home .personal-equation button{color:#e4eeea;font-size:var(--type-caption)}
+.mini-shell.personal-home .personal-reserve{padding:12px 21px;border:0;border-top:1px solid #d4d5ed23;background:linear-gradient(100deg,#b3a0dd0f,#b3a0dd04);color:#bfb7d9;font-size:var(--type-caption);gap:9px;box-shadow:inset 0 1px #ffffff04}
+.mini-shell.personal-home .personal-reserve b{font-size:var(--type-label);color:#d7d1e9}
 .mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#263644,#242d40);border:1px solid #c1d3e02d;border-top-color:#e2edf345;border-radius:18px;padding:12px 14px;box-shadow:0 9px 25px #040b1829,inset 0 1px #ffffff06}
-.mini-shell.personal-home .personal-next-date{display:block;color:#c6c9df;font-size:12px;font-variant-numeric:tabular-nums;line-height:20px;white-space:nowrap;width:52px;min-width:52px;max-width:none;text-align:left;border-radius:0;background:none;border:0;border-right:1px solid #d5dce62e;padding:6px 10px 6px 0}
-.mini-shell.personal-home .personal-next-event small{color:#b2c0d0;font-size:10px}
-.mini-shell.personal-home .personal-next-event strong{font-size:13px;color:#edf2f6;font-weight:600}
-.mini-shell.personal-home .personal-next-event b{color:#dde8e5;font-size:13px}
-.mini-shell.personal-home .personal-next-clear{border-color:#c6dae128;color:#b1bfd0;padding-top:8px;font-size:12px}
-.mini-shell.personal-home .home-accounts h2,.mini-shell.personal-home .mini-section-title h2{font-size:14px;font-weight:600;color:#e5edf3}
+.mini-shell.personal-home .personal-next-date{display:block;color:#c6c9df;font-size:var(--type-caption);font-variant-numeric:tabular-nums;line-height:20px;white-space:nowrap;width:52px;min-width:52px;max-width:none;text-align:left;border-radius:0;background:none;border:0;border-right:1px solid #d5dce62e;padding:6px 10px 6px 0}
+.mini-shell.personal-home .personal-next-event small{color:#b2c0d0;font-size:var(--type-caption)}
+.mini-shell.personal-home .personal-next-event strong{font-size:var(--type-label);color:#edf2f6;font-weight:600}
+.mini-shell.personal-home .personal-next-event b{color:#dde8e5;font-size:var(--type-label)}
+.mini-shell.personal-home .personal-next-clear{border-color:#c6dae128;color:#b1bfd0;padding-top:8px;font-size:var(--type-caption)}
+.mini-shell.personal-home .home-accounts h2,.mini-shell.personal-home .mini-section-title h2{font-size:var(--type-label);font-weight:600;color:#e5edf3}
 .mini-shell.personal-home .mini-text-button{color:#c0d4d5}
 .mini-shell.personal-home .home-accounts>.mini-between{margin-bottom:10px}
 .mini-shell.personal-home .ins-account-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .mini-shell.personal-home .ins-account-strip>button{display:block;background:linear-gradient(145deg,#2b3e4e,#1d2a39);border:1px solid #c6dce32b;border-top-color:#deedf34a;border-radius:17px;padding:13px 14px;min-width:0;box-shadow:0 8px 24px #040b1826,inset 0 1px #ffffff07}
 .mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(145deg,#35354c,#242838);border-color:#cbbde12e;border-top-color:#dfd3f04a}
 .mini-shell.personal-home .ins-account-strip>button>span:last-child{display:grid;gap:7px}
-.mini-shell.personal-home .ins-account-strip small{font-size:11px;color:#b6c6d7;overflow-wrap:anywhere}
+.mini-shell.personal-home .ins-account-strip small{font-size:var(--type-caption);color:#b6c6d7;overflow-wrap:anywhere}
 .mini-shell.personal-home .ins-account-strip strong{font-size:17px;font-weight:600;color:#edf3f7;letter-spacing:-.5px}
 .mini-shell.personal-home .mini-tx{padding:12px 0;min-height:59px;border-color:#c9dce214}
 .mini-shell.personal-home .mini-tx-icon{background:color-mix(in srgb,var(--category-color,#bca3e2) 12%,transparent)!important;color:color-mix(in srgb,var(--category-color,#cbbfe6) 65%,#d2dfe5)!important;border:1px solid #cab9e323;border-radius:11px;width:33px;height:33px;box-shadow:inset 0 1px #ffffff0b}
-.mini-shell.personal-home .mini-tx-center strong{font-size:12px;font-weight:500;color:#e7edf4}
-.mini-shell.personal-home .mini-tx-center small{font-size:10px;color:#a6b5c9;margin-top:4px}
-.mini-shell.personal-home .mini-tx-sum{font-size:13px;color:#e4edf4}
+.mini-shell.personal-home .mini-tx-center strong{font-size:var(--type-caption);font-weight:500;color:#e7edf4}
+.mini-shell.personal-home .mini-tx-center small{font-size:var(--type-caption);color:#a6b5c9;margin-top:4px}
+.mini-shell.personal-home .mini-tx-sum{font-size:var(--type-label);color:#e4edf4}
 .mini-shell.personal-home .mini-tx-sum.mini-income{color:#bfdfce}
 .mini-shell.personal-home .home-recent{margin-top:0}
 .mini-shell.personal-home .mini-section-title{margin-top:0;margin-bottom:4px}

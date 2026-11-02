@@ -2,7 +2,7 @@
 .burget-symbol{display:block;width:42px;height:42px;flex:0 0 auto;object-fit:contain}
 .burget-lockup{display:block;width:178px;height:auto;object-fit:contain}
 .mini-header .mini-brand{min-width:0}
-.mini-header .brand-caption{display:block;margin:3px 0 0 43px;color:var(--mini-muted);font-size:10px}
+.mini-header .brand-caption{display:block;margin:3px 0 0 43px;color:var(--mini-muted);font-size:var(--type-caption)}
 .auth-gate>.burget-symbol{width:52px;height:52px}
 @media(max-width:380px){
  .mini-header .burget-lockup{width:154px}

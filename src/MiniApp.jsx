@@ -35,6 +35,7 @@ import {EMPTY,CATEGORIES,todayMoscow,money,demoData} from './mini-model.js';
 import {parseMoney,transferMoney,putTransaction,deleteTransaction,undoTransaction,migrateData} from './ledger.js';
 import {parseEntry,parseOwnTransfer,entryType} from './quick-entry.js';
 import {telegramClient,apiRequest,waitTelegramSDK} from './mini-api.js';
+import './typography.css';
 import './mini.css';
 import './insights.css';
 import './motion.css';
@@ -150,7 +151,7 @@ export default function MiniApp(){
 
       {tab==='accounts'&&<AccountsPage personal={personal} data={data} mutate={mutate} busy={busy}/>}
       {tab==='savings'&&<SavingsPage data={data} mutate={mutate} busy={busy}/>}
-      {tab==='goals'&&<><WishesPage personal={personal} data={data} mutate={mutate} busy={busy} initialWish={wishOpen}/><details className="mini-card"><summary>Цели с точной суммой и сроком</summary><GoalTools data={data} mutate={mutate} busy={busy}/></details></>}
+      {tab==='goals'&&<><WishesPage personal={personal} data={data} mutate={mutate} busy={busy} initialWish={wishOpen}/><details className="mini-card goal-details"><summary>Цели с точной суммой и сроком</summary><GoalTools data={data} mutate={mutate} busy={busy}/></details></>}
 
       {tab==='settings'&&<><SettingsPage personal={personal} revision={state.revision} onSavings={()=>{setTab('savings');go('more');}} data={data} cats={cats} mutate={mutate} busy={busy} demo={demo} isOwner={state.isOwner===true} onUpdates={()=>go('updates')} onLogout={!demo&&!tg?.initData?async()=>{readGeneration.current++;clearEntryDrafts();await apiRequest('auth/logout',{method:'POST'});window.location.reload();}:undefined}/></>}
     </>}
