@@ -1,0 +1,21 @@
+/* Review directions share exactly the same content and financial commands. */
+.mini-shell.personal-home.home-review-jade .home-budget{background:radial-gradient(ellipse at 95% 0%,#bddb9735,transparent 60%),linear-gradient(135deg,#2a412f,#1d2b31);border-color:#93b57366;box-shadow:0 12px 40px #0003,inset 0 1px #d9f8bb18}
+.mini-shell.personal-home.home-review-jade .personal-budget-amount{font-size:clamp(39px,11.4vw,56px)}
+.mini-shell.personal-home.home-review-mint .home-budget{background:linear-gradient(135deg,#d7f2b6,#afda92 65%,#9fc5aa);border-color:#d5f0b5;box-shadow:0 16px 40px #9cce6b16,inset 0 1px #fff7}
+.mini-shell.personal-home.home-review-mint .personal-budget-label{color:#344b2c}
+.mini-shell.personal-home.home-review-mint .personal-budget-amount{color:#172b1d;font-size:clamp(40px,12vw,58px);letter-spacing:-2px}
+.mini-shell.personal-home.home-review-mint .personal-budget-horizon,.mini-shell.personal-home.home-review-mint .personal-daily,.mini-shell.personal-home.home-review-mint .personal-budget-details{color:#3c563b}
+.mini-shell.personal-home.home-review-mint .personal-daily strong{color:#1c3d22}
+.mini-shell.personal-home.home-review-mint .personal-budget-details{border-color:#314c3033}
+.mini-shell.personal-home.home-review-mint .personal-reserve{background:#27394912;border-color:#314c3033;color:#344b3d}
+.mini-shell.personal-home.home-review-mint .personal-reserve b{color:#253f32}
+.mini-shell.personal-home.home-review-mint .personal-budget-details p,.mini-shell.personal-home.home-review-mint .personal-budget-details small,.mini-shell.personal-home.home-review-mint .personal-equation button{color:#304a32}
+.mini-shell.personal-home.home-review-mint .spendable-accounts{background:#192d20;border-radius:12px;padding:12px;margin-top:12px;color:#edf4e7}
+.mini-shell.personal-home.home-review-mint .budget-warning{color:#5e291c;font-weight:600}
+.mini-shell.personal-home.home-review-ink .home-budget{background:radial-gradient(ellipse at 100% 0%,#8f80c12c,transparent 60%),linear-gradient(130deg,#273049,#1a2031);border-color:#55607b;border-radius:15px;box-shadow:0 16px 45px #0004,inset 3px 0 #b4ec8b}
+.mini-shell.personal-home.home-review-ink .personal-budget-amount{font-size:clamp(41px,12vw,59px);color:#f2f6eb;font-weight:600}
+.mini-shell.personal-home.home-review-ink .personal-budget-label{color:#c7d5b9}
+.mini-shell.personal-home.home-review-ink .personal-budget-details{border-color:#9ba5cb30;color:#b9c5dc}
+.mini-shell.personal-home.home-review-ink .personal-reserve{background:#b3a6ff12;border-color:#8f80c13d}
+.mini-shell.personal-home.home-review-ink .ins-account-strip>button{background:#20283b;border-radius:11px}
+.mini-shell.personal-home.home-review-ink .personal-next-event{border-radius:11px;background:#1c2333}
