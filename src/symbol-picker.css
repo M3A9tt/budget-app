@@ -9,3 +9,15 @@
 .category-studio .category-chips{display:flex;flex-wrap:wrap;gap:8px}.category-studio .category-chips button{display:flex;align-items:center;gap:7px;min-height:42px;padding:9px 11px;background:var(--glass-field,var(--mini-panel));border:1px solid var(--mini-line);border-radius:11px;color:var(--mini-text);font-size:var(--type-caption)}.category-studio .category-chips small{font-size:var(--type-caption);color:var(--mini-muted)}.category-preview{display:flex;align-items:center;gap:8px;padding:12px;border:1px solid var(--mini-line);border-radius:11px;margin-top:14px}
 @media(prefers-reduced-motion:no-preference){.symbol-grid>button{transition:background-color 180ms,border-color 180ms}.symbol-picker>summary>svg{transition:transform 200ms}}
 .symbol-grid>button>span{font-size:var(--type-symbol)}.symbol-picker .emoji-options button{width:44px;min-height:44px}
+
+.symbol-grid {
+  grid-template-columns: repeat(auto-fill,minmax(min(100%, 92px),1fr));
+}
+.symbol-grid > button > span {
+  max-width: 100%;
+  word-break: normal;
+}
+.symbol-grid > button:focus-visible {
+  outline: 2px solid var(--mini-accent);
+  outline-offset: -2px;
+}

@@ -1,6 +1,6 @@
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
-import {mkdir,writeFile,mkdtemp,symlink,rm} from 'node:fs/promises';
+import {mkdir,writeFile,mkdtemp,symlink,unlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -8,10 +8,10 @@ import assert from 'node:assert/strict';
 import {EMPTY,todayMoscow,dashboard} from '../src/mini-model.js';
 import {plannedOccurrences} from '../src/planned-model.js';
 const baseline='ca8fc429ade0694fbc590db0ca48ebaaf511b6d2',out=process.env.ONDEMAND_SCREENSHOT_DIR||'/tmp/burget-on-demand',root=process.cwd(),temp=await mkdtemp(path.join(tmpdir(),'burget-on-demand-before-'));
-await mkdir(out,{recursive:true});execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});execFileSync('git',['worktree','add','--detach',temp,baseline],{stdio:'ignore'});await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'dir');
+await mkdir(out,{recursive:true});try{execFileSync('git',['cat-file','-e',baseline],{stdio:'ignore'});}catch{execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});}execFileSync('git',['worktree','add','--detach',temp,baseline],{stdio:'ignore'});await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'junction');
 const today=todayMoscow(),day=n=>new Date(Date.parse(today+'T12:00Z')+n*86400000).toISOString().slice(0,10),seed={...structuredClone(EMPTY),accounts:[{id:'card',name:'Основная карта',balance:10000,currency:'RUB'}],settings:{...EMPTY.settings,nextIncomeDate:day(60),notificationMode:'manual',modules:{plans:true,installments:true,debts:true}}};
 await writeFile(path.join(out,'fixture.json'),JSON.stringify({baseline,today,viewport:{width:390,height:844},fictional:true,data:seed},null,2));
-const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']}),evidence=[];
+const browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']}),evidence=[];
 try{for(const [label,appRoot] of [['before',temp],['after',root]]){
  const server=await createServer({root:appRoot,server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();let data=structuredClone(seed),revision=1,writes=0;const errors=[],steps=[];
  page.on('pageerror',e=>errors.push(e.message));const shot=async name=>{await page.locator('.mini-toast').waitFor({state:'hidden'});await page.screenshot({path:path.join(out,label+'-'+name+'.png'),fullPage:true});};
@@ -32,5 +32,5 @@ try{for(const [label,appRoot] of [['before',temp],['after',root]]){
   }
   assert.deepEqual(errors,[]);evidence.push({label,steps,pageErrors:errors});
  }catch(error){await shot('failure').catch(()=>{});console.log((await page.locator('main').innerText()).slice(0,4000));throw error;}finally{await context.close();await server.close();}
-}}finally{await browser.close();execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});await rm(temp,{recursive:true,force:true});}
+}}finally{await browser.close();await unlink(path.join(temp,'node_modules'));execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});}
 await writeFile(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));console.log('On-demand Chromium passed: no date, schedule, calendar, payment, arbitrary next date; 320–1280px');

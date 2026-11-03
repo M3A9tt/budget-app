@@ -4,9 +4,6 @@
 
 
 .mini-shell.personal-calendar .payments-page-heading h2{font-size:24px;font-weight:600;margin:8px 0 12px}
-.mini-shell.personal-calendar .personal-calendar-views{background:var(--glass-field);border-color:var(--mini-line);margin-bottom:13px;padding:3px}
-.mini-shell.personal-calendar .personal-calendar-views button{min-height:36px;color:#a5b2ca;font-size:var(--type-caption)}
-.mini-shell.personal-calendar .personal-calendar-views button[aria-pressed=true]{background:var(--glass-selected);color:#dfebe4}
 .mini-shell.personal-calendar .money-calendar{padding:13px;background:var(--glass-surface);border:1px solid var(--mini-line);border-radius:18px;box-shadow:0 10px 30px #0002}
 .mini-shell.personal-calendar .calendar-month-heading{margin:0 0 5px}
 .mini-shell.personal-calendar .calendar-month-heading>strong{font-size:var(--type-body);color:#e6ecf8}
@@ -127,7 +124,7 @@
 .mini-shell.personal-calendar .calendar-event-sheet .recorded-payment-panel{margin-block:12px;background:#10182766;border-color:#3a4860;border-radius:14px}
 @media(max-width:350px){.mini-shell.personal-calendar dialog.calendar-event-sheet{padding-inline:20px}.mini-shell.personal-calendar .event-sheet-amount>strong{font-size:46px}}
 @media(max-width:350px){.mini-shell.personal-calendar .calendar-presence{gap:1px}.mini-shell.personal-calendar .calendar-symbol svg{width:11px;height:11px}}
-@media(prefers-reduced-motion:no-preference){.mini-shell.personal-calendar dialog.calendar-event-sheet[open]{animation:calendar-sheet-enter 380ms cubic-bezier(.16,1,.3,1) both}@keyframes calendar-sheet-enter{from{transform:translateY(36px);opacity:0}to{transform:translateY(0);opacity:1}}}
+@media(prefers-reduced-motion:no-preference){.mini-shell.personal-calendar dialog.calendar-event-sheet[open]{animation:calendar-sheet-enter 380ms cubic-bezier(.16,1,.3,1) both}@keyframes calendar-sheet-enter{from{transform:translateY(24px) scale(.975);opacity:.15}72%{opacity:1}to{transform:none;opacity:1}}}
 
 /* A focused date step keeps the calendar context without stacking two tasks. */
 .mini-shell.personal-calendar .calendar-event-sheet.is-rescheduling .event-sheet-amount,
@@ -199,4 +196,20 @@
 }
 .mini-shell.personal-calendar :is(.calendar-day-details,.calendar-forecast,.calendar-symbol-help)[open] > summary::after {
   transform: translateY(2px) rotate(225deg);
+}
+
+.mini-shell.personal-calendar .calendar-month-caption {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: clamp(18px,3vw,23px);
+}
+.calendar-month-caption > span:first-child::first-letter { text-transform: uppercase; }
+.mini-shell.personal-calendar .calendar-month-caption > span:last-child {
+  border-inline-start: 1px solid var(--glass-line);
+  padding-inline-start: 10px;
+  color: var(--mini-muted);
+  font-size: .72em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
 }

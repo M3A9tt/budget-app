@@ -89,7 +89,8 @@ for(const width of [320,360,390,430,768,1280]){
 await page.setViewportSize({width:390,height:844});
 await page.goto(origin+'/?settings=1');
 await page.getByRole('button',{name:/Импорт операций/}).click();
-const importBox=page.getByRole('textbox',{name:'Или вставить JSON',exact:true});
+await page.locator('.settings-json').getByRole('button',{name:'Текст',exact:true}).click();
+const importBox=page.getByRole('textbox',{name:'Вставить JSON',exact:true});
 const importNote='Импорт через браузер: сгруппированные копейки';
 await importBox.fill(JSON.stringify({format:'burget-operations',version:1,operations:[null,{date:today,type:'expense',amount:12.3,currency:'RUB',account:'alpha',category:'food',note:importNote,paymentMethod:'sbp'}]}));
 await page.getByRole('button',{name:'Проверить и исправить',exact:true}).click();

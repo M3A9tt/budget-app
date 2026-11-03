@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process';
 import {createHmac} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {mkdtemp,mkdir,symlink,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,symlink,writeFile,readFile,unlink,rmdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import assert from 'node:assert/strict';
@@ -24,10 +24,13 @@ const env={DB,TELEGRAM_OWNER_ID:'111',TELEGRAM_BOT_TOKEN:'fictional-browser-test
 const params=new URLSearchParams({auth_date:String(Math.floor(Date.now()/1000)),user:JSON.stringify({id:111,first_name:'QA'})});
 const secret=createHmac('sha256','WebAppData').update(env.TELEGRAM_BOT_TOKEN).digest();
 params.set('hash',createHmac('sha256',secret).update([...params].map(([k,v])=>k+'='+v).join('\n')).digest('hex'));
-let browser;
+let browser, worktreeAdded=false, dependenciesLinked=false;
 await mkdir(out,{recursive:true});
 try{
- git('worktree','add','--detach',oldRoot,beforeSha);await symlink(join(root,'node_modules'),join(oldRoot,'node_modules'),'junction');
+ git('worktree','add','--detach',oldRoot,beforeSha);
+ worktreeAdded=true;
+ await symlink(join(root,'node_modules'),join(oldRoot,'node_modules'),'junction');
+ dependenciesLinked=true;
  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',join(temporary,'key.pem'),'-out',join(temporary,'cert.pem'),'-days','1','-subj','/CN=localhost'],{stdio:'ignore'});
  const https={key:await readFile(join(temporary,'key.pem')),cert:await readFile(join(temporary,'cert.pem'))};
  browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -72,4 +75,13 @@ try{
   }finally{await context.close();await server.close();}
  }
  console.log('PASS: backup native HTTPS download; actual authenticated Worker and SQLite; exact snapshot; blocked WebView blob simulation; cancelled copy cannot unlock restore; accepted copy plus acknowledgement; 320/390/768/1280px; unchanged finances. '+JSON.stringify({beforeSha,afterSha,out}));
-}finally{await browser?.close();sqlite.close();try{git('worktree','remove','--force',oldRoot);}finally{await rm(temporary,{recursive:true,force:true});}}
+}finally{
+ await browser?.close();
+ sqlite.close();
+ if(dependenciesLinked)await unlink(join(oldRoot,'node_modules'));
+ if(worktreeAdded)git('worktree','remove','--force',oldRoot);
+ for(const file of ['key.pem','cert.pem']){
+  try{await unlink(join(temporary,file));}catch(error){if(error.code!=='ENOENT')throw error;}
+ }
+ await rmdir(temporary);
+}

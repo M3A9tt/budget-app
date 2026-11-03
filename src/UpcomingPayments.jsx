@@ -1,5 +1,5 @@
 import {counted} from './analytics-report.js';
-import React,{useMemo,useState} from 'react';
+import React,{useMemo,useRef,useState} from 'react';
 import {scheduledEvents,moveDate} from './finance-events.js';
 import {prepareEvent} from './event-actions.js';
 import {paymentStatus} from './payment-copy.js';
@@ -18,11 +18,12 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
  const filtered=events.filter(e=>matchesScope(e,scope)&&terms.every(q=>`${e.name} ${e.date} ${e.kind} ${e.billingPeriod||''} ${accounts.get(e.accountId)||''} ${e.amount??''} ${e.amount===null?'':money(e.amount,e.currency)}`.toLocaleLowerCase('ru').includes(q)));
  const groups=[['past','Без отметки о выполнении',e=>e.date<today],['today','Сегодня',e=>e.date===today],['later','Предстоит',e=>e.date>today]];
  const open=event=>{try{setError('');onPrepare(prepareEvent(data,event,today));}catch(e){setError(e.message);}};
- const reset=()=>{setQuery('');setScope('all');setLimit(6);setSelected('');setMoving('');};
+ const searchField=useRef(null);
+ const reset=()=>{setQuery('');setScope('all');setLimit(6);setSelected('');setMoving('');searchField.current?.focus();};
  return <section className="payments-upcoming" aria-label="Ближайшие платежи">
   <div className="mini-between"><h3>{personal?'Ближайшие события':'На 30 дней и ранее без отметки'}</h3><span className="mini-small mini-muted">{counted(events.length,'событие','события','событий')}</span></div>
   {!personal&&<p className="payment-hint">Нажми на строку, чтобы выбрать действие.</p>}
-  <label className="payment-search"><Icon name="search" size={17}/><input type="search" aria-label="Найти платёж" placeholder="Название, счёт, дата или сумма" value={query} onChange={e=>{setQuery(e.target.value);setLimit(6);setSelected('');}}/></label>
+  <label className="payment-search"><Icon name="search" size={17}/><input ref={searchField} type="search" aria-label="Найти платёж" placeholder="Название, счёт, дата или сумма" value={query} onChange={e=>{setQuery(e.target.value);setLimit(6);setSelected('');}}/></label>
   <div className="payment-list-filters" role="group" aria-label="Срок платежей">{[['all','Все'],['unmarked','Без отметки'],['week','7 дней']].map(([id,name])=><button type="button" key={id} aria-pressed={scope===id} onClick={()=>{setScope(id);setLimit(6);setSelected('');setMoving('');}}>{name}<span>{events.filter(e=>matchesScope(e,id)).length}</span></button>)}</div>
   {error&&<p role="alert" className="mini-warning">{error}</p>}
   {groups.map(([id,title,test])=>{
@@ -46,7 +47,7 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
     </article>;
    })}</section>;
   })}
-  {!filtered.length&&<div className="payments-empty" role="status"><Icon name={events.length?'search':'calendar'} size={25}/><strong>{events.length?'Ничего не найдено':'На ближайший месяц событий нет'}</strong>{query||scope!=='all'?<button type="button" className="mini-text-button" onClick={reset}>Сбросить поиск и фильтр</button>:<p className="payment-hint">Новый платёж можно добавить в «Регулярные», «Разовые» или «Сплиты и кредиты».</p>}</div>}
+  {!filtered.length&&<div className="payments-empty"><Icon name={events.length?'search':'calendar'} size={25}/><strong role="status">{events.length?'Ничего не найдено':'На ближайший месяц событий нет'}</strong>{query||scope!=='all'?<button type="button" className="mini-text-button" onClick={reset}>Сбросить поиск и фильтр</button>:<p className="payment-hint">Новый платёж можно добавить в «Регулярные», «Разовые» или «Сплиты и кредиты».</p>}</div>}
   {filtered.length>limit&&<button type="button" className="mini-text-button" onClick={()=>setLimit(n=>n+10)}>Ещё платежи · {filtered.length-limit}</button>}
  </section>;
 }

@@ -1,6 +1,6 @@
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
-import {mkdir,writeFile,mkdtemp,symlink,rm} from 'node:fs/promises';
+import {mkdir,writeFile,mkdtemp,symlink,unlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -11,14 +11,14 @@ import {putTransaction} from '../src/ledger.js';
 const baseline='a60e3ee88d1abceb6c3db16919f2ae9ea44d2c9d';
 const out=process.env.USABILITY_SCREENSHOT_DIR||'/tmp/burget-usability',root=process.cwd(),temp=await mkdtemp(path.join(tmpdir(),'burget-ui-before-'));
 await mkdir(out,{recursive:true});
-execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});
+try{execFileSync('git',['cat-file','-e',baseline],{stdio:'ignore'});}catch{execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});}
 execFileSync('git',['worktree','add','--detach',temp,baseline],{stdio:'ignore'});
-await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'dir');
+await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'junction');
 const today=todayMoscow();
 let seed=createPlanned({...structuredClone(EMPTY),accounts:[{id:'a',name:'Карта',balance:2000,currency:'RUB'}],settings:{...EMPTY.settings,modules:{plans:true},notificationMode:'manual'},customCats:[{id:'cat',name:'Коты',icon:'other',color:'#b8dec4'}]},{id:'housing',name:'ЖКХ',type:'expense',amount:200,accountId:'a',frequency:'monthly',startDate:today});
 seed=putTransaction(seed,{id:'manual',type:'expense',cat:'housing',amount:200,date:today,accountId:'a',note:'ЖКХ уже записано'});
 await writeFile(path.join(out,'fixture.json'),JSON.stringify({baseline,today,viewport:{width:390,height:844},fictional:true,data:seed},null,2));
-const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+const browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const evidence=[];
 try{
  for(const [label,appRoot] of [['before',temp],['after',root]]){
@@ -86,14 +86,20 @@ try{
    }
    await page.goto(origin+'/?settings=1');await page.getByRole('button',{name:/Свои категории/}).click();
    if(label==='after'){
-    await page.getByLabel('Название категории',{exact:true}).fill('Кофе');await page.getByRole('button',{name:'☕',exact:true}).click();await page.getByRole('button',{name:'Добавить категорию',exact:true}).click();await page.getByRole('button',{name:/☕ Кофе/}).waitFor();assert.equal(data.customCats.at(-1).emoji,'☕');
-    await page.getByRole('button',{name:/Коты.*Изменить/}).click();await page.getByRole('button',{name:'🐈',exact:true}).click();await page.getByRole('button',{name:'Сохранить изменения',exact:true}).click();assert.equal(data.customCats.find(c=>c.id==='cat').emoji,'🐈');
+    const openEmojiPicker=async()=>{
+     for(const selector of ['.symbol-picker','.symbol-emoji-choice']){
+      const disclosure=page.locator('.category-studio '+selector);
+      if(!await disclosure.evaluate(el=>el.open))await disclosure.locator(':scope > summary').click();
+     }
+    };
+    await page.getByLabel('Название категории',{exact:true}).fill('Кофе');await openEmojiPicker();await page.getByRole('button',{name:'☕',exact:true}).click();await page.getByRole('button',{name:'Добавить категорию',exact:true}).click();await page.getByRole('button',{name:/Кофе.*Изменить/}).waitFor();assert.equal(data.customCats.at(-1).emoji,'☕');
+    await page.getByRole('button',{name:/Коты.*Изменить/}).click();await openEmojiPicker();await page.getByRole('button',{name:'🐈',exact:true}).click();await page.getByRole('button',{name:'Сохранить изменения',exact:true}).click();assert.equal(data.customCats.find(c=>c.id==='cat').emoji,'🐈');
     for(const width of [320,390,768]){await page.setViewportSize({width,height:844});await noOverflow('categories '+width);await shot('categories-'+width);}
    }else await shot('categories-390');
    assert.deepEqual(errors,[]);
    evidence.push({label,homeHeight,actionTop,accountBalance:data.accounts[0].balance,transactionCount:data.transactions.length,linked:!!data.transactions[0].recurringId,customCategories:data.customCats.length,pageErrors:errors});
   }finally{await context.close();await server.close();}
  }
-}finally{await browser.close();execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});await rm(temp,{recursive:true,force:true});}
+}finally{await browser.close();await unlink(path.join(temp,'node_modules'));execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});}
 await writeFile(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));
 console.log('Task-first home, navigation, expense and recorded payment Chromium passed');

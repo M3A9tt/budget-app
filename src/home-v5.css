@@ -44,11 +44,10 @@
 .mini-shell.personal-home :focus-visible{outline:2px solid #c6e4df;outline-offset:4px}
 /* Opaque surfaces above are the fallback; blur-capable browsers use true translucent layers. */
 @supports((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
- .mini-shell.personal-home .home-budget{background:radial-gradient(ellipse at 10% 0%,#b0d9bd23,transparent 65%),linear-gradient(135deg,#c2e8d11e,#9cbad20b 75%)}
+ .mini-shell.personal-home .home-budget{background:radial-gradient(ellipse at 10% 0%,#b0d9bd32,transparent 74%),radial-gradient(ellipse at 95% 100%,#acbce01b,transparent 68%),linear-gradient(135deg,#c2e8d118,#9cbad20b 75%)}
  .mini-shell.personal-home .personal-next-event{background:linear-gradient(115deg,#d3e8f011,#c8b7e616)}
  .mini-shell.personal-home .ins-account-strip>button{background:linear-gradient(135deg,#bad7e719,#b7d4e50a)}
  .mini-shell.personal-home .ins-account-strip>button:nth-child(2n){background:linear-gradient(135deg,#c7b7e820,#bba5db0a)}
- .mini-shell.personal-home .home-budget,.mini-shell.personal-home .personal-next-event,.mini-shell.personal-home .ins-account-strip>button{-webkit-backdrop-filter:blur(20px) saturate(115%);backdrop-filter:blur(20px) saturate(115%)}
 }
 @media(min-width:1080px){
  .mini-shell.personal-home .ins-home{gap:22px 30px}.mini-shell.personal-home .home-budget{align-self:start}.mini-shell.personal-home .personal-budget{padding:27px 28px 4px}.mini-shell.personal-home .personal-budget-amount{font-size:59px}.mini-shell.personal-home .personal-reserve{padding-inline:28px}
@@ -57,8 +56,8 @@
 
  .mini-shell.personal-home .desktop-transactions{border-color:#c6dce320;background:transparent}.mini-shell.personal-home .desktop-transactions th{background:#cfdeee07;color:#b3c3d2}.mini-shell.personal-home .desktop-transactions td{border-color:#c6dce318}.mini-shell.personal-home .desktop-category{background:#c6b5e511;border-color:#d1c2eb23;color:#d2c6e6}
 }
-@keyframes home-arrive{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-@keyframes home-number{from{opacity:.25;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes home-arrive{from{opacity:.1;transform:translateY(10px) scale(.98)}72%{opacity:1}to{opacity:1;transform:none}}
+@keyframes home-number{from{opacity:.2;transform:translateY(5px) scale(.965)}72%{opacity:1;transform:scale(1.012)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:no-preference){
  .mini-shell.personal-home .ins-home>*{animation:home-arrive 480ms cubic-bezier(.16,1,.3,1) both}
  .mini-shell.personal-home .ins-home>:nth-child(2){animation-delay:45ms}.mini-shell.personal-home .ins-home>:nth-child(3){animation-delay:90ms}.mini-shell.personal-home .ins-home>:nth-child(4){animation-delay:135ms}.mini-shell.personal-home .ins-home>:nth-child(5){animation-delay:180ms}

@@ -18,7 +18,7 @@ function mount(){
  let data={...structuredClone(EMPTY),accounts:[{id:'a',name:'Банк',currency:'RUB',balance:5000}]},calls=0,view;
  act(()=>{view=TestRenderer.create(React.createElement(Panel,{data,busy:false,mutate:async fn=>{data=fn(data);calls++;return true;}}));});
  const click=async label=>{const b=view.root.findAllByType('button').find(n=>text(n).includes(label));assert.ok(b,label);await act(async()=>{await b.props.onClick();});};
- const load=async source=>{act(()=>view.root.findByType('textarea').props.onChange({target:{value:source}}));await click('Проверить и исправить');};
+ const load=async source=>{await click('Текст');act(()=>view.root.findByType('textarea').props.onChange({target:{value:source}}));await click('Проверить и исправить');};
  return {view,click,load,state:()=>data,calls:()=>calls};
 }
 

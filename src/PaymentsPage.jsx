@@ -4,7 +4,7 @@ import {planType} from './planned-model.js';
 import MoneyCalendar from './MoneyCalendar.jsx';
 import UpcomingPayments from './UpcomingPayments.jsx';
 import {moduleEnabled} from './modules.js';
-import React,{useState,useRef} from 'react';
+import React,{useState,useRef,useLayoutEffect} from 'react';
 import Icon from './mini-icons.jsx';
 import {money,todayMoscow,dashboard} from './mini-model.js';
 import {paymentDate} from './payment-copy.js';
@@ -15,12 +15,14 @@ export default function PaymentsPage({personal=false,data,mutate,busy,cats,onPre
  const plans=moduleEnabled(data,'plans')||data.recurring.length>0,installments=moduleEnabled(data,'installments')||(data.installments||[]).length>0,debts=moduleEnabled(data,'debts')||(data.debts||[]).length>0;
  const tabs=[['all','Ближайшие'],...(installments?[['installments','Сплиты и кредиты']]:[]),...(plans?[['regular','Регулярные'],['manual','По необходимости'],['once','Разовые']]:[]),...(debts?[['debts','Долги']]:[])];
  const target=initialSection==='payoff'?'installments':initialSection,[section,setSection]=useState(()=>['calendar','income'].includes(target)||tabs.some(([id])=>id===target)?target:'all');
- const menu=useRef(null);
+ const menu=useRef(null),restoreMenuFocus=useRef(false);
+ useLayoutEffect(()=>{if(restoreMenuFocus.current){restoreMenuFocus.current=false;menu.current?.querySelector("summary")?.focus({preventScroll:true});}},[section]);
  const selectSection=id=>{if(menu.current)menu.current.open=false;setSection(id);onSectionChange(id);};
  const planData={...data,recurring:data.recurring.filter(r=>(section==='once'?r.frequency==='once':section==='manual'?r.frequency==='manual':!['once','manual'].includes(r.frequency)))};
  const incomeWindow=budgetWindow(data,today);
- const management=<details className="payments-management" ref={menu}><summary>{personal?'Управление событиями':'Расходы и доходы'}<span>{section==='income'?'Ожидаемые доходы':section==='calendar'?'Календарь':tabs.find(([id])=>id===section)?.[1]||'Ближайшие'} <Icon name="down" size={14}/></span></summary><nav className="payments-sections" aria-label="Разделы планирования">{tabs.map(([id,name])=><button type="button" key={id} aria-pressed={section===id||id==='all'&&section==='calendar'} onClick={()=>selectSection(id)}>{name}</button>)}</nav></details>;
- return <section className="connected-payments payments-simple"><header className="payments-page-heading"><h2>{personal||section==='calendar'?'Календарь':'Планы'}</h2>{!personal&&<button type="button" className="mini-text-button payments-calendar-link" aria-pressed={section==='calendar'} onClick={()=>selectSection(section==='calendar'?'all':'calendar')}><Icon name={section==='calendar'?'back':'calendar'} size={17}/>{section==='calendar'?'К списку':'Календарь'}</button>}</header>{personal&&<div className="personal-calendar-views" role="group" aria-label="Вид календаря">{[['all','Список'],['calendar','Месяц']].map(([id,name])=><button type="button" key={id} aria-pressed={section===id} onClick={()=>selectSection(id)}>{name}</button>)}</div>}
+ const management=<details className="payments-management" ref={menu}><summary>{personal?'Управление событиями':'Расходы и доходы'}<span>{section==='income'?'Ожидаемые доходы':section==='calendar'?'Календарь':tabs.find(([id])=>id===section)?.[1]||'Ближайшие'} <Icon name="down" size={14}/></span></summary><nav className="payments-sections" aria-label="Разделы планирования">{tabs.map(([id,name])=><button type="button" key={id} aria-pressed={section===id||id==='all'&&section==='calendar'} onClick={()=>{if(personal&&id!==section)restoreMenuFocus.current=true;selectSection(id);if(id===section)menu.current?.querySelector("summary")?.focus({preventScroll:true});}}>{name}</button>)}</nav></details>;
+ return <section className="connected-payments payments-simple"><header className={personal?"history-heading payments-personal-heading":"payments-page-heading"}><h2 className={personal?"mini-title":undefined}>{personal||section==='calendar'?'Календарь':'Планы'}</h2>{!personal&&<button type="button" className="mini-text-button payments-calendar-link" aria-pressed={section==='calendar'} onClick={()=>selectSection(section==='calendar'?'all':'calendar')}><Icon name={section==='calendar'?'back':'calendar'} size={17}/>{section==='calendar'?'К списку':'Календарь'}</button>}</header>{personal&&<div className="personal-calendar-views" role="group" aria-label="Вид календаря">{[['all','Список','history'],['calendar','Месяц','calendar']].map(([id,name,icon])=><button type="button" key={id} aria-pressed={section===id} onClick={()=>selectSection(id)}><Icon name={icon} size={18}/>{name}</button>)}</div>}
+ <div key={section} className={personal?'view-slide payments-view':undefined} data-calendar-view={personal?section:undefined}>
  {(!personal||section!=='calendar')&&management}
  {section==='all'&&<><div className="payments-budget-line"><span>Учтено в «Можно потратить»<small>{s.budgetHorizon==='payday'?'До дохода '+paymentDate(s.budgetUntil):'На ближайшие 30 дней'}{s.unknown>0?' · ещё '+s.unknown+' без суммы':''}</small></span><b>{money(s.obligations)}</b></div><button type="button" className="payments-income-entry" onClick={()=>{onIncomeDateChange(today);selectSection('income');}}><Icon name="down" size={18}/><span><b>Ожидаемые доходы</b><small>{incomeWindow.incomeSource==='plan'?incomeWindow.incomeName+' · '+paymentDate(incomeWindow.until):'Зарплата, аванс и другие поступления'}</small></span><Icon name="arrow" size={16}/></button><UpcomingPayments personal={personal} data={data} busy={busy} onPrepare={onPrepare} mutate={mutate} onSource={event=>selectSection(event.source==='installment'?'installments':'debts')}/></>}
  {!plans&&!installments&&!debts&&<div className="mini-card"><p className="payment-hint">Включи планирование, чтобы добавить первую операцию.</p><button className="mini-primary" disabled={busy} onClick={()=>mutate(d=>({...d,settings:{...d.settings,modules:{...d.settings.modules,plans:true}}}),'Планы включены')}>Начать планирование</button></div>}
@@ -30,5 +32,5 @@ export default function PaymentsPage({personal=false,data,mutate,busy,cats,onPre
  {section==='installments'&&<PaymentTools section="installments" onEdit={onEdit} data={data} mutate={mutate} busy={busy} cats={cats} onPrepare={onPrepare}/>}
  {section==='debts'&&<DebtTools data={data} mutate={mutate} busy={busy} onEdit={onEdit}/>}
  {personal&&section==='calendar'&&management}
- </section>;
+ </div></section>;
 }
