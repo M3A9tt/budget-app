@@ -86,14 +86,13 @@ try{
    }
    await page.goto(origin+'/?settings=1');await page.getByRole('button',{name:/Свои категории/}).click();
    if(label==='after'){
-    const openEmojiPicker=async()=>{
-     for(const selector of ['.symbol-picker','.symbol-emoji-choice']){
-      const disclosure=page.locator('.category-studio '+selector);
-      if(!await disclosure.evaluate(el=>el.open))await disclosure.locator(':scope > summary').click();
-     }
+    const chooseIcon=async name=>{
+     const disclosure=page.locator('.category-studio .symbol-picker');
+     if(!await disclosure.evaluate(el=>el.open))await disclosure.locator(':scope > summary').click();
+     await disclosure.getByRole('button',{name:'Значок: '+name,exact:true}).click();
     };
-    await page.getByLabel('Название категории',{exact:true}).fill('Кофе');await openEmojiPicker();await page.getByRole('button',{name:'☕',exact:true}).click();await page.getByRole('button',{name:'Добавить категорию',exact:true}).click();await page.getByRole('button',{name:/Кофе.*Изменить/}).waitFor();assert.equal(data.customCats.at(-1).emoji,'☕');
-    await page.getByRole('button',{name:/Коты.*Изменить/}).click();await openEmojiPicker();await page.getByRole('button',{name:'🐈',exact:true}).click();await page.getByRole('button',{name:'Сохранить изменения',exact:true}).click();assert.equal(data.customCats.find(c=>c.id==='cat').emoji,'🐈');
+    await page.getByLabel('Название категории',{exact:true}).fill('Кофе');await chooseIcon('Кофе');await page.getByRole('button',{name:'Добавить категорию',exact:true}).click();await page.getByRole('button',{name:/Кофе.*Изменить/}).waitFor();assert.equal(data.customCats.at(-1).icon,'coffee');
+    await page.getByRole('button',{name:/Коты.*Изменить/}).click();await chooseIcon('Питомцы');await page.getByRole('button',{name:'Сохранить изменения',exact:true}).click();assert.equal(data.customCats.find(c=>c.id==='cat').icon,'pet');
     for(const width of [320,390,768]){await page.setViewportSize({width,height:844});await noOverflow('categories '+width);await shot('categories-'+width);}
    }else await shot('categories-390');
    assert.deepEqual(errors,[]);
