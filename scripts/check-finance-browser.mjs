@@ -14,7 +14,7 @@ try{
 browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--single-process','--no-zygote'],headless:true});
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,locale:'ru-RU'});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
-let data=structuredClone(EMPTY),revision=1;data.settings={...data.settings,modules:{lunch:true},nextIncomeDate:future.toISOString().slice(0,10)};
+let data=structuredClone(EMPTY),revision=1;data.settings={...data.settings,interfaceVersion:1,legacyInterfaceOptIn:true,modules:{lunch:true},nextIncomeDate:future.toISOString().slice(0,10)};
 data.accounts=[{id:'sber',name:'Сбер',balance:0,currency:'RUB'},{id:'alpha',name:'Альфа',balance:5405.2,currency:'RUB'},{id:'yandex',name:'Яндекс',balance:694,currency:'RUB'},{id:'edu',name:'Учёба',balance:35086.66,currency:'RUB',accType:'savings'}];
 data=putTransaction(data,{id:'meal',type:'lunch',cat:'lunch',date:today,amount:350,note:'Суп, салат и горячее'});
 data=putTransaction(data,{id:'topup',type:'expense',cat:'food',date:today,amount:50,accountId:'yandex',lunchId:'meal',note:'Доплата за обед',tags:['обед-за-свои']});

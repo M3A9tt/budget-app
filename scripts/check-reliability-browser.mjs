@@ -24,6 +24,7 @@ try{
  const launch=()=>chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--single-process','--no-zygote'],headless:true});browser=await launch();
  const context=await browser.newContext({viewport:{width:390,height:1000},locale:'ru-RU'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://telegram.org/**',route=>route.fulfill({body:'',contentType:'application/javascript'}));
+ fixture.settings={...fixture.settings,interfaceVersion:1,legacyInterfaceOptIn:true};
  let data=structuredClone(fixture),revision=1,status=200,userId='fictional-qa';
  await page.route('**/api/v1/**',async route=>{
   if(route.request().method()==='PUT'){const payload=route.request().postDataJSON();assert.equal(payload.expectedRevision,revision);data=payload.data;revision++;return route.fulfill({json:{revision}});}

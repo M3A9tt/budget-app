@@ -29,8 +29,8 @@ test('G07 contradictory new lunch expense is rejected; historical balances are n
  const old=migrateData({...d,transactions:[{...input,accountId:undefined}]},EMPTY);assert.equal(old.accounts[0].balance,1000);const memo=putTransaction(old,{...old.transactions[0],note:'Уточнение'});assert.equal(memo.accounts[0].balance,1000);assert.throws(()=>putTransaction(memo,{...memo.transactions[0],amount:120}),/обед/);
 });
 test('Pilot switches only presentation and preserves preferences, history, money and all modules',()=>{
- const d=customizeHome(transfer(),{preset:'full'}),next=setInterfaceVersion(d,2),back=setInterfaceVersion(next,1);assert(personalInterface(next));assert(!personalInterface(back));
- assert.deepEqual({...back,settings:d.settings},d);assert.deepEqual(next.settings.homeLayout,d.settings.homeLayout);migrateData(next,EMPTY);assert.throws(()=>migrateData({...d,settings:{...d.settings,interfaceVersion:3}},EMPTY));assert.equal(initialProfile(EMPTY).settings.interfaceGuideSeen,true);assert.equal(initialProfile(EMPTY).settings.interfaceVersion,1);
+ const d=customizeHome(transfer(),{preset:'full'}),next=setInterfaceVersion(d,2),back=setInterfaceVersion(next,1);assert(personalInterface(d));assert(personalInterface({...d,settings:{...d.settings,interfaceVersion:1}}));assert(personalInterface(next));assert(!personalInterface(back));
+ assert.deepEqual({...back,settings:d.settings},d);assert.deepEqual(next.settings.homeLayout,d.settings.homeLayout);migrateData(next,EMPTY);assert.throws(()=>migrateData({...d,settings:{...d.settings,interfaceVersion:3}},EMPTY));assert.equal(initialProfile(EMPTY).settings.interfaceGuideSeen,true);assert.equal(personalInterface(initialProfile(EMPTY)),true);
 });
 test('G06 compare revisions only within the same owner',()=>{assert(acceptsProfile({userId:'a',revision:100},{userId:'b',revision:1}));assert(acceptsProfile({userId:'a',revision:1},{userId:'b',revision:100}));assert(!acceptsProfile({userId:'a',revision:100},{userId:'a',revision:99}));});
 test('G06 a delayed state read cannot cross logout/login or erase a newer pending read',async t=>{

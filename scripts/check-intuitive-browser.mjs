@@ -25,7 +25,7 @@ try{
   const server=await createServer({root:appRoot,server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();
   const origin='http://127.0.0.1:'+server.httpServer.address().port;
   const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
-  let data=structuredClone(seed),revision=1;const errors=[];
+  let data=structuredClone({...seed,settings:{...seed.settings,interfaceVersion:1,legacyInterfaceOptIn:true}}),revision=1;const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   const shot=async(name,fullPage=true)=>{await page.locator('.mini-toast').waitFor({state:'hidden'});return page.screenshot({path:path.join(out,label+'-'+name+'.png'),fullPage});};
   const noOverflow=async name=>assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,name);

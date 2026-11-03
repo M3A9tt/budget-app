@@ -13,7 +13,7 @@ const today=todayMoscow(),day=n=>new Date(Date.parse(today+'T12:00Z')+n*86400000
 await writeFile(path.join(out,'fixture.json'),JSON.stringify({baseline,today,viewport:{width:390,height:844},fictional:true,data:seed},null,2));
 const browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']}),evidence=[];
 try{for(const [label,appRoot] of [['before',temp],['after',root]]){
- const server=await createServer({root:appRoot,server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();let data=structuredClone(seed),revision=1,writes=0;const errors=[],steps=[];
+ const server=await createServer({root:appRoot,server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();let data=structuredClone({...seed,settings:{...seed.settings,interfaceVersion:1,legacyInterfaceOptIn:true}}),revision=1,writes=0;const errors=[],steps=[];
  page.on('pageerror',e=>errors.push(e.message));const shot=async name=>{await page.locator('.mini-toast').waitFor({state:'hidden'});await page.screenshot({path:path.join(out,label+'-'+name+'.png'),fullPage:true});};
  const record=action=>steps.push({action,writes,balance:data.accounts[0].balance,transactions:data.transactions.length,obligations:dashboard(data,today).obligations,free:dashboard(data,today).free,dates:data.recurring.flatMap(r=>r.scheduledDates||[]),events:plannedOccurrences(data,today,'2099-12-31').map(e=>({date:e.date,period:e.period}))});
  try{
