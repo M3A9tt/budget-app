@@ -5,10 +5,10 @@ import vm from 'node:vm';
 import {buildSync} from 'esbuild';
 const code=buildSync({entryPoints:[fileURLToPath(new URL('../src/MiniApp.jsx',import.meta.url))],bundle:true,write:false,format:'cjs',platform:'node',loader:{'.css':'empty'},external:['react']}).outputFiles[0].text;
 // Run the real screen handlers with in-memory hooks; no server or personal profile involved.
-function app(){
+function app({legacy=true}={}){
  const slots=[],layouts=[],listeners=new Map();let index=0,tree,scroll=0;
  const React={Fragment:'fragment',Suspense:'suspense',lazy:()=>function Deferred(){},createElement:(type,props,...children)=>({type,props:props||{},children}),
- useState(initial){const i=index++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return[slots[i],value=>slots[i]=typeof value==='function'?value(slots[i]):value];},
+ useState(initial){const i=index++;if(!(i in slots)){const value=typeof initial==='function'?initial():initial;if(legacy&&value?.data?.settings){value.data.settings={...value.data.settings,interfaceVersion:1,legacyInterfaceOptIn:true};}slots[i]=value;}return[slots[i],value=>slots[i]=typeof value==='function'?value(slots[i]):value];},
  useRef(value){const i=index++;return slots[i]??(slots[i]={current:value});},useMemo:fn=>fn(),useEffect:()=>{},
  useLayoutEffect(fn,deps){const i=index++,old=slots[i];if(!old||deps.some((d,n)=>!Object.is(d,old.deps[n]))){old?.cleanup?.();slots[i]={deps};layouts.push(()=>slots[i].cleanup=fn());}}};
  const window={__BUDGET_DEMO__:true,location:{search:''},matchMedia:()=>({matches:false}),get scrollY(){return scroll;},scrollTo:({top})=>scroll=top,addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}};
@@ -18,8 +18,8 @@ function app(){
  const text=node=>Array.isArray(node)?node.map(text).join(''):typeof node==='object'&&node?text(node.children):node??'';
  render();return {render,find,button:label=>find(n=>n.type==='button'&&text(n)===label),component:name=>find(n=>n.type?.name===name),scrollTo:n=>{scroll=n;listeners.get('scroll')?.();},get scroll(){return scroll;}};
 }
-test('Editing returns to the filtered history at its prior position; successful save keeps one linked operation',async()=>{
- const a=app();a.button('История').props.onClick();a.render();const rows=a.component('Transactions'),tx=rows.props.txs[0];assert.ok(tx);
+test('Editing returns to filtered operations at the prior position and saves a single operation in the new view',async()=>{
+ const a=app({legacy:false});a.button('Операции').props.onClick();a.render();const rows=a.component('Transactions'),tx=rows.props.txs[0];assert.ok(tx);
  const search=a.find(n=>n.props['aria-label']==='Поиск операций');search.props.onChange({target:{value:tx.note}});a.render();a.scrollTo(460);
  a.component('Transactions').props.onEdit(tx);a.render();assert.equal(a.scroll,0);
  let composer=a.component('EntryComposer');composer.props.setDraft({...composer.props.draft,amount:String(tx.amount+1)});a.render();composer=a.component('EntryComposer');await composer.props.onSave({preventDefault(){}});a.render();
