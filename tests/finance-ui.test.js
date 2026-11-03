@@ -24,7 +24,7 @@ test('Payments use one-level sections, retain the extra calendar, and open share
  const v=mount('PaymentsPage',{data,cats:CATEGORIES,onPrepare:d=>draft=d});
  const nav=v.root.findByProps({'aria-label':'Разделы планирования'});assert.deepEqual(nav.findAllByType('button').map(b=>text(b)),['Ближайшие','Сплиты и кредиты','Регулярные','По необходимости','Разовые','Долги']);assert.equal(v.root.findAllByProps({className:'payment-source-grid'}).length,0);assert.equal(v.root.findAllByProps({className:'money-calendar '}).length,0);
  click(v,b=>b.props.className==='upcoming-payment');assert.equal(draft,undefined);assert.deepEqual(data,before);click(v,b=>text(b)==='Записать оплату');assert.equal(draft.recurringId,'due');assert.equal(draft.amount,'100');assert.deepEqual(data,before);
- click(v,b=>text(b)==='Календарь');assert.ok(text(v.toJSON()).includes('Календарь денег'));click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('На 30 дней и ранее без отметки'));
+ click(v,b=>text(b)==='Календарь');assert.deepEqual(v.root.findAllByType('h2').map(text),['Календарь']);click(v,b=>text(b)==='К списку');assert.ok(text(v.toJSON()).includes('На 30 дней и ранее без отметки'));
  click(v,b=>text(b)==='Регулярные');assert.ok(text(v.toJSON()).includes('ЖКХ'));
  for(const label of ['Ближайшие','Сплиты и кредиты','Регулярные','По необходимости','Разовые','Долги','Ближайшие']){click(v,b=>text(b)===label);assert.equal(v.root.findAllByProps({className:'payments-management'}).length,1,'one menu after '+label);}
  v.unmount();

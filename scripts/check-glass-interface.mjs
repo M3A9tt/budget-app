@@ -20,9 +20,26 @@ try{
  if(!baseline){await page.route('https://fonts.googleapis.com/**',r=>r.abort());await page.route('https://fonts.gstatic.com/**',r=>r.abort());}
  await page.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'application/javascript'}));
  await page.route('**/api/v1/**',r=>{const url=new URL(r.request().url());if(url.pathname==='/api/v1/telemetry')return r.fulfill({json:{ok:true}});if(url.pathname!=='/api/v1/state')return r.fulfill({status:503,json:{error:'Вымышленный профиль: сервис недоступен'}});if(r.request().method()==='PUT'){const body=r.request().postDataJSON();assert.equal(body.expectedRevision,revision);data=body.data;writes.push(structuredClone(data));revision++;}return r.fulfill({json:{data,revision,userId:'fictional-glass-interface'}});});
- await page.goto('http://127.0.0.1:'+server.httpServer.address().port);await page.locator('.ins-home').waitFor();if(readability){await page.evaluate(()=>document.fonts.ready);const cdp=await page.context().newCDPSession(page);await cdp.send('DOM.enable');await cdp.send('CSS.enable');const doc=await cdp.send('DOM.getDocument'),node=await cdp.send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:'.personal-budget-amount'});const result=await cdp.send('CSS.getPlatformFontsForNode',{nodeId:node.nodeId});renderedFonts.push(...result.fonts);if(!baseline)assert(renderedFonts.some(font=>font.familyName==='Onest'&&font.isCustomFont),'the rendered font must really be bundled Onest');await cdp.detach();}await shot('home');
+ await page.goto('http://127.0.0.1:'+server.httpServer.address().port);await page.locator('.ins-home').waitFor();if(readability){await page.evaluate(()=>document.fonts.ready);const cdp=await page.context().newCDPSession(page);await cdp.send('DOM.enable');await cdp.send('CSS.enable');const doc=await cdp.send('DOM.getDocument'),node=await cdp.send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:'.personal-budget-amount'});const result=await cdp.send('CSS.getPlatformFontsForNode',{nodeId:node.nodeId});renderedFonts.push(...result.fonts);if(!baseline)assert(renderedFonts.some(font=>/^Commissioner(?: |$)/.test(font.familyName)&&font.isCustomFont),JSON.stringify(renderedFonts));await cdp.detach();}await shot('home');
  await page.getByRole('button',{name:'Записать операцию',exact:true}).click();await page.locator('#amount').fill('250');await page.getByLabel('Комментарий',{exact:true}).fill('Кофе с собой');await shot('entry');await page.getByRole('button',{name:'Назад',exact:true}).click();
  await nav('Открыть календарь').click();await page.locator('.money-calendar').waitFor();await shot('calendar');
+ if(!baseline){
+  const selected=page.getByLabel('Перейти к дате',{exact:true});
+  await selected.fill('2026-11-04');
+  await more('Аналитика');
+  await page.getByRole('button',{name:/Что впереди/}).click();
+  await page.locator('.personal-calendar .money-calendar').waitFor();
+  assert.equal(await selected.inputValue(),'2026-11-04');
+  assert.equal(await page.locator('.money-calendar-heading').count(),0);
+  assert.equal(await page.getByRole('button',{name:'Месяц',exact:true}).getAttribute('aria-pressed'),'true');
+  await shot('calendar-from-analytics');
+  await more('Аналитика');
+  await page.getByRole('button',{name:/План и ожидаемые доходы/}).click();
+  await page.locator('.personal-calendar .money-calendar').waitFor();
+  assert.equal(await selected.inputValue(),'2026-11-04');
+  await page.getByRole('button',{name:'Сегодня',exact:true}).click();
+ }
+
  await nav('Операции').click();await page.locator('.mini-page[data-page=history]').waitFor();await shot('operations');
  for(const [name,key] of [['Счета','accounts'],['Накопления','savings'],['Цели','goals'],['Аналитика','analytics'],['Обеды','lunch'],['Настройки','settings']]){await more(name);await shot(key);}
  for(const [name,key] of [['Уведомления','notifications'],['Бюджет и лимиты','limits'],['Импорт операций','import'],['Резервные копии','backup'],['Модули и главная','modules']]){await page.getByRole('button',{name:new RegExp(name)}).click();await shot(key);await page.getByRole('button',{name:'Все настройки',exact:true}).click();}

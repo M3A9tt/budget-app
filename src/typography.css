@@ -1,4 +1,4 @@
-@font-face{font-family:Onest;src:url('/fonts/onest-variable.ttf') format('truetype');font-style:normal;font-weight:100 900;font-display:swap}
+@font-face{font-family:Commissioner;src:url('/fonts/commissioner-variable.ttf') format('truetype');font-style:normal;font-weight:100 900;font-display:swap}
 :root{--type-body:1rem;--type-label:.9375rem;--type-caption:.875rem;--type-compact:.8125rem;--type-symbol:.75rem}
 .mini-shell{font-size:var(--type-body);line-height:1.45;text-rendering:optimizeLegibility}
 .mini-shell :is(button,input,select,textarea){font-family:inherit;line-height:1.4}
