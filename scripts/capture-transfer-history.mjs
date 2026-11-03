@@ -13,7 +13,7 @@ const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 const beforeSha=git('rev-parse',process.env.AUDIT_BEFORE_REF||'da5105f379aa2b690f5965fa5cf158fd644ce52b'),afterSha=git('rev-parse','HEAD');
 const temporary=await mkdtemp(join(tmpdir(),'burget-transfers-')),oldRoot=join(temporary,'before'),date='2026-10-26';
 let fixture=structuredClone(EMPTY);
-fixture.settings={...fixture.settings,timeZone:'Europe/Moscow'};
+fixture.settings={...fixture.settings,interfaceVersion:1,legacyInterfaceOptIn:true,timeZone:'Europe/Moscow'};
 fixture.accounts=[{id:'card',name:'Основная карта',balance:10000,currency:'RUB'},{id:'save',name:'Накопления на учёбу',balance:0,currency:'RUB',accType:'savings'}];
 fixture=putTransaction(fixture,{id:'income',date,type:'income',cat:'income',accountId:'card',amount:1000,note:'Подработка'});
 fixture=putTransaction(fixture,{id:'coffee',date,type:'expense',cat:'food',accountId:'card',amount:120,note:'Кофе'});

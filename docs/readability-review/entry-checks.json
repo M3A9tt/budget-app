@@ -1,0 +1,25 @@
+{
+  "metrics": [
+    {
+      "width": 320,
+      "saveBottom": 751
+    },
+    {
+      "width": 390,
+      "saveBottom": 758
+    },
+    {
+      "width": 768,
+      "saveBottom": 753
+    },
+    {
+      "width": 1280,
+      "saveBottom": 809
+    }
+  ],
+  "commentVisible": true,
+  "pickerPreservesInput": true,
+  "balanceBefore": 46940,
+  "balanceAfter": 46690,
+  "pageErrors": []
+}

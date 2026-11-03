@@ -1,0 +1,41 @@
+{
+  "today": "2026-11-02",
+  "fictional": true,
+  "baseline": false,
+  "results": [
+    {
+      "scenario": "housing-move",
+      "balancesUnchanged": true,
+      "anchor": 2,
+      "date": "2026-11-04"
+    },
+    {
+      "scenario": "repeat-installment",
+      "linkedPayments": 2,
+      "accountBalance": 915
+    },
+    {
+      "scenario": "transfer-edit-and-reverse",
+      "balances": [
+        1520,
+        0
+      ],
+      "fees": 0
+    },
+    {
+      "scenario": "draft-reload",
+      "preserved": true,
+      "financialWrites": 0
+    },
+    {
+      "scenario": "profile-change",
+      "oldDraftCleared": true
+    },
+    {
+      "scenario": "auth-and-sdk",
+      "diagnostic503": true,
+      "shellBeforeSDK": true
+    }
+  ],
+  "pageErrors": []
+}

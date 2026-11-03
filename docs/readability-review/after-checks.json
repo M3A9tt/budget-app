@@ -1,0 +1,1023 @@
+{
+  "fictional": true,
+  "baseline": null,
+  "sourceRevision": "9fcba202e1c83b6945d83071ad67209b789966a6",
+  "screens": [
+    {
+      "name": "home",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "home",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "home",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "home",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "entry",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "operations",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "accounts",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "savings",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "goals",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "analytics",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "lunch",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "settings",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "notifications",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "limits",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "import",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "backup",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "modules",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-actions",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-actions",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-actions",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-actions",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-editor",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-editor",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-editor",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-editor",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-list",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-list",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-list",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-list",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "categories",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "symbol-picker",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "symbol-picker",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "symbol-picker",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "symbol-picker",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-created",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-created",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-created",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-created",
+      "width": 1280,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-funded",
+      "width": 320,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-funded",
+      "width": 390,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-funded",
+      "width": 768,
+      "noOverflow": true
+    },
+    {
+      "name": "goal-funded",
+      "width": 1280,
+      "noOverflow": true
+    }
+  ],
+  "typeChecks": [
+    {
+      "name": "home",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "home",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "home",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "home",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "entry",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "entry",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "entry",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "entry",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "calendar",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "calendar",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "calendar",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "calendar",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "operations",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "operations",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "operations",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "operations",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "accounts",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "accounts",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "accounts",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "accounts",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "savings",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "savings",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "savings",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "savings",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "goals",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "goals",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "goals",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "goals",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "analytics",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "analytics",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "analytics",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "analytics",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "lunch",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "lunch",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "lunch",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "lunch",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "settings",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "settings",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "settings",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "settings",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "notifications",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "notifications",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "notifications",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "notifications",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "limits",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "limits",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "limits",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "limits",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "import",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "import",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "import",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "import",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "backup",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "backup",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "backup",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "backup",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "modules",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "modules",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "modules",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "modules",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "goal-actions",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "goal-actions",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "goal-actions",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "goal-actions",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "goal-editor",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "goal-editor",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "goal-editor",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "goal-editor",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "calendar-list",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "calendar-list",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "calendar-list",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "calendar-list",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "calendar-search-empty",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "categories",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "categories",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "categories",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "categories",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "symbol-picker",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "symbol-picker",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "symbol-picker",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "symbol-picker",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "operations-custom-icon",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "calendar-custom-icon",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "goal-created",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "goal-created",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "goal-created",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "goal-created",
+      "width": 1280,
+      "tiny": []
+    },
+    {
+      "name": "goal-funded",
+      "width": 320,
+      "tiny": []
+    },
+    {
+      "name": "goal-funded",
+      "width": 390,
+      "tiny": []
+    },
+    {
+      "name": "goal-funded",
+      "width": 768,
+      "tiny": []
+    },
+    {
+      "name": "goal-funded",
+      "width": 1280,
+      "tiny": []
+    }
+  ],
+  "renderedFonts": [
+    {
+      "familyName": "Onest",
+      "postScriptName": "Onest-SemiBold",
+      "isCustomFont": true,
+      "glyphCount": 8
+    }
+  ],
+  "goalFundingOnce": true,
+  "writes": 7,
+  "errors": [],
+  "iconRoundtrip": true,
+  "expenseDebitedOnce": true,
+  "legacySwitch": true
+}

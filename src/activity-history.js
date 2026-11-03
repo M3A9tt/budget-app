@@ -15,10 +15,13 @@ export function transferDetails(data,entry){
  return {route,description};
 }
 
-export function filterActivity(entries,data,cats,{type='all',date='',search='',chartFilter=null}={}){
+export function filterActivity(entries,data,cats,{type='all',date='',search='',chartFilter=null,includeCompanyLunch}={}){
  const normalize=value=>value.replace(/\s+/gu,' ').trim().toLocaleLowerCase('ru'),query=normalize(search);
  return entries.filter(t=>{
-  if(type!=='all'&&t.type!==type||date&&t.date!==date||chartFilter&&!matchesInsight(t,chartFilter))return false;
+  const lunch=companyLunch(t);
+  if(lunch&&includeCompanyLunch===false)return false;
+  const matchesType=type==='all'||t.type===type||(type==='expense'&&lunch&&includeCompanyLunch===true);
+  if(!matchesType||date&&t.date!==date||chartFilter&&!matchesInsight(t,chartFilter))return false;
   const details=t.type==='transfer'?Object.values(transferDetails(data,t)).join(' '):[cats.find(c=>c.id===t.cat)?.name,t.type==='income'?'Доход':t.type==='lunch'?'Обед компании':'Расход',data.accounts.find(a=>a.id===t.accountId)?.name,{sbp:'СБП',card:'Карта',cash:'Наличные'}[t.paymentMethod]].join(' ');
   return normalize([t.note,t.date,t.amount,money(t.amount,t.currency),details].join(' ')).includes(query);
  });

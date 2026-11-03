@@ -1,6 +1,6 @@
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
-import {mkdir,writeFile,mkdtemp,symlink,rm} from 'node:fs/promises';
+import {mkdir,writeFile,mkdtemp,symlink,unlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -12,22 +12,22 @@ import {putTransaction} from '../src/ledger.js';
 const baseline='bd6c289782ffe10f4e093a437dd9e942eb375ea4';
 const out=process.env.PAYMENT_SCREENSHOT_DIR||'/tmp/burget-payment-experience',root=process.cwd(),temp=await mkdtemp(path.join(tmpdir(),'burget-payments-before-'));
 await mkdir(out,{recursive:true});
-execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});
+try{execFileSync('git',['cat-file','-e',baseline],{stdio:'ignore'});}catch{execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});}
 execFileSync('git',['worktree','add','--detach',temp,baseline],{stdio:'ignore'});
-await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'dir');
+await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'junction');
 const today=todayMoscow(),offset=n=>new Date(Date.parse(today+'T12:00Z')+n*86400000).toISOString().slice(0,10);
 let seed={...structuredClone(EMPTY),accounts:[{id:'card',name:'Основная карта',balance:2000,currency:'RUB'}],settings:{...EMPTY.settings,notificationMode:'manual',modules:{plans:true,installments:true,debts:true}}};
 for(const [id,name,n,amount] of [['housing','ЖКХ',-1,200],['stale','Старый платёж',-2,500],['internet','Интернет',0,100],['travel','Проездной',3,350],['unknown','Уточняемый платёж',10,50]])seed=createPlanned(seed,{id,name,frequency:'once',type:'expense',startDate:offset(n),amount,accountId:'card',cat:'housing',variable:id==='unknown'});
 seed=createInstallment(seed,{id:'split',name:'Тестовый сплит',total:600,count:2,firstDate:today,cadence:'biweekly',accountId:'card'});
 seed=putTransaction(seed,{id:'manual',type:'expense',cat:'housing',amount:200,date:offset(-1),accountId:'card',note:'ЖКХ внесено раньше'});
 await writeFile(path.join(out,'fixture.json'),JSON.stringify({baseline,today,viewport:{width:390,height:844},fictional:true,data:seed},null,2));
-const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});const evidence=[];
+const browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});const evidence=[];
 try{
  for(const [label,appRoot] of [['before',temp],['after',root]]){
   const server=await createServer({root:appRoot,server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();
   const origin='http://127.0.0.1:'+server.httpServer.address().port;
   const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
-  let data=structuredClone(seed),revision=1,writes=0;const errors=[],steps=[];
+  let data=structuredClone({...seed,settings:{...seed.settings,interfaceVersion:1,legacyInterfaceOptIn:true}}),revision=1,writes=0;const errors=[],steps=[];
   const shot=async(name,fullPage=true)=>{await page.locator('.mini-toast').waitFor({state:'hidden'});await page.screenshot({path:path.join(out,label+'-'+name+'.png'),fullPage});};
   page.on('pageerror',e=>errors.push(e.message));
   try{
@@ -84,5 +84,5 @@ try{
    assert.deepEqual(errors,[]);evidence.push({label,writes,balance:data.accounts[0].balance,transactions:data.transactions.length,budget:dashboard(data,today).free,steps,pageErrors:errors});
   }catch(error){await shot('failure').catch(()=>{});console.log(JSON.stringify({label,page:await page.locator('main').getAttribute('data-page'),events:await page.locator('[data-payment-event]').allTextContents()}));throw error;}finally{await context.close();await server.close();}
  }
-}finally{await browser.close();execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});await rm(temp,{recursive:true,force:true});}
+}finally{await browser.close();await unlink(path.join(temp,'node_modules'));execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});}
 await writeFile(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));console.log('Payment experience Chromium passed: link, skip, move, confirm and shared history');

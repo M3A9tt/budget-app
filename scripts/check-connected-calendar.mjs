@@ -1,6 +1,6 @@
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
-import {mkdir,writeFile,mkdtemp,symlink,rm} from 'node:fs/promises';
+import {mkdir,writeFile,mkdtemp,symlink,unlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -10,13 +10,13 @@ import {createPlanned} from '../src/planned-operations.js';
 import {putTransaction,transferMoney,migrateData} from '../src/ledger.js';
 import {scheduledEvents,moveDate} from '../src/finance-events.js';
 const baseline='bac95bee7425fb1d3fb29422c6850d79e6feee27',out=process.env.CALENDAR_SCREENSHOT_DIR||'/tmp/burget-connected-calendar',root=process.cwd(),temp=await mkdtemp(path.join(tmpdir(),'burget-calendar-before-'));
-await mkdir(out,{recursive:true});execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});execFileSync('git',['worktree','add','--detach',temp,baseline],{stdio:'ignore'});await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'dir');
+await mkdir(out,{recursive:true});try{execFileSync('git',['cat-file','-e',baseline],{stdio:'ignore'});}catch{execFileSync('git',['fetch','origin',baseline,'--depth=1'],{stdio:'ignore'});}execFileSync('git',['worktree','add','--detach',temp,baseline],{stdio:'ignore'});await symlink(path.join(root,'node_modules'),path.join(temp,'node_modules'),'junction');
 const today=todayMoscow(),day=n=>moveDate(today,n),date=day(3);let seed={...structuredClone(EMPTY),accounts:[{id:'card',name:'Основная карта',balance:10000,currency:'RUB'},{id:'reserve',name:'Резерв',balance:2000,currency:'RUB',accType:'savings'}],settings:{...EMPTY.settings,notificationMode:'manual',nextIncomeDate:day(20),modules:{plans:true,installments:true,debts:true}}};
 seed=createPlanned(seed,{id:'therapy',name:'Психотерапевт',type:'expense',frequency:'manual',amount:800,accountId:'card'});seed=putTransaction(seed,{id:'existing',date:today,type:'expense',cat:'other',amount:600,accountId:'card',note:'Покупка уже внесена'});seed=transferMoney(seed,{id:'movement',date:today,from:'card',to:'reserve',amount:100,note:'Отложил в резерв'});
 await writeFile(path.join(out,'fixture.json'),JSON.stringify({baseline,today,date,viewport:{width:390,height:844},fictional:true,data:seed},null,2));
 let browser;const evidence=[];
-try{browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});for(const [label,appRoot] of [['before',temp],['after',root]]){
- const server=await createServer({root:appRoot,server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();let data=structuredClone(seed),revision=1,writes=0;const errors=[],steps=[];
+try{browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});for(const [label,appRoot] of [['before',temp],['after',root]]){
+ const server=await createServer({root:appRoot,server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();let data=structuredClone({...seed,settings:{...seed.settings,interfaceVersion:1,legacyInterfaceOptIn:true}}),revision=1,writes=0;const errors=[],steps=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/same key|unique.*key/.test(m.text()))errors.push(m.text());});
  const shot=async name=>{await page.locator('.mini-toast').waitFor({state:'hidden'});await page.screenshot({path:path.join(out,label+'-'+name+'.png'),fullPage:true});};
  const record=action=>steps.push({action,writes,accounts:data.accounts.map(a=>({id:a.id,balance:a.balance})),transactions:data.transactions.length,transfers:data.transfers.length,obligations:dashboard(data,today).obligations,free:dashboard(data,today).free,events:scheduledEvents(data,today,day(50)).map(e=>({id:e.id,name:e.name,date:e.date,amount:e.amount,source:e.source}))});
@@ -47,5 +47,5 @@ try{browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable
   }
   assert.deepEqual(errors,[]);evidence.push({label,steps,pageErrors:errors});
  }catch(error){await shot('failure').catch(()=>{});console.log((await page.locator('main').innerText()).slice(0,4500));throw error;}finally{await context.close();await server.close();}
-}}finally{await browser?.close();execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});await rm(temp,{recursive:true,force:true});}
+}}finally{await browser?.close();await unlink(path.join(temp,'node_modules'));execFileSync('git',['worktree','remove','--force',temp],{stdio:'ignore'});}
 await writeFile(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));console.log('Connected calendar Chromium passed: all sources, shared creation, explicit moves, linked payment, transfers and 320–1280px');

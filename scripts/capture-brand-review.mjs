@@ -1,0 +1,26 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import {chromium} from 'playwright-core';
+const out=path.resolve('../../outputs'),fixture=JSON.parse(fs.readFileSync('docs/personal-interface/fixture.json','utf8'));
+const data={...fixture.data,settings:{...fixture.data.settings,interfaceVersion:2,interfaceGuideSeen:true}};
+const variants=[['monogram','1','Буква «Б»','Цельный знак на зелёной основе'],['envelope','2','Конверт','Деньги, разложенные по назначению'],['fold','3','Две плоскости','Открытый знак с лавандовым акцентом']];
+const server=await createServer({server:{host:'127.0.0.1',port:0},logLevel:'error'});await server.listen();
+const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+try{
+ const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'application/javascript'}));
+ await page.route('**/api/v1/**',r=>r.fulfill({json:{data,revision:1,userId:'fictional-brand-review'}}));
+ await page.goto('http://127.0.0.1:'+server.httpServer.address().port);await page.locator('.ins-home').waitFor();
+ await page.locator('.mini-header').screenshot({path:path.join(out,'brand-header-original.png')});
+ for(const [id] of variants){
+  await page.locator('.mini-header .mini-mark').evaluate((el,id)=>{el.innerHTML='<img src="/scripts/brand-review/'+id+'.svg" alt="" width="40" height="40">';Object.assign(el.style,{width:'40px',height:'40px',background:'none',borderRadius:'0',boxShadow:'none'});},id);
+  await page.locator('.mini-header .mini-mark img').evaluate(el=>el.decode());
+  for(const width of [320,390,1280]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(width===390){await page.locator('.mini-header').screenshot({path:path.join(out,'brand-header-'+id+'.png')});await page.screenshot({path:path.join(out,'brand-home-'+id+'.png'),fullPage:false});}}
+  fs.copyFileSync('scripts/brand-review/'+id+'.svg',path.join(out,'brand-'+id+'.svg'));
+ }
+ const url=(file,type)=>'data:'+type+';base64,'+fs.readFileSync(file).toString('base64');
+ const html=`<!doctype html><html lang="ru"><meta charset="utf-8"><title>Бюрджет — варианты знака</title><style>*{box-sizing:border-box}body{margin:0;background:#10131d;color:#edf2f7;font:15px system-ui, sans-serif;padding:34px}header{margin-bottom:28px}h1{font-size:27px;letter-spacing:-.8px;margin:0 0 8px}header p{font-size:13px;color:#a2b0c9;margin:0}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.card{border:1px solid #37435a;background:linear-gradient(145deg,#232d40,#191f2c);border-radius:24px;overflow:hidden}.top{padding:24px 22px 0}.index{font-size:12px;color:#a9c78d}.hero{display:flex;align-items:center;justify-content:center;height:185px}.hero img{width:112px;height:112px;filter:drop-shadow(0 12px 14px #0003)}h2{font-size:20px;margin:0 0 7px;letter-spacing:-.5px}.caption{color:#acb9d0;font-size:12px;min-height:35px;margin:0 0 20px}.header-shot{background:#10131d;padding:12px 0;border-block:1px solid #3d4b6533}.header-shot img{width:100%;height:auto;display:block}.sizes{display:flex;align-items:center;gap:22px;height:95px;padding:18px 24px}.sizes img{display:block}.sizes span{margin-left:auto;color:#8394b2;font-size:11px}.footer{margin-top:22px;font-size:12px;line-height:1.6;color:#9baac3}</style><header><h1>Бюрджет · характер знака</h1><p>Три направления в одной палитре. Ниже — каждый знак в настоящей шапке приложения.</p></header><main class="grid">${variants.map(([id,n,name,caption])=>`<section class="card"><div class="top"><span class="index">Вариант ${n}</span><div class="hero"><img src="${url('scripts/brand-review/'+id+'.svg','image/svg+xml')}" alt=""></div><h2>${name}</h2><p class="caption">${caption}</p></div><div class="header-shot"><img src="${url(path.join(out,'brand-header-'+id+'.png'),'image/png')}" alt="В шапке приложения"></div><div class="sizes">${[24,32,40].map(size=>`<img width="${size}" height="${size}" src="${url('scripts/brand-review/'+id+'.svg','image/svg+xml')}" alt="">`).join('')}<span>24 / 32 / 40 px</span></div></section>`).join('')}</main><p class="footer">Название и финансовые данные одинаковые. Это локальные варианты для сравнения; текущий логотип приложения пока сохранён.</p></html>`;
+ fs.writeFileSync(path.join(out,'brand-review.html'),html);const gallery=await browser.newPage({viewport:{width:1100,height:730},deviceScaleFactor:1});await gallery.setContent(html);await gallery.evaluate(()=>Promise.all([...document.images].map(img=>img.decode())));await gallery.screenshot({path:path.join(out,'brand-directions.png'),fullPage:true});assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-review-checks.json'),JSON.stringify({widths:[320,390,1280],variants:variants.map(v=>v[0]),pageErrors:errors},null,2));console.log('PASS three SVG logo directions: real header, 24/32/40px, 320/390/1280, no overflow.');
+}finally{await browser.close();await server.close();}

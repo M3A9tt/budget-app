@@ -1,5 +1,6 @@
+import {iconAppearance} from './appearance.js';
 import {parseMoney} from './ledger.js';
-export function accountInput({name,balance,currency,kind,annualRate='',maturityDate='',storageKind=''}){
+export function accountInput({name,balance,currency,kind,annualRate='',maturityDate='',storageKind='',icon,emoji}){
  const amount=parseMoney(balance||'0');if(!Number.isFinite(amount))throw Error('Введите корректный остаток');if(!String(name||'').trim())throw Error('Введите название счёта');
  if(!['regular','savings','deposit'].includes(kind))throw Error('Выберите тип счёта');
  const account={name:name.trim(),balance:amount,currency,accType:kind==='deposit'?'savings':kind};
@@ -11,5 +12,6 @@ export function accountInput({name,balance,currency,kind,annualRate='',maturityD
   if(annualRate!==''){const rate=parseMoney(annualRate);if(!Number.isFinite(rate)||rate<0)throw Error('Ставка не может быть отрицательной');account.annualRate=rate;}
   if(maturityDate){if(!/^\d{4}-\d{2}-\d{2}$/.test(maturityDate)||Number.isNaN(Date.parse(maturityDate))||new Date(maturityDate+'T12:00:00Z').toISOString().slice(0,10)!==maturityDate)throw Error('Проверьте дату окончания');account.maturityDate=maturityDate;}
  }
+ if(icon!==undefined||emoji!==undefined)Object.assign(account,iconAppearance({icon,emoji},{icon:'wallet'}));
  return account;
 }
