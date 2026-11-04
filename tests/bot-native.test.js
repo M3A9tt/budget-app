@@ -537,3 +537,10 @@ test('Native calendar opens the exact debt, moves its source once and pays throu
 test('Future expense entered as ordinary text becomes a calendar plan and repeated confirmation never debits',()=>run(async f=>{
  await f.update('завтра кофе 100 Банк');assert.match(f.last().text,/Будущий расход/);const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);const d=f.snapshot();assert.equal(d.accounts[0].balance,10000);assert.equal(d.transactions.length,0);assert.equal(d.recurring.length,1);assert.equal(d.recurring[0].type,'expense');
 }));
+test('Modern review edits amount and comment directly, invalidates stale confirm and saves once',()=>run(async f=>{
+ const d=f.snapshot();d.settings.interfaceVersion=2;f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
+ await f.update('Записать');await f.press('↓ Расход');await f.update('180');const stale=f.button('✅ Подтвердить');
+ const labels=f.last().reply_markup.inline_keyboard.flat().map(b=>b.text);for(const key of ['Сумма','Счёт','Категория','Дата','Комментарий'])assert(labels.includes(key));assert(f.last().reply_markup.inline_keyboard.every(row=>row.length<=2));
+ await f.press('Сумма');await f.update('200');await f.update('',stale);assert.equal(f.snapshot().transactions.length,0);
+ await f.update('Записать');await f.press('▶️ Продолжить запись');await f.press('Комментарий');await f.update('Проверка нового бота');const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0].amount,200);assert.equal(f.snapshot().transactions[0].note,'Проверка нового бота');assert.equal(f.snapshot().accounts[0].balance,9800);
+}));
