@@ -1613,3 +1613,17 @@
 .mini-shell.personal-ui .planned-card-actions>:is(button,.recorded-payment){margin:0}
 .mini-shell.personal-ui .planned-card-actions>.mini-text-button,.mini-shell.personal-ui .planned-card-actions>.recorded-payment>button{border:1px solid var(--glass-line);border-radius:12px;background:var(--glass-field);padding:12px 14px;min-height:48px}
 .mini-shell.personal-ui .planned-card-actions>.recorded-payment:has(.recorded-payment-panel),.mini-shell.personal-ui .planned-card-actions>:is(.payment-question,.occurrence-date-form,.manual-plan-date){flex-basis:100%}
+.mini-shell.personal-ui .more-tile-grid{align-items:start}
+.mini-shell.personal-ui .more-menu .settings-group-tile>h2{margin:0 0 14px;font-size:23px;color:var(--mini-text)}
+.mini-shell.personal-ui .more-menu .settings-group-tile>div{padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none}
+.mini-shell.personal-ui .more-menu .settings-group-tile>div>button{min-height:58px;padding:13px 0;text-align:left}
+.mini-shell.personal-ui .more-menu .settings-group-tile>div>button:last-child{border-bottom:0}
+@media(min-width:721px){
+ .mini-shell.personal-ui .more-tile-grid>.settings-group-tile:last-child{grid-column:1/-1}
+ .mini-shell.personal-ui .more-tile-grid>.settings-group-tile:last-child>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+ .mini-shell.personal-ui .more-tile-grid>.settings-group-tile:last-child>div>button{border-bottom:0;padding:10px 0}
+}
+.mini-shell.personal-ui .more-menu{width:100%;max-width:900px;margin-inline:auto}
+.mini-shell.personal-ui .more-menu .more-tile-grid{gap:18px;margin-top:20px}
+.mini-shell.personal-ui .more-menu .settings-group-tile{margin:0}
+.mini-shell.personal-ui .more-menu .settings-group-tile>div>button{border-radius:10px}
