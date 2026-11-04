@@ -21,3 +21,9 @@ test('Photo navigation replaces the same Telegram card; rejected edits fall back
   await uploadPicture(f.env,'111',{...picture,file_id:'photo-id'},markup,false,'Обновлён',404);assert.deepEqual(calls.slice(1).map(c=>c.method),['editMessageMedia','sendPhoto']);assert.equal(calls.at(-1).form.get('photo'),'photo-id');
  }finally{globalThis.fetch=original;f.close();}
 });
+test('Forecast picture horizon matches modern text and has a distinct cache identity',async()=>{
+ const {moveDate}=await import('../src/finance-events.js');const {todayMoscow}=await import('../src/mini-model.js');const d=demoData();d.settings.interfaceVersion=2;d.settings.nextIncomeDate=moveDate(todayMoscow(),12);
+ const week=botView(d,'analyticsForecast',{days:7}),month=botView(d,'analyticsForecast',{days:30});assert.equal(week.picture.forecastDays,7);assert.equal(month.picture.forecastDays,30);assert.notDeepEqual(pictureParams(week.picture,d),pictureParams(month.picture,d));
+ const bundle=await build({entryPoints:['server/report-html.jsx'],bundle:true,write:false,format:'esm',platform:'browser',loader:{'.css':'text'}});const {renderReportHtml}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].contents).toString('base64'));
+ for(const days of [7,30]){const html=renderReportHtml(d,pictureParams({kind:'forecast',forecastDays:days},d));assert(html.includes('value="'+moveDate(todayMoscow(),days)+'"'));}
+});

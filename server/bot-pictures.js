@@ -22,7 +22,7 @@ export function pictureParams(input={},data){
  if(kind==='lunch'&&(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month<'2000-01'||month>today.slice(0,7)))throw Error('Выбери прошедший или текущий месяц');
  const page=Number(input.page||0);if(kind==='savings'&&(!Number.isInteger(page)||page<0||page>Math.max(0,Math.ceil(Math.max(data.accounts.filter(isSavings).length,data.goals.length)/6)-1)))throw Error('Страница отсутствует');
  if(kind==='summary'){const valid=d=>/^\d{4}-(0[1-9]|1[0-2])-([012]\d|3[01])$/.test(d||'')&&new Date(d+'T12:00:00Z').toISOString().slice(0,10)===d;if(!valid(input.from)||!valid(input.to)||input.from>input.to||input.to>today||Date.parse(input.to)-Date.parse(input.from)>31*86400000)throw Error('Неверный период сводки');return {kind,from:input.from,to:input.to,title:String(input.title||'Итоги').slice(0,80)};}
- return {kind,...(['analytics','categories'].includes(kind)?{days:input.days===7?7:30}:{}),...(kind==='lunch'?{month}:{}),...(kind==='savings'?{page}:{})};
+ return {kind,...(kind==='forecast'&&[7,30].includes(input.forecastDays)?{forecastDays:input.forecastDays}:{}),...(['analytics','categories'].includes(kind)?{days:input.days===7?7:30}:{}),...(kind==='lunch'?{month}:{}),...(kind==='savings'?{page}:{})};
 }
 export function pngInfo(bytes){
  if(bytes.length<24||bytes.length>MAX_BYTES||![137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v))throw Error('Invalid screenshot');
