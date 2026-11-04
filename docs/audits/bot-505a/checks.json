@@ -5,7 +5,8 @@
     "height": 951.125,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 947725
   },
   {
     "name": "analytics",
@@ -13,7 +14,8 @@
     "height": 753.296875,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 305898
   },
   {
     "name": "categories",
@@ -21,7 +23,8 @@
     "height": 1132.125,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 392105
   },
   {
     "name": "forecast",
@@ -29,7 +32,8 @@
     "height": 1168.0625,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 447550
   },
   {
     "name": "lunch",
@@ -37,7 +41,8 @@
     "height": 1810.3125,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 597819
   },
   {
     "name": "savings",
@@ -45,7 +50,8 @@
     "height": 877.546875,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 524117
   },
   {
     "name": "summary",
@@ -53,7 +59,8 @@
     "height": 1121.984375,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 942874
   },
   {
     "name": "accounts",
@@ -61,7 +68,8 @@
     "height": 766.28125,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 471691
   },
   {
     "name": "calendar",
@@ -69,7 +77,8 @@
     "height": 1455.671875,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 1251672
   },
   {
     "name": "history",
@@ -77,7 +86,8 @@
     "height": 971.296875,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 778600
   },
   {
     "name": "more",
@@ -85,7 +95,8 @@
     "height": 406.34375,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 324842
   },
   {
     "name": "settings",
@@ -93,7 +104,8 @@
     "height": 475.53125,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 388760
   },
   {
     "name": "settingsData",
@@ -101,7 +113,8 @@
     "height": 337.15625,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 279311
   },
   {
     "name": "installments",
@@ -109,7 +122,8 @@
     "height": 625.359375,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 485076
   },
   {
     "name": "installment",
@@ -117,7 +131,8 @@
     "height": 1195.40625,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 953196
   },
   {
     "name": "add",
@@ -125,6 +140,7 @@
     "height": 683.09375,
     "font": true,
     "logo": true,
-    "overflow": false
+    "overflow": false,
+    "bytes": 559672
   }
 ]
