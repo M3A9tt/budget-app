@@ -1578,3 +1578,38 @@
 .mini-shell.personal-ui .finance-report>details>summary::-webkit-details-marker{display:none}
 .mini-shell.personal-ui .finance-report>details:not(.report-advanced)>summary:after{content:'⌄';margin-left:auto;font-size:22px;line-height:1;transition:transform .3s ease}
 .mini-shell.personal-ui .finance-report>details[open]:not(.report-advanced)>summary:after{transform:rotate(180deg)}
+/* Event composition: each control owns its spacing, borders never run behind actions. */
+.mini-shell.personal-ui .calendar-create-panel{display:grid;gap:16px;padding:18px;margin-top:12px}
+.mini-shell.personal-ui .calendar-create-panel>.entry-picker-trigger{margin:0;border:1px solid var(--glass-line);border-radius:14px;padding:14px;background:var(--glass-field)}
+.mini-shell.personal-ui .calendar-create-panel>.mini-primary{justify-self:stretch;margin:0;min-height:48px}
+.mini-shell.personal-ui .money-risk{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 18px;margin:16px 0;line-height:1.5}
+.mini-shell.personal-ui .money-risk>.mini-text-button{border:1px solid var(--glass-line);border-radius:12px;padding:10px 14px;background:var(--glass-field);flex-shrink:0}
+.mini-shell.personal-ui .planned-add-entry{margin:0 0 18px;min-height:48px}
+.mini-shell.personal-ui .planned-card{margin-block:0 18px;padding:20px}
+.mini-shell.personal-ui .planned-card>.mini-between{gap:16px;align-items:start}
+.mini-shell.personal-ui .planned-card>.mini-between>strong{font-size:20px;line-height:1.35}
+.mini-shell.personal-ui .planned-card>.mini-secondary{margin:8px 0 12px}
+.mini-shell.personal-ui .planned-card>.income-move,.mini-shell.personal-ui .planned-card>.recorded-payment{margin-bottom:12px}
+.mini-shell.personal-ui .planned-actions{margin-top:18px;padding-top:14px;border-top:1px solid var(--mini-line)}
+.installment-category{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:15px}
+.installment-event-context{display:block;margin-top:5px;line-height:1.5;color:var(--mini-muted)}
+.mini-shell.personal-ui .installment-payment .mini-payment-row>span>b{display:block;font-size:16px}
+.mini-shell.personal-ui .debt-create{margin-top:18px}
+.mini-shell.personal-ui .debt-entry-form{margin-top:18px}
+.mini-shell.personal-ui .debt-entry-form>.planned-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;border:0;padding:0;margin:0;align-items:end}
+.mini-shell.personal-ui .debt-entry-form .planned-fields>label{margin:0;font-size:14px;min-width:0}
+.mini-shell.personal-ui .debt-entry-form .planned-fields>label:first-child,.mini-shell.personal-ui .debt-entry-form .entry-money,.mini-shell.personal-ui .debt-entry-form .planned-fields>:is(details,small,p,button){grid-column:1/-1}
+.mini-shell.personal-ui .debt-entry-form .planned-fields>label>input{border:0;border-bottom:1px solid var(--mini-line);border-radius:0;background:none;padding:10px 0;min-height:44px;margin:6px 0 0;width:100%}
+.mini-shell.personal-ui .debt-entry-form .entry-money{width:100%;padding:16px;border:1px solid var(--glass-line);border-radius:20px;background:var(--glass-surface);margin:0}
+.mini-shell.personal-ui .settings-tile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:20px 0}
+.mini-shell.personal-ui .settings-group-tile{min-width:0;border:1px solid var(--glass-line);border-radius:22px;background:var(--glass-surface);padding:18px}
+.mini-shell.personal-ui .settings-group-tile>h2{display:flex;align-items:center;gap:12px;font-size:23px;margin:0 0 14px}
+.mini-shell.personal-ui .settings-group-tile>h2:after{content:'';height:1px;flex:1;background:var(--mini-line)}
+.mini-shell.personal-ui .settings-group-tile>.mini-rows{background:none;border:0;box-shadow:none;padding:0}
+.mini-shell.personal-ui .settings-group-tile .mini-tx{padding:14px 0;gap:12px}
+@media(max-width:720px){.mini-shell.personal-ui .settings-tile-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:380px){.mini-shell.personal-ui .debt-entry-form>.planned-fields{grid-template-columns:minmax(0,1fr)}}
+.mini-shell.personal-ui .planned-card-actions{display:flex;flex-wrap:wrap;align-items:start;gap:10px;margin:16px 0}
+.mini-shell.personal-ui .planned-card-actions>:is(button,.recorded-payment){margin:0}
+.mini-shell.personal-ui .planned-card-actions>.mini-text-button,.mini-shell.personal-ui .planned-card-actions>.recorded-payment>button{border:1px solid var(--glass-line);border-radius:12px;background:var(--glass-field);padding:12px 14px;min-height:48px}
+.mini-shell.personal-ui .planned-card-actions>.recorded-payment:has(.recorded-payment-panel),.mini-shell.personal-ui .planned-card-actions>:is(.payment-question,.occurrence-date-form,.manual-plan-date){flex-basis:100%}
