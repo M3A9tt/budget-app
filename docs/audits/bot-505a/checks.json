@@ -5,8 +5,9 @@
     "height": 951.125,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 947725
+    "bytes": 947548
   },
   {
     "name": "analytics",
@@ -14,8 +15,9 @@
     "height": 753.296875,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 305898
+    "bytes": 305721
   },
   {
     "name": "categories",
@@ -23,8 +25,9 @@
     "height": 1132.125,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 392105
+    "bytes": 391943
   },
   {
     "name": "forecast",
@@ -32,8 +35,9 @@
     "height": 1168.0625,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 447550
+    "bytes": 447414
   },
   {
     "name": "lunch",
@@ -41,8 +45,9 @@
     "height": 1810.3125,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 597819
+    "bytes": 597695
   },
   {
     "name": "savings",
@@ -50,8 +55,9 @@
     "height": 877.546875,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 524117
+    "bytes": 523965
   },
   {
     "name": "summary",
@@ -59,8 +65,9 @@
     "height": 1121.984375,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 942874
+    "bytes": 942725
   },
   {
     "name": "accounts",
@@ -68,8 +75,9 @@
     "height": 766.28125,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 471691
+    "bytes": 471436
   },
   {
     "name": "calendar",
@@ -77,8 +85,9 @@
     "height": 1455.671875,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 1251672
+    "bytes": 1251532
   },
   {
     "name": "history",
@@ -86,8 +95,9 @@
     "height": 971.296875,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 778600
+    "bytes": 778464
   },
   {
     "name": "more",
@@ -95,8 +105,9 @@
     "height": 406.34375,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 324842
+    "bytes": 324707
   },
   {
     "name": "settings",
@@ -104,8 +115,9 @@
     "height": 475.53125,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 388760
+    "bytes": 388586
   },
   {
     "name": "settingsData",
@@ -113,8 +125,9 @@
     "height": 337.15625,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 279311
+    "bytes": 279164
   },
   {
     "name": "installments",
@@ -122,8 +135,9 @@
     "height": 625.359375,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 485076
+    "bytes": 484949
   },
   {
     "name": "installment",
@@ -131,8 +145,9 @@
     "height": 1195.40625,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 953196
+    "bytes": 953012
   },
   {
     "name": "add",
@@ -140,7 +155,18 @@
     "height": 683.09375,
     "font": true,
     "logo": true,
+    "logoPixels": true,
     "overflow": false,
-    "bytes": 559672
+    "bytes": 559513
+  },
+  {
+    "name": "calendarEvent",
+    "width": 640,
+    "height": 867.015625,
+    "font": true,
+    "logo": true,
+    "logoPixels": true,
+    "overflow": false,
+    "bytes": 685784
   }
 ]

@@ -93,7 +93,7 @@ async function showBotViewUnlocked(env,userId,api,name='home',args={}){
     const result=await uploadPicture(env,userId,picture,reply_markup,false,([screen.title,'',...screen.lines].join('\n').length<=1000?[screen.title,'',...screen.lines].join('\n'):screen.title),previous?.message_id);
     await rememberView(env,userId,id,result?.message_id||previous?.message_id,true);
     await retireMenu(env,userId,api,previous,result);return result;
-  }catch(error){if(error.pictureDelivery)throw error;console.warn('Picture fallback',pictureErrorCode(error));}
+  }catch(error){if(error.pictureDelivery)throw error;console.warn('Picture fallback',pictureErrorCode(error));return render(env,userId,api,{...screen,lines:[...screen.lines,'Снимок недоступен — раздел открыт текстом.'],origin:{name,args:{...args,textOnly:true}}});}
  }
  return render(env,userId,api,screen);
 }
@@ -186,7 +186,7 @@ async function route(env,userId,api,r){
    const result=await uploadPicture(env,userId,picture,m.reply_markup,r.special==='pictureOriginal',undefined,previous?.message_id);
    if(r.special!=='pictureOriginal'){await rememberView(env,userId,m.id,result?.message_id||previous?.message_id,true);await retireMenu(env,userId,api,previous,result);}
    return result;
-  }catch(error){if(error.pictureDelivery)throw error;return render(env,userId,api,{title:'🖼 Снимок миниаппы',lines:[PICTURE_ERROR],actions:[{label:'Повторить',special:'picture',args:r.args},view('Картинки','pictures'),view('Главная','home')]});}
+  }catch(error){if(error.pictureDelivery)throw error;return render(env,userId,api,{title:'🖼 Снимок миниаппы',lines:[PICTURE_ERROR],origin:{name:'pictures',args:{textOnly:true}},actions:[{label:'Повторить',special:'picture',args:r.args},view('Картинки','pictures'),view('Главная','home')]});}
  }
  if(r.special==='lunchQuestion'){const day=r.args?.day||todayMoscow(s.data.settings.timeZone);await setDayCheck(env,userId,day,'lunch','open');const body=lunchReminder(day);return send(api,env,userId,body.text,body.reply_markup);}
  if(r.special==='example')return api.sendFile(env,userId,IMPORT_EXAMPLE,'byurdzhet-operations-example.json');
