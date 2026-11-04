@@ -11,7 +11,7 @@ import {botView} from '../server/bot-views.js';
 import {applyBotAction,fieldsFor,botImportPreview,parseField} from '../server/bot-catalog.js';
 import {debtRemaining} from '../src/debt-state.js';
 const today=todayMoscow();
-const seed=()=>({...structuredClone(EMPTY),accounts:[{id:'bank',name:'Банк',currency:'RUB',balance:10000},{id:'reserve',name:'Наличный резерв',currency:'RUB',balance:2000,accType:'savings',storageKind:'cash'}],installments:[],reconciliations:[]});
+const seed=()=>({...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:1,legacyInterfaceOptIn:true},accounts:[{id:'bank',name:'Банк',currency:'RUB',balance:10000},{id:'reserve',name:'Наличный резерв',currency:'RUB',balance:2000,accType:'savings',storageKind:'cash'}],installments:[],reconciliations:[]});
 function fixture(data=seed()){
  const sqlite=new DatabaseSync(':memory:');sqlite.exec(fs.readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
  const DB={prepare(sql){let args=[];const s={bind(...a){args=a.map(x=>x instanceof ArrayBuffer?new Uint8Array(x):x);return s;},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return{results:sqlite.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)}};}};return s;},async batch(statements){sqlite.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};

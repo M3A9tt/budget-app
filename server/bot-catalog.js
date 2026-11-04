@@ -1,3 +1,4 @@
+import {personalInterface} from '../src/interface-settings.js';
 import {submitEntry,isPlannedEntry} from '../src/entry-submit.js';
 import {rescheduleEvent} from '../src/event-actions.js';
 import {categoryCatalog} from '../src/categories.js';
@@ -52,7 +53,7 @@ export function fieldsFor(d,op,args={},values={}){
  if(op==='rename')return [text('name','Новое название')];
  if(op==='classify')return [choice('kind','Тип накоплений',[['savings','Накопления'],['deposit','Вклад']]),choice('storageKind','Где хранятся деньги',[['bank','В банке'],['cash','Наличными'],['other','Другое']],{default:'bank'}),num('annualRate','Годовая ставка, %',{optional:true,default:''}),date('maturityDate','Дата окончания',{optional:true,default:''})];
  if(op==='reconcile')return [num('balance','Остаток сейчас'),text('note','Комментарий',{optional:true,default:''})];
- if(op==='transfer')return [choice('from','Откуда',accounts(d)),choice('to','Куда',accounts(d)),num('amount','Сумма'),num('fee','Комиссия',{default:0,advanced:d.settings.interfaceVersion===2}),...common];
+ if(op==='transfer')return [choice('from','Откуда',accounts(d)),choice('to','Куда',accounts(d)),num('amount','Сумма'),num('fee','Комиссия',{default:0,advanced:personalInterface(d)}),...common];
  if(op==='moveSavings')return [choice('accountId',args.direction==='save'?'Откуда отложить':'Куда вернуть',accounts(d,a=>!isSavings(a))),num('amount','Сумма'),date('date','Дата',{default:today})];
  if(op==='goal')return [text('name','На что копим'),num('target','Нужно накопить'),choice('accountId','Где отложено',accounts(d,a=>isSavings(a)&&!d.goals.some(g=>g.accountId===a.id)&&!(d.wishes||[]).some(w=>!w.done&&w.accountId===a.id))),date('targetDate','К какой дате',{optional:true,default:''})];
  if(op==='fundGoal')return [choice('from','Откуда',accounts(d)),num('amount','Сумма'),date('date','Дата',{default:today})];
