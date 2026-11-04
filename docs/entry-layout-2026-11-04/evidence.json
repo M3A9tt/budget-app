@@ -1,0 +1,1340 @@
+[
+  {
+    "label": "before",
+    "fontLoaded": true,
+    "reducedMotion": true,
+    "geometry": [
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 421,
+        "lines": 3,
+        "height": 104.1875,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 194.84375,
+        "right": 226.15625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 421,
+        "lines": 3,
+        "height": 104.1875,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 194.84375,
+        "right": 226.15625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 421,
+        "lines": 3,
+        "height": 104.1875,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 194.84375,
+        "right": 226.15625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 421,
+        "lines": 3,
+        "height": 104.1875,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 194.84375,
+        "right": 226.15625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 470,
+        "lines": 2,
+        "height": 70.59375,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 197.359375,
+        "right": 272.625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 470,
+        "lines": 2,
+        "height": 70.59375,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 197.359375,
+        "right": 272.625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 470,
+        "lines": 2,
+        "height": 70.59375,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 197.359375,
+        "right": 272.625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 470,
+        "lines": 2,
+        "height": 70.59375,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 197.359375,
+        "right": 272.625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      }
+    ],
+    "steps": [],
+    "pageErrors": []
+  },
+  {
+    "label": "after",
+    "fontLoaded": true,
+    "reducedMotion": true,
+    "geometry": [
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 320,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 115.046875,
+        "right": 204.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 390,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 150.046875,
+        "right": 239.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 420,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.046875,
+        "right": 254.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 421,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.546875,
+        "right": 255.453125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 421,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.546875,
+        "right": 255.453125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 421,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.546875,
+        "right": 255.453125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 421,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 165.546875,
+        "right": 255.453125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 470,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 190.046875,
+        "right": 279.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 470,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 190.046875,
+        "right": 279.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 470,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 190.046875,
+        "right": 279.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 470,
+        "lines": 1,
+        "height": 37,
+        "lineHeight": 33.6,
+        "overlap": false,
+        "overflow": false,
+        "left": 190.046875,
+        "right": 279.953125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 600,
+        "lines": 1,
+        "height": 44,
+        "lineHeight": 40.32,
+        "overlap": false,
+        "overflow": false,
+        "left": 245.359375,
+        "right": 354.640625,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 767,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 320.65625,
+        "right": 446.328125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 768,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 321.15625,
+        "right": 446.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 1024,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 449.15625,
+        "right": 574.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Расход",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Доход",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Перевод",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      },
+      {
+        "type": "Обед",
+        "text": "Запись",
+        "width": 1280,
+        "lines": 1,
+        "height": 52,
+        "lineHeight": 47.04,
+        "overlap": false,
+        "overflow": false,
+        "left": 474.15625,
+        "right": 599.828125,
+        "font": "Commissioner, system-ui, sans-serif"
+      }
+    ],
+    "steps": [
+      {
+        "action": "last-category-selected",
+        "writes": 0,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 10000
+          },
+          {
+            "id": "b",
+            "balance": 2000
+          }
+        ],
+        "transactions": [],
+        "transfers": 0,
+        "plans": 0,
+        "free": 12000
+      },
+      {
+        "action": "expense-saved",
+        "writes": 1,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 9900
+          },
+          {
+            "id": "b",
+            "balance": 2000
+          }
+        ],
+        "transactions": [
+          {
+            "type": "expense",
+            "amount": 100,
+            "cat": "cats",
+            "accountId": "a"
+          }
+        ],
+        "transfers": 0,
+        "plans": 0,
+        "free": 11900
+      },
+      {
+        "action": "income-saved",
+        "writes": 2,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 10100
+          },
+          {
+            "id": "b",
+            "balance": 2000
+          }
+        ],
+        "transactions": [
+          {
+            "type": "expense",
+            "amount": 100,
+            "cat": "cats",
+            "accountId": "a"
+          },
+          {
+            "type": "income",
+            "amount": 200,
+            "cat": "income",
+            "accountId": "a"
+          }
+        ],
+        "transfers": 0,
+        "plans": 0,
+        "free": 12100
+      },
+      {
+        "action": "transfer-and-fee-saved",
+        "writes": 3,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 10045
+          },
+          {
+            "id": "b",
+            "balance": 2050
+          }
+        ],
+        "transactions": [
+          {
+            "type": "expense",
+            "amount": 100,
+            "cat": "cats",
+            "accountId": "a"
+          },
+          {
+            "type": "income",
+            "amount": 200,
+            "cat": "income",
+            "accountId": "a"
+          },
+          {
+            "type": "expense",
+            "amount": 5,
+            "cat": "other",
+            "accountId": "a"
+          }
+        ],
+        "transfers": 1,
+        "plans": 0,
+        "free": 12095
+      },
+      {
+        "action": "company-lunch-saved",
+        "writes": 4,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 10045
+          },
+          {
+            "id": "b",
+            "balance": 2050
+          }
+        ],
+        "transactions": [
+          {
+            "type": "expense",
+            "amount": 100,
+            "cat": "cats",
+            "accountId": "a"
+          },
+          {
+            "type": "income",
+            "amount": 200,
+            "cat": "income",
+            "accountId": "a"
+          },
+          {
+            "type": "expense",
+            "amount": 5,
+            "cat": "other",
+            "accountId": "a"
+          },
+          {
+            "type": "lunch",
+            "amount": 350,
+            "cat": "lunch"
+          }
+        ],
+        "transfers": 1,
+        "plans": 0,
+        "free": 12095
+      },
+      {
+        "action": "future-expense-not-debited",
+        "writes": 5,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 10045
+          },
+          {
+            "id": "b",
+            "balance": 2050
+          }
+        ],
+        "transactions": [
+          {
+            "type": "expense",
+            "amount": 100,
+            "cat": "cats",
+            "accountId": "a"
+          },
+          {
+            "type": "income",
+            "amount": 200,
+            "cat": "income",
+            "accountId": "a"
+          },
+          {
+            "type": "expense",
+            "amount": 5,
+            "cat": "other",
+            "accountId": "a"
+          },
+          {
+            "type": "lunch",
+            "amount": 350,
+            "cat": "lunch"
+          }
+        ],
+        "transfers": 1,
+        "plans": 1,
+        "free": 11695
+      },
+      {
+        "action": "edit-return-keeps-source-and-filter",
+        "writes": 5,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 10045
+          },
+          {
+            "id": "b",
+            "balance": 2050
+          }
+        ],
+        "transactions": [
+          {
+            "type": "expense",
+            "amount": 100,
+            "cat": "cats",
+            "accountId": "a"
+          },
+          {
+            "type": "income",
+            "amount": 200,
+            "cat": "income",
+            "accountId": "a"
+          },
+          {
+            "type": "expense",
+            "amount": 5,
+            "cat": "other",
+            "accountId": "a"
+          },
+          {
+            "type": "lunch",
+            "amount": 350,
+            "cat": "lunch"
+          }
+        ],
+        "transfers": 1,
+        "plans": 1,
+        "free": 11695
+      },
+      {
+        "action": "confirmation-cancel-keeps-plan-and-date",
+        "writes": 5,
+        "accounts": [
+          {
+            "id": "a",
+            "balance": 10045
+          },
+          {
+            "id": "b",
+            "balance": 2050
+          }
+        ],
+        "transactions": [
+          {
+            "type": "expense",
+            "amount": 100,
+            "cat": "cats",
+            "accountId": "a"
+          },
+          {
+            "type": "income",
+            "amount": 200,
+            "cat": "income",
+            "accountId": "a"
+          },
+          {
+            "type": "expense",
+            "amount": 5,
+            "cat": "other",
+            "accountId": "a"
+          },
+          {
+            "type": "lunch",
+            "amount": 350,
+            "cat": "lunch"
+          }
+        ],
+        "transfers": 1,
+        "plans": 1,
+        "free": 11695
+      }
+    ],
+    "pageErrors": []
+  }
+]

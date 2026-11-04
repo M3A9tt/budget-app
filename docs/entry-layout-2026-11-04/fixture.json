@@ -1,0 +1,212 @@
+{
+  "baseline": "392f0bb2fdea65e9ff24387384bd55a7e802e099",
+  "today": "2026-11-04",
+  "fictional": true,
+  "viewport": {
+    "width": 470,
+    "height": 930
+  },
+  "data": {
+    "schemaVersion": 2,
+    "transactions": [],
+    "accounts": [
+      {
+        "id": "a",
+        "name": "Основная карта",
+        "balance": 10000,
+        "currency": "RUB"
+      },
+      {
+        "id": "b",
+        "name": "Наличные",
+        "balance": 2000,
+        "currency": "RUB"
+      }
+    ],
+    "debts": [],
+    "goals": [],
+    "wishes": [],
+    "customCats": [
+      {
+        "id": "extra-0",
+        "name": "Категория 01",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-1",
+        "name": "Категория 02",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-2",
+        "name": "Категория 03",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-3",
+        "name": "Категория 04",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-4",
+        "name": "Категория 05",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-5",
+        "name": "Категория 06",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-6",
+        "name": "Категория 07",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-7",
+        "name": "Категория 08",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-8",
+        "name": "Категория 09",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-9",
+        "name": "Категория 10",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-10",
+        "name": "Категория 11",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-11",
+        "name": "Категория 12",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-12",
+        "name": "Категория 13",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-13",
+        "name": "Категория 14",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-14",
+        "name": "Категория 15",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-15",
+        "name": "Категория 16",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-16",
+        "name": "Категория 17",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-17",
+        "name": "Категория 18",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-18",
+        "name": "Категория 19",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-19",
+        "name": "Категория 20",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-20",
+        "name": "Категория 21",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-21",
+        "name": "Категория 22",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-22",
+        "name": "Категория 23",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "extra-23",
+        "name": "Категория 24",
+        "icon": "other",
+        "color": "#b8dec4"
+      },
+      {
+        "id": "cats",
+        "name": "Коты и домашние животные",
+        "emoji": "🐾",
+        "icon": "other",
+        "color": "#c2ace1"
+      }
+    ],
+    "transfers": [],
+    "recurring": [],
+    "history": [],
+    "lunchDayOff": [],
+    "lunchDayMod": {},
+    "categoryBudgets": {},
+    "settings": {
+      "budget": 0,
+      "lunchDaily": 400,
+      "workDays": 22,
+      "reserveRub": 0,
+      "nextIncomeDate": "2026-11-16",
+      "interfaceVersion": 2,
+      "interfaceGuideSeen": true,
+      "notificationMode": "manual",
+      "telemetryEnabled": false,
+      "modules": {
+        "plans": true,
+        "lunch": true
+      }
+    },
+    "rates": {
+      "RUB": 1,
+      "USD": 92,
+      "EUR": 100,
+      "GBP": 117,
+      "CNY": 12.7,
+      "TRY": 2.8
+    }
+  }
+}
