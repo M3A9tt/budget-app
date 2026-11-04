@@ -72,7 +72,7 @@ function ScreenCard({data,params}){
 export function ReportCard({data,params,createdAt,assets={}}){
  const today=todayMoscow(data.settings.timeZone),titles={budget:'Главная',analytics:`Расходы · ${params.days} дней`,categories:'На что ушли деньги',forecast:'Прогноз остатка',lunch:'Обеды',savings:'Накопления',summary:params.title,screen:params.kind==='screen'?botView(data,params.name,{...params.args,textOnly:true}).title:''};
  const stamp=new Intl.DateTimeFormat('ru-RU',{timeZone:data.settings.timeZone||'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(createdAt));
- return <article id="report-card" className={'mini-shell personal-ui personal-home '+(params.kind==='screen'&&params.name==='calendar'?'personal-calendar ':'')+'report-'+params.kind} data-render-ready="true"><header className="report-brand"><Brand src={assets.logo}/><time>{stamp}</time></header><h1 className="report-heading">{titles[params.kind]}</h1><div className="report-body">
+ return <article id="report-card" className={'mini-shell personal-ui personal-home '+(params.kind==='screen'&&params.name==='calendar'?'personal-calendar ':'')+'report-'+params.kind} data-render-ready="true"><header className="report-brand"><Brand src={assets.logo} decoding="sync"/><time>{stamp}</time></header><h1 className="report-heading">{titles[params.kind]}</h1><div className="report-body">
  {params.kind==='screen'&&<ScreenCard data={data} params={params}/>}
  {params.kind==='summary'&&<SummaryCard data={data} params={params}/>}
  {params.kind==='budget'&&<BudgetHero data={data} personal/>}

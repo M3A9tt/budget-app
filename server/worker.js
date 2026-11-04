@@ -1,3 +1,4 @@
+import {scheduledEvents,moveDate} from '../src/finance-events.js';
 import {fetchExchangeRates} from './exchange-rates.js';
 import {financialCommand} from './financial-command.js';
 import {recordOperation,operationsReport,pruneOperations} from './operations.js';
@@ -28,7 +29,7 @@ import {broadcastRelease} from './releases.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
 import {notificationChecks,setDayCheck,pauseLegacyLunchInput,habitCallback} from './habits.js';
 import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invitedUsers,setMemberAccess} from './users.js';
-import {EMPTY,demoData,money} from '../src/mini-model.js';
+import {EMPTY,demoData,money,todayMoscow} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {validateTelegramInitData} from './telegram-auth.js';
@@ -194,7 +195,14 @@ export default {
     if(url.pathname==='/api/v1/backup/file')return await backupFile(request,env);
     if(url.pathname==='/api/v1/releases/check-picture'){
       if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);
-      try{const storage=await checkPersistence(env,latestRelease.id),picture=await getPicture(env,'__fictional_render_check__',{revision:1,data:demoData()},{kind:'budget'});return json({releaseId:latestRelease.id,storage,...pngInfo(picture.bytes)});}catch{return json({error:'Screenshot smoke check failed'},503);}
+      const scene=url.searchParams.get('scene')||'budget';if(!['budget','calendar','event'].includes(scene))return json({error:'Unknown scene'},400);
+      try{
+       const data=demoData(),today=todayMoscow(data.settings.timeZone),event=scene==='event'?scheduledEvents(data,today,moveDate(today,90)).find(e=>e.type==='expense'):null;
+       const params=scene==='budget'?{kind:'budget'}:{kind:'screen',name:scene==='calendar'?'calendar':'calendarEvent',args:event?{date:event.date,eventId:event.id}:{}};
+       const storage=await checkPersistence(env,latestRelease.id),picture=await getPicture(env,'__fictional_render_check__',{revision:1,data},params);
+       if(url.searchParams.get('png')==='1')return new Response(picture.bytes,{headers:{'Content-Type':'image/png','Cache-Control':'no-store'}});
+       return json({releaseId:latestRelease.id,scene,storage,...pngInfo(picture.bytes)});
+      }catch{return json({error:'Screenshot smoke check failed'},503);}
     }
     if(url.pathname==='/card-demo'){
       const data=demoData();try{const params=pictureParams(Object.fromEntries(url.searchParams),data),{renderReportHtml}=await import('./report-html.jsx');return new Response(renderReportHtml(data,params,undefined,await reportAssets(env)),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch{return json({error:'Unknown demo card'},400);}

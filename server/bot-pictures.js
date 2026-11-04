@@ -38,7 +38,7 @@ export async function capturePicture(env,data,params){
  if(!env.BROWSER?.quickAction)throw Error('Browser unavailable');
  const {renderReportHtml}=await import('./report-html.jsx');
  const html=renderReportHtml(data,params,undefined,await reportAssets(env));
- const response=await env.BROWSER.quickAction('screenshot',{html,selector:'#report-card',viewport:{width:640,height:1600,deviceScaleFactor:1.5},setJavaScriptEnabled:false,actionTimeout:8000,gotoOptions:{timeout:8000,waitUntil:'load'},screenshotOptions:{type:'png',captureBeyondViewport:true}});
+ const response=await env.BROWSER.quickAction('screenshot',{html,selector:'#report-card',viewport:{width:640,height:1600,deviceScaleFactor:1.5},setJavaScriptEnabled:false,actionTimeout:8000,gotoOptions:{timeout:8000,waitUntil:'networkidle0'},screenshotOptions:{type:'png',captureBeyondViewport:true}});
  if(!response.ok)throw Error('Screenshot unavailable');
  // Bound the response before persisting it in D1; no HTML or user data is logged.
  const reader=response.body.getReader(),parts=[];let total=0;for(;;){const {done,value}=await reader.read();if(done)break;total+=value.length;if(total>MAX_BYTES){await reader.cancel();throw Error('Screenshot too large');}parts.push(value);}
