@@ -1,3 +1,5 @@
+import {installmentRemaining,installmentRemainders} from './installment-state.js';
+import {sumMoney} from './ledger.js';
 import {activityEntries} from './activity-history.js';
 import {isIcon} from './icon-catalog.js';
 import {categoryCatalog} from './categories.js';
@@ -30,7 +32,7 @@ export function calendarEventMark(data,row){
  const direction=CALENDAR_MARKS.find(mark=>mark.type===row.type)||CALENDAR_MARKS[0];
  if(row.type==='income')return {...direction,icon:'wallet'};
  if(row.type==='transfer'||row.type==='lunch')return direction;
- const source=row.source==='plan'?(data.recurring||[]).find(rule=>rule.id===row.sourceId):null;
+ const source=row.source==='plan'?(data.recurring||[]).find(rule=>rule.id===row.sourceId):row.source==='installment'?(data.installments||[]).find(plan=>plan.id===row.sourceId):null;
  const category=categoryCatalog(data.customCats).find(cat=>cat.id===(source?.cat||row.cat));
  const icon=category?.id==='subs'?'subscription':isIcon(category?.icon)&&category.icon!=='other'?category.icon:(source?.cat||row.cat)==='home'?'home':source&&['daily','weekly','monthly'].includes(source.frequency)?'refresh':null;
  return {...direction,icon};
@@ -39,4 +41,12 @@ export function calendarDaySymbols(data,day){
  const rows=[...(day.events||[]),...(day.transactions||[])];
  const first=rows[0],second=rows.find(row=>row.type!==first?.type)||rows[1];
  return {marks:[first,second].filter(Boolean).map(row=>({...calendarEventMark(data,row),key:row.id})),remaining:Math.max(0,rows.length-2)};
+}
+
+export function calendarInstallmentInfo(data,event){
+ if(event.source!=='installment')return null;
+ const plan=(data.installments||[]).find(p=>p.id===event.sourceId);if(!plan)return null;
+ const payments=[...plan.payments].sort((a,b)=>a.date.localeCompare(b.date)),index=payments.findIndex(p=>p.id===event.paymentId),remainders=installmentRemainders(data);
+ const category=categoryCatalog(data.customCats).find(c=>c.id===plan.cat);
+ return {number:index+1,total:payments.length,remaining:sumMoney(payments,p=>installmentRemaining(data,p,remainders)),currency:plan.currency,category};
 }
