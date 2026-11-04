@@ -11,7 +11,7 @@ import {botView} from '../server/bot-views.js';
 import {applyBotAction,fieldsFor,botImportPreview,parseField} from '../server/bot-catalog.js';
 import {debtRemaining} from '../src/debt-state.js';
 const today=todayMoscow();
-const seed=()=>({...structuredClone(EMPTY),accounts:[{id:'bank',name:'Банк',currency:'RUB',balance:10000},{id:'reserve',name:'Наличный резерв',currency:'RUB',balance:2000,accType:'savings',storageKind:'cash'}],installments:[],reconciliations:[]});
+const seed=()=>({...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:1,legacyInterfaceOptIn:true},accounts:[{id:'bank',name:'Банк',currency:'RUB',balance:10000},{id:'reserve',name:'Наличный резерв',currency:'RUB',balance:2000,accType:'savings',storageKind:'cash'}],installments:[],reconciliations:[]});
 function fixture(data=seed()){
  const sqlite=new DatabaseSync(':memory:');sqlite.exec(fs.readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
  const DB={prepare(sql){let args=[];const s={bind(...a){args=a.map(x=>x instanceof ArrayBuffer?new Uint8Array(x):x);return s;},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return{results:sqlite.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)}};}};return s;},async batch(statements){sqlite.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
@@ -536,4 +536,19 @@ test('Native calendar opens the exact debt, moves its source once and pays throu
 
 test('Future expense entered as ordinary text becomes a calendar plan and repeated confirmation never debits',()=>run(async f=>{
  await f.update('завтра кофе 100 Банк');assert.match(f.last().text,/Будущий расход/);const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);const d=f.snapshot();assert.equal(d.accounts[0].balance,10000);assert.equal(d.transactions.length,0);assert.equal(d.recurring.length,1);assert.equal(d.recurring[0].type,'expense');
+}));
+test('Modern review edits amount and comment directly, invalidates stale confirm and saves once',()=>run(async f=>{
+ const d=f.snapshot();d.settings.interfaceVersion=2;f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
+ await f.update('Записать');await f.press('↓ Расход');await f.update('180');const stale=f.button('✅ Подтвердить');
+ const labels=f.last().reply_markup.inline_keyboard.flat().map(b=>b.text);for(const key of ['Сумма','Счёт','Категория','Дата','Комментарий'])assert(labels.includes(key));assert(f.last().reply_markup.inline_keyboard.every(row=>row.length<=2));
+ await f.press('Сумма');await f.update('200');await f.update('',stale);assert.equal(f.snapshot().transactions.length,0);
+ await f.update('Записать');await f.press('▶️ Продолжить запись');await f.press('Комментарий');await f.update('Проверка нового бота');const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0].amount,200);assert.equal(f.snapshot().transactions[0].note,'Проверка нового бота');assert.equal(f.snapshot().accounts[0].balance,9800);
+}));
+test('Modern grouped settings and analytics navigate through real callbacks without losing expense filters',()=>run(async f=>{
+ const d=f.snapshot();d.settings.interfaceVersion=2;d.transactions=[{id:'navigation-expense',type:'expense',cat:'food',date:today,amount:180,currency:'RUB',accountId:'bank',note:'Кофе для проверки'}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));const before=f.snapshot();
+ await f.update('/settings');await f.press('Деньги');await f.press('Категории и учётные курсы');assert.match(f.last().text,/Категории/);await f.update('/settings');await f.press('Данные и доступ');await f.press('Резервные копии');f.button('Скачать полный JSON');await f.update('/analytics');assert(f.last().text.length<1000);await f.press('7 дней');await f.press('По категориям');await f.press(/Еда.*180/);f.button(/Кофе для проверки/);assert(!f.last().reply_markup.inline_keyboard.flat().some(b=>b.text==='Список доходов'));assert.deepEqual(f.snapshot(),before);
+}));
+test('Modern transfer skips the zero fee step but edits a fee and confirms exactly once',()=>run(async f=>{
+ const d=f.snapshot();d.settings.interfaceVersion=2;f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
+ await f.update('Записать');await f.press('⇄ Перевод своим');await f.press(/Банк/);await f.press(/Наличный резерв/);await f.update('1000');f.button('✅ Подтвердить');assert.equal(f.snapshot().transfers.length,0);await f.press('✏️ Изменить поля');await f.press('Комиссия');await f.update('10');const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);assert.equal(f.snapshot().transfers.length,1);assert.equal(f.snapshot().accounts[0].balance,8990);assert.equal(f.snapshot().accounts[1].balance,3000);assert.equal(f.snapshot().transactions.filter(t=>t.transferId).length,1);
 }));

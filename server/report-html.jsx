@@ -44,7 +44,7 @@ export function ReportCard({data,params,createdAt}){
  {params.kind==='budget'&&<BudgetHero data={data}/>}
  {params.kind==='analytics'&&<SpendChart data={data} days={params.days} onInspect={noop}/>}
  {params.kind==='categories'&&<CategoryChart data={data} days={params.days} onInspect={noop}/>}
- {params.kind==='forecast'&&<ForecastChart data={data} onSettings={noop}/>}
+ {params.kind==='forecast'&&<ForecastChart data={data} onSettings={noop} horizonDays={params.forecastDays}/>}
  {params.kind==='lunch'&&<LunchPage data={data} initialMonth={params.month} mutate={noop} busy onAdd={noop} onEdit={noop}/>}
  {params.kind==='savings'&&<><SavingsWidget data={data} onOpen={noop} onGoals={noop} offset={params.page*6} limit={6}/>{moduleEnabled(data,'goals')&&<GoalsChart data={data} onGoals={noop} offset={params.page*6} limit={6}/>}</>}
  </div><footer className="report-foot">Состояние на {new Intl.DateTimeFormat('ru-RU',{timeZone:data.settings.timeZone||'Europe/Moscow',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}).format(new Date(createdAt))}. Изменения — кнопками в боте или миниаппе.{params.kind==='savings'?` Страница ${params.page+1}.`:''}</footer></article>;
