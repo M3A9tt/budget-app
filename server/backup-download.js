@@ -43,5 +43,24 @@ export async function backupFile(request,env,now=Date.now()){
  const pinned=await env.DB.prepare('SELECT data FROM user_backup_exports WHERE user_id=? AND revision=? AND expires_at>?').bind(ticket.userId,ticket.revision,now).first();
  const row=pinned||await env.DB.prepare('SELECT data FROM user_finance_state WHERE user_id=? AND revision=? UNION ALL SELECT data FROM user_state_backups WHERE user_id=? AND revision=? LIMIT 1').bind(ticket.userId,ticket.revision,ticket.userId,ticket.revision).first();
  if(!row)throw new RequestError('Копия устарела. Скачай свежий бэкап.',410);
- return new Response(request.method==='HEAD'?null:JSON.stringify(JSON.parse(row.data),null,2),{headers:{...headers,'Content-Type':'application/json; charset=utf-8','Content-Disposition':'attachment; filename="'+ticket.filename+'"'}});
+ // Serialize once; UTF-8 byte length and digest describe the exact download,
+ // including multibyte notes. Keep intermediaries from transforming the file.
+ const bytes=encoder.encode(JSON.stringify(JSON.parse(row.data),null,2));
+ const digest=hex(await crypto.subtle.digest('SHA-256',bytes));
+ const responseHeaders={...headers,'Cache-Control':'no-store, private, no-transform','Content-Type':'application/json; charset=utf-8','Content-Encoding':'identity','Accept-Ranges':'bytes','X-Burget-Backup-Bytes':String(bytes.byteLength),'X-Burget-Backup-SHA256':digest,'Content-Disposition':'attachment; filename="'+ticket.filename+'"'};
+ // Native downloaders can resume a partially saved file using a byte range.
+ // HEAD describes the full GET and never supplies a zero-length file size.
+ let body=bytes,status=200;
+ const range=request.method==='GET'&&request.headers.get('Range');
+ if(range){
+  const match=/^bytes=(\d*)-(\d*)$/.exec(range);
+  let from=0,to=bytes.length-1;
+  if(!match||(!match[1]&&!match[2]))return new Response(null,{status:416,headers:{...responseHeaders,'Content-Range':'bytes */'+bytes.length}});
+  if(!match[1])from=Math.max(0,bytes.length-Number(match[2]));
+  else {from=Number(match[1]);if(match[2])to=Math.min(to,Number(match[2]));}
+  if(!Number.isSafeInteger(from)||!Number.isSafeInteger(to)||from>to||from>=bytes.length||(!match[1]&&Number(match[2])===0))return new Response(null,{status:416,headers:{...responseHeaders,'Content-Range':'bytes */'+bytes.length}});
+  body=bytes.slice(from,to+1);status=206;responseHeaders['Content-Range']='bytes '+from+'-'+to+'/'+bytes.length;
+ }
+ responseHeaders['Content-Length']=String(body.byteLength);
+ return new Response(request.method==='HEAD'?null:body,{status,headers:responseHeaders,encodeBody:'manual'});
 }
