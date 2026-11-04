@@ -234,7 +234,7 @@ await page.locator('.lunch-day-settings>summary').click();await page.getByRole('
 for(const width of [320,360,390,430,768,1280]){await page.setViewportSize({width,height:1000});await checkOverflow('extra lunch workday '+width);}
 await page.setViewportSize({width:390,height:1000});await page.getByLabel('Дата рабочего дня',{exact:true}).fill('2026-11-04');await page.locator('.lunch-workday-prompt').waitFor();await page.getByRole('button',{name:/^Работал ·/}).click();await page.locator('.lunch-workday-status').waitFor();assert.equal(data.lunchDayMod['2026-11-04'],1);assert.match(await page.locator('.lunch-workday-status').textContent(),/попадёт в этот день/);await page.getByRole('button',{name:'К таблице',exact:true}).click();assert.match(await page.locator('.lunch-month').textContent(),/ноябрь/);assert.match(await page.locator('.lunch-metrics').textContent(),/8[ \u00a0\u202f]?400/);assert.equal(data.accounts[0].balance,1000);
 // Summary images use the same exact-period model as their full text.
-const reportBundle=await build({entryPoints:['server/report-html.jsx'],bundle:true,write:false,format:'esm',platform:'browser',loader:{'.css':'text'}});
+const reportBundle=await build({entryPoints:['server/report-html.jsx'],bundle:true,write:false,format:'esm',platform:'browser',define:{'process.env.NODE_ENV':'"production"'},loader:{'.css':'text'}});
 const {renderReportHtml}=await import('data:text/javascript;base64,'+Buffer.from(reportBundle.outputFiles[0].contents).toString('base64'));
 await page.setViewportSize({width:640,height:1600});
 for(const [name,source,from] of [['day',demoData(today),today],['week',demoData(today),past(-6)],['empty',structuredClone(EMPTY),today]]){

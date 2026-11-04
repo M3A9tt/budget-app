@@ -1,3 +1,4 @@
+import {BOT_REPORT_SCREENS} from './bot-report-screens.js';
 import {personalInterface} from '../src/interface-settings.js';
 import {calendarInstallmentInfo} from '../src/calendar-model.js';
 import {categoryCatalog} from '../src/categories.js';
@@ -138,5 +139,6 @@ export function botView(d,name='home',a={},owner=false){
  if(name==='calendarEvent'){const e=scheduledEvents(d,today,a.date).find(x=>x.id===a.eventId&&x.date===a.date),info=e&&calendarInstallmentInfo(d,e);if(info)r.lines.splice(2,0,(info.category?.name||'Без категории')+' · платёж '+info.number+' из '+info.total,'Всего осталось: '+money(info.remaining,info.currency));}
  r.title=({history:'Операции',calendar:'Календарь',payments:'Платежи',home:'Главная',more:'Ещё'})[name]||r.title;r.actions=r.actions.map(action=>({...action,label:({'🕘 История':'Операции','История':'Операции','Все записи':'Все операции','⌂ Главное меню':'Главная'})[action.label]||action.label}));}
  if(['more','payments','analytics','categories','pictures'].includes(name))r.actions=r.actions.filter(x=>{const module=({goals:'goals',wishes:'goals',plans:'plans',installments:'installments',debts:'debts',limits:'limits'})[x.view]||(x.args?.chart==='forecast'||x.args?.kind==='forecast'?'forecast':null);return !module||moduleEnabled(d,module);});
+ if(personalInterface(d)&&!a.textOnly&&!r.picture&&BOT_REPORT_SCREENS.includes(name))r.picture={kind:'screen',name,args:a};
  r.lines=r.lines.filter(Boolean);if(name!=='home')r.actions.push(view(personalInterface(d)?'Главная':'⌂ Главное меню','home'));return r;
 }

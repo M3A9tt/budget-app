@@ -1,6 +1,7 @@
-import {botKeyboard,extraMenu,miniAppButton} from '../server/bot-navigation.js';
+import {commitBotAction} from '../server/bot-commit.js';
+import {navigationCommand,botKeyboard,extraMenu,miniAppButton} from '../server/bot-navigation.js';
 import {broadcastRelease} from '../server/releases.js';
-import {showBotView,compactMenuRows} from '../server/bot-chat.js';
+import {botChat,showBotView,compactMenuRows} from '../server/bot-chat.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -20,12 +21,12 @@ function fixture(data=seed()){
  const sent=[],files=new Map(),original=globalThis.fetch;let sequence=100;
  globalThis.fetch=async(url,options={})=>{
   if(String(url).includes('/file/bot'))return new Response(files.get(String(url).split('/').at(-1))||'');
-  if(options.body instanceof FormData&&['sendPhoto','editMessageMedia'].some(m=>String(url).endsWith('/'+m))){sent.push({method:String(url).split('/').at(-1),body:{chat_id:options.body.get('chat_id'),message_id:options.body.get('message_id'),text:options.body.get('caption')||JSON.parse(options.body.get('media')).caption,reply_markup:JSON.parse(options.body.get('reply_markup')),photo:options.body.get('photo')}});return Response.json({ok:true,result:{message_id:++sequence,photo:[{file_id:'cached-photo'}]}});}
+  if(options.body instanceof FormData&&['sendPhoto','editMessageMedia'].some(m=>String(url).endsWith('/'+m))){const resultId=Number(options.body.get('message_id'))||++sequence;sent.push({method:String(url).split('/').at(-1),body:{chat_id:options.body.get('chat_id'),message_id:resultId,text:options.body.get('caption')||JSON.parse(options.body.get('media')).caption,reply_markup:JSON.parse(options.body.get('reply_markup')),photo:true}});return Response.json({ok:true,result:{message_id:resultId,photo:[{file_id:'cached-photo'}]}});}
   if(options.body instanceof FormData){sent.push({method:'sendDocument',body:{chat_id:options.body.get('chat_id'),document:await options.body.get('document').text()}});return Response.json({ok:true,result:{message_id:++sequence}});}
-  const body=JSON.parse(options.body);sent.push({method:String(url).split('/').at(-1),body});if(String(url).endsWith('/getFile'))return Response.json({ok:true,result:{file_path:'documents/'+body.file_id}});return Response.json({ok:true,result:{message_id:body.message_id||++sequence}});
+  const body=JSON.parse(options.body);if(body.caption!==undefined){body.text=body.caption;body.photo=true;}sent.push({method:String(url).split('/').at(-1),body});if(String(url).endsWith('/getFile'))return Response.json({ok:true,result:{file_path:'documents/'+body.file_id}});return Response.json({ok:true,result:{message_id:body.message_id||++sequence}});
  };
- async function update(text='',callback,who=111,extra={}){const content=callback?{callback_query:{id:'c'+sequence,from:{id:who},message:{message_id:sequence,chat:{id:who,type:'private'},...(last()?.photo?{photo:[{file_id:'cached-photo'}]}:{})},data:callback}}:{message:{message_id:sequence,from:{id:who},chat:{id:who,type:'private'},text,...extra}};const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-hook','Content-Type':'application/json'},body:JSON.stringify({update_id:++sequence,...content})}),env);assert.equal(response.status,200);}
- const last=()=>sent.filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia'].includes(x.method)).at(-1)?.body;
+ async function update(text='',callback,who=111,extra={}){const content=callback?{callback_query:{id:'c'+sequence,from:{id:who},message:{message_id:last()?.message_id||sequence,chat:{id:who,type:'private'},...(last()?.photo?{photo:[{file_id:'cached-photo'}]}:{})},data:callback}}:{message:{message_id:sequence,from:{id:who},chat:{id:who,type:'private'},text,...extra}};const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-hook','Content-Type':'application/json'},body:JSON.stringify({update_id:++sequence,...content})}),env);assert.equal(response.status,200);}
+ const last=()=>sent.filter(x=>['sendMessage','sendPhoto','editMessageText','editMessageMedia','editMessageCaption'].includes(x.method)).at(-1)?.body;
  function button(label){const b=last()?.reply_markup?.inline_keyboard?.flat().find(b=>typeof label==='string'?b.text===label:label.test(b.text));assert.ok(b,`Missing button ${label} in ${JSON.stringify(last())}`);return b.callback_data;}
  const press=async(label,who=111)=>update('',button(label),who);
  const snapshot=(id='111')=>JSON.parse(sqlite.prepare('SELECT data FROM user_finance_state WHERE user_id=?').get(id).data);
@@ -127,7 +128,7 @@ test('Savings and goals page buttons match six items in the image',()=>{
  for(const name of ['savings','goals']){const s=botView(d,name,{page:1});assert.match(s.lines[0],/7–12 из 13/);assert.equal(s.picture.page,1);assert.equal(s.actions.filter(x=>['account','goal'].includes(x.view)).length,6);}
 });
 test('Section navigation edits the current card, falls back for expired cards, and quick repeat still requires review',()=>run(async f=>{
- const api={readState:async()=>({revision:1,data:f.snapshot()}),telegram:async(_env,method,body)=>{f.sent.push({method,body});if(method==='editMessageText'&&body.message_id===404)throw Error('expired');return {message_id:body.message_id||100};}};
+ const api={readState:async()=>({revision:1,data:f.snapshot()}),telegram:async(_env,method,body)=>{f.sent.push({method,body});if(method==='editMessageText'&&body.message_id===404)throw Object.assign(Error('expired'),{telegramCode:400,telegramDescription:'Bad Request: message to edit not found'});return {message_id:body.message_id||100};}};
  await showBotView(f.env,'111',{...api,viewMessage:{message_id:123}},'accounts');assert.equal(f.sent.at(-1).method,'editMessageText');assert.equal(f.sent.at(-1).body.message_id,123);
  await showBotView(f.env,'111',{...api,viewMessage:{message_id:404}},'accounts');assert.equal(f.sent.filter(x=>['sendMessage','editMessageText'].includes(x.method)).at(-1).method,'sendMessage');
  const d=f.snapshot();d.transactions=[{id:'coffee',date:today,type:'expense',cat:'food',amount:180,currency:'RUB',accountId:'bank',note:'Кофе',paymentMethod:'card'}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
@@ -462,7 +463,7 @@ test('Lunch amount 380 succeeds with a hyphenated unrelated account and repeated
  const d=seed();d.settings.modules={lunch:true};d.accounts.push({id:'beta',name:'Бета-счет',balance:500,currency:'RUB'});
  return run(async f=>{
   await f.update('/add');assert.ok(f.last().reply_markup.inline_keyboard.some(row=>row.length===2));await f.press(/Обед компании/);assert.match(f.last().text,/Стоимость обеда/);
-  assert.ok(f.sent.some(x=>x.method==='editMessageReplyMarkup'&&x.body.message_id&&x.body.reply_markup.inline_keyboard.length===0));
+  assert.ok(!f.sent.some(x=>x.method==='editMessageReplyMarkup'&&x.body.message_id===f.last().message_id&&x.body.reply_markup.inline_keyboard.length===0));assert.ok(f.last().reply_markup.inline_keyboard.flat().some(b=>b.text==='✕ Отмена'));
   await f.update('380');assert.match(f.last().text,/380/);assert.equal(f.snapshot().transactions.length,0);
   const token=f.button('✅ Подтвердить');await f.update('',token);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0].type,'lunch');assert.equal(f.snapshot().transactions[0].amount,380);assert.deepEqual(f.snapshot().accounts,d.accounts);
   await f.update('',token);assert.equal(f.snapshot().transactions.length,1);
@@ -551,4 +552,16 @@ test('Modern grouped settings and analytics navigate through real callbacks with
 test('Modern transfer skips the zero fee step but edits a fee and confirms exactly once',()=>run(async f=>{
  const d=f.snapshot();d.settings.interfaceVersion=2;f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
  await f.update('Записать');await f.press('⇄ Перевод своим');await f.press(/Банк/);await f.press(/Наличный резерв/);await f.update('1000');f.button('✅ Подтвердить');assert.equal(f.snapshot().transfers.length,0);await f.press('✏️ Изменить поля');await f.press('Комиссия');await f.update('10');const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);assert.equal(f.snapshot().transfers.length,1);assert.equal(f.snapshot().accounts[0].balance,8990);assert.equal(f.snapshot().accounts[1].balance,3000);assert.equal(f.snapshot().transactions.filter(t=>t.transferId).length,1);
+}));
+test('Modern photo navigation, amount entry, confirmation and undo reuse one Telegram message and refresh balances',()=>run(async f=>{
+ const d=f.snapshot();d.settings.interfaceVersion=2;d.settings.legacyInterfaceOptIn=false;f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));
+ const png=new Uint8Array(24);png.set([137,80,78,71,13,10,26,10]);new DataView(png.buffer).setUint32(16,1280);new DataView(png.buffer).setUint32(20,1000);
+ const readState=async()=>{const row=f.sqlite.prepare("SELECT revision,data FROM user_finance_state WHERE user_id='111'").get();return {revision:row.revision,data:JSON.parse(row.data),isOwner:true};};
+ const api={navigationCommand,readState,capturePicture:async()=>png,telegram:async(e,method,body)=>(await(await fetch('https://api.telegram.org/bot-test/'+method,{method:'POST',body:JSON.stringify(body)})).json()).result,commitAction:(e,u,id,p)=>commitBotAction(e,u,id,p,readState)};
+ const update=async(text='',callback)=>botChat(callback?{callback_query:{id:'c',data:callback,message:{message_id:f.last()?.message_id,photo:f.last()?.photo},from:{id:111}}}:{message:{text}},f.env,'111',api);
+ const press=label=>update('',f.button(label));
+ await update('/budget');const id=f.last().message_id;assert(id);assert.equal(f.sent.filter(x=>x.method==='sendPhoto').length,1);
+ await update('/add');assert.equal(Number(f.last().message_id),Number(id));await press('↓ Расход');assert.equal(Number(f.last().message_id),Number(id));assert.equal(f.sent.at(-1).method,'editMessageCaption');
+ await update('180');assert.equal(Number(f.last().message_id),Number(id));assert.match(f.last().text,/180/);const confirm=f.button('✅ Подтвердить');await update('',confirm);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().accounts[0].balance,9820);assert.equal(Number(f.last().message_id),Number(id));assert.equal(f.sent.filter(x=>x.method==='sendPhoto').length,1);assert.equal(f.sent.filter(x=>x.method==='sendMessage').length,0);
+ await press('↩️ Отменить изменение');await press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,10000);assert.equal(Number(f.last().message_id),Number(id));assert.equal(f.sent.filter(x=>x.method==='sendPhoto').length,1);
 }));
