@@ -1,3 +1,4 @@
+import {requestScreenshot} from './browser-screenshot.js';
 import {botView} from './bot-views.js';
 import {missingEditableMessage} from './bot-message.js';
 import {reportAssets} from './report-assets.js';
@@ -38,9 +39,8 @@ export async function capturePicture(env,data,params){
  if(!env.BROWSER?.quickAction)throw Error('Browser unavailable');
  const {renderReportHtml}=await import('./report-html.jsx');
  const html=renderReportHtml(data,params,undefined,await reportAssets(env));
- const response=await env.BROWSER.quickAction('screenshot',{html,selector:'#report-card',viewport:{width:640,height:1600,deviceScaleFactor:1.5},setJavaScriptEnabled:false,actionTimeout:8000,gotoOptions:{timeout:8000,waitUntil:'networkidle0'},screenshotOptions:{type:'png',captureBeyondViewport:true}});
- if(!response.ok)throw Error('Screenshot unavailable');
- // Bound the response before persisting it in D1; no HTML or user data is logged.
+ const response=await requestScreenshot(env.BROWSER,{html,selector:'#report-card',viewport:{width:640,height:1600,deviceScaleFactor:1.5},setJavaScriptEnabled:false,actionTimeout:15000,gotoOptions:{timeout:15000,waitUntil:'networkidle0'},screenshotOptions:{type:'png',captureBeyondViewport:true}});
+// Bound the response before persisting it in D1; no HTML or user data is logged.
  const reader=response.body.getReader(),parts=[];let total=0;for(;;){const {done,value}=await reader.read();if(done)break;total+=value.length;if(total>MAX_BYTES){await reader.cancel();throw Error('Screenshot too large');}parts.push(value);}
  const bytes=new Uint8Array(total);let pos=0;for(const p of parts){bytes.set(p,pos);pos+=p.length;}pngInfo(bytes);return bytes;
 }
@@ -66,7 +66,7 @@ async function renderQueued(env,userId,state,params,key,capture,priority){
  try{
   for(;;){
    const hit=await cachedPicture(env,userId,key,params);if(hit)return {...hit,cacheHit:true};
-   const now=Date.now();lease=now+45000;
+   const now=Date.now();lease=now+75000;
    // One SQL statement decides the next turn and claims the global lease.
    // Background jobs age into the same priority after 2s. Within a priority,
    // users with the oldest last turn go first, then FIFO within that user.

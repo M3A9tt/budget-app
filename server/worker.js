@@ -10,7 +10,7 @@ import {lunchEntryArgs} from './lunch-entry.js';
 import {legacyLunchInput,legacySaveCallback} from './legacy-lunch.js';
 import {initialProfile} from '../src/home-layout.js';
 import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence,readReceipt} from './state-persistence.js';
-import {getPicture,pngInfo,pictureParams} from './bot-pictures.js';
+import {getPicture,pngInfo,pictureParams,pictureErrorCode} from './bot-pictures.js';
 import {botChat,showBotView,openQuickEntry,startBotForm,pauseBotForm,cancelBotFlow} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
 import {sendBotFile,readBotDocument} from './bot-files.js';
@@ -202,7 +202,7 @@ export default {
        const storage=await checkPersistence(env,latestRelease.id),picture=await getPicture(env,'__fictional_render_check__',{revision:1,data},params);
        if(url.searchParams.get('png')==='1')return new Response(picture.bytes,{headers:{'Content-Type':'image/png','Cache-Control':'no-store'}});
        return json({releaseId:latestRelease.id,scene,storage,...pngInfo(picture.bytes)});
-      }catch{return json({error:'Screenshot smoke check failed'},503);}
+      }catch(error){return json({error:'Screenshot smoke check failed',code:pictureErrorCode(error),detail:String(error.message||'').slice(0,160),status:error.screenshotStatus||null,reason:error.screenshotReason||''},503);}
     }
     if(url.pathname==='/card-demo'){
       const data=demoData();try{const params=pictureParams(Object.fromEntries(url.searchParams),data),{renderReportHtml}=await import('./report-html.jsx');return new Response(renderReportHtml(data,params,undefined,await reportAssets(env)),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch{return json({error:'Unknown demo card'},400);}
