@@ -17,8 +17,8 @@ export function calendarMonth(data,today,month=today.slice(0,7)){
 }
 
 export const CALENDAR_MARKS=[
- {type:'expense',label:'Расход',icon:'up',tone:'out'},
- {type:'income',label:'Доход',icon:'down',tone:'in'},
+ {type:'expense',label:'Расход',icon:'down',tone:'out'},
+ {type:'income',label:'Доход',icon:'up',tone:'in'},
  {type:'transfer',label:'Перевод',icon:'repeat',tone:'transfer'},
  {type:'lunch',label:'Обед компании',icon:'lunch',tone:'company'}
 ];

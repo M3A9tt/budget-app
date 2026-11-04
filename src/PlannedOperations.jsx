@@ -1,3 +1,5 @@
+import {personalInterface} from './interface-settings.js';
+import {entryDefaults} from './entry-assist.js';
 import RecordedPayment from './RecordedPayment.jsx';
 import React,{useState} from 'react';
 import {money,todayMoscow} from './mini-model.js';
@@ -39,7 +41,7 @@ export default function PlannedOperations({data,mutate,busy,cats,onPrepare,onEdi
  </article>;};
  const active=data.recurring.filter(r=>!archived(r)).sort((a,b)=>(due.find(x=>x.rule.id===a.id)?.date||'9999').localeCompare(due.find(x=>x.rule.id===b.id)?.date||'9999')),closed=data.recurring.filter(archived);
  return <><p className="payment-hint">{incomeOnly?'Здесь деньги, которые ещё должны прийти. Остаток увеличится только после записи поступления.':defaultFrequency==='manual'?'Один раз сохрани расход или доход. Каждую дату назначай сам, когда она станет известна.':'Здесь будущие расходы и доходы. Подтверждай запись, когда деньги уже списались или поступили.'}</p>
- <SmoothDetails key={createVersion} className="mini-card mini-disclosure"><summary>{incomeOnly?'Добавить ожидаемый доход':defaultFrequency==='once'?'Добавить разовую операцию':defaultFrequency==='manual'?'Добавить операцию по необходимости':'Добавить регулярную операцию'}</summary><PlannedForm incomeOnly={incomeOnly} initial={{frequency:defaultFrequency,type:incomeOnly?'income':'expense',startDate:defaultFrequency==='manual'?'':defaultDate||today}} data={data} cats={cats} busy={busy} save={async v=>{const ok=await mutate(d=>createPlanned(d,v),'План добавлен');if(ok)setCreateVersion(n=>n+1);return ok;}}/></SmoothDetails>
+ {personalInterface(data)&&onPrepare?<button type="button" className="mini-secondary planned-add-entry" disabled={busy} onClick={()=>onPrepare({...entryDefaults(data,incomeOnly?'income':'expense',today,cats),timing:'planned',frequency:defaultFrequency,date:defaultFrequency==='manual'?'':defaultDate||today})}>＋ {incomeOnly?'Запланировать доход':'Запланировать расход'}</button>:(<SmoothDetails key={createVersion} className="mini-card mini-disclosure"><summary>{incomeOnly?'Добавить ожидаемый доход':defaultFrequency==='once'?'Добавить разовую операцию':defaultFrequency==='manual'?'Добавить операцию по необходимости':'Добавить регулярную операцию'}</summary><PlannedForm incomeOnly={incomeOnly} initial={{frequency:defaultFrequency,type:incomeOnly?'income':'expense',startDate:defaultFrequency==='manual'?'':defaultDate||today}} data={data} cats={cats} busy={busy} save={async v=>{const ok=await mutate(d=>createPlanned(d,v),'План добавлен');if(ok)setCreateVersion(n=>n+1);return ok;}}/></SmoothDetails>)}
  {error&&<p className="mini-warning" role="alert">{error}</p>}{active.map(card)}{!active.length&&<p className="mini-small mini-muted">Открытых планов пока нет.</p>}
  {closed.length>0&&<details className="mini-card payment-archive"><summary>Завершённые и на паузе · {closed.length}</summary>{closed.map(card)}</details>}
  </>;

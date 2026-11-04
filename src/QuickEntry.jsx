@@ -1,3 +1,4 @@
+import AppSelect from './AppSelect.jsx';
 import {useState} from 'react';
 import {parseEntry} from './quick-entry.js';
 import {putTransaction,undoTransaction} from './ledger.js';
@@ -15,7 +16,7 @@ export default function QuickEntry({data,cats,upd,msg}) {
     </form>
     {draft&&<div style={{marginTop:12,lineHeight:1.8}}>
       <div>{draft.type==='lunch'?'Обед':draft.type==='income'?'Доход':'Расход'} · <strong>{draft.amount.toLocaleString('ru-RU')} ₽</strong> · {data.accounts.find(a=>a.id===draft.accountId)?.name||(draft.type==='lunch'?'Оплата компанией':'Без счёта')}</div>
-      <label>Категория <select value={draft.cat} disabled={draft.type!=='expense'} onChange={e=>setDraft({...draft,cat:e.target.value})} style={{...button,margin:'0 10px'}}>{draft.type!=='expense'?<option value={draft.cat}>{draft.type==='lunch'?'Обед':'Доход'}</option>:cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <label>Категория <AppSelect value={draft.cat} disabled={draft.type!=='expense'} onChange={e=>setDraft({...draft,cat:e.target.value})} style={{...button,margin:'0 10px'}}>{draft.type!=='expense'?<option value={draft.cat}>{draft.type==='lunch'?'Обед':'Доход'}</option>:cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</AppSelect></label>
       <button onClick={save} style={button}>Записать</button>
     </div>}
     {last&&!draft&&<button onClick={undo} style={{...button,marginTop:10}}>Отменить последнюю запись</button>}

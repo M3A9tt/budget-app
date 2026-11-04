@@ -45,7 +45,7 @@ try{
     await query.fill('ЖКХ');await row('ЖКХ').locator('.upcoming-payment').click();
     assert.equal(writes,0);assert.equal(await page.locator('[data-page=payments]').count(),1);steps.push({action:'open-row',writes});
     await row('ЖКХ').getByRole('button',{name:'Уже учтено',exact:true}).click();
-    await row('ЖКХ').getByLabel('Найти запись',{exact:true}).fill('ЖКХ внесено');await shot('link-panel-before-selection-390');await row('ЖКХ').getByLabel('Уже записанная операция',{exact:true}).selectOption('manual');
+    await row('ЖКХ').getByLabel('Найти запись',{exact:true}).fill('ЖКХ внесено');await shot('link-panel-before-selection-390');await row('ЖКХ').getByLabel('Уже записанная операция',{exact:true}).and(page.locator('select')).selectOption('manual');
     await shot('recorded-payment-390');const balances=structuredClone(data.accounts),future=structuredClone(data.recurring.find(r=>r.id==='travel'));
     await row('ЖКХ').getByRole('button',{name:'Связать без списания',exact:true}).click();await page.getByText('Ничего не найдено',{exact:true}).waitFor();
     assert.deepEqual(data.accounts,balances);assert.equal(data.transactions.length,1);assert.equal(data.transactions[0].recurringId,'housing');assert.deepEqual(data.recurring.find(r=>r.id==='travel'),future);

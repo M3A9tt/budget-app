@@ -1,3 +1,4 @@
+import {fetchExchangeRates} from './exchange-rates.js';
 import {financialCommand} from './financial-command.js';
 import {recordOperation,operationsReport,pruneOperations} from './operations.js';
 import {periodSummary} from './period-summary.js';
@@ -213,6 +214,7 @@ export default {
     if(!telegramUser&&!apiAccess&&!sessionAccess)return json({error:'Откройте приложение заново из меню Telegram-бота'},401);
     const userId=telegramUser?String(telegramUser.id):apiAccess?String(env.API_USER_ID||env.TELEGRAM_OWNER_ID):sessionAccess;
     if(!await hasAccess(env,userId))return json({error:'Нет доступа к этому профилю'},403);
+    if(url.pathname==='/api/v1/exchange-rates'){if(request.method!=='GET')return json({error:'Method not allowed'},405);try{return json(await fetchExchangeRates());}catch{return json({error:'Не удалось получить курсы Банка России. Повтори позже.'},503);}}
     const expectedProfile=request.headers.get('X-Budget-Profile');if(expectedProfile&&expectedProfile!==userId)return json({error:'Профиль входа изменился. Обнови данные перед сохранением.'},403);
       if(url.pathname==='/api/v1/admin/lunch-learning'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);if(request.method==='GET')return json(await learningQueue(env));if(request.method==='POST')return json(await moderateLearning(env,await readJsonObject(request)));}
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/operations'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await operationsReport(env));}
