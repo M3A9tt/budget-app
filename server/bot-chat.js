@@ -1,3 +1,4 @@
+import {editBotCard} from './bot-message.js';
 import {personalInterface} from '../src/interface-settings.js';
 import {accountMentions} from '../src/input-intent.js';
 import {operationsReport,operationsLines} from './operations.js';
@@ -35,7 +36,7 @@ export async function cancelBotFlow(env,userId,api){
  }catch{/* Telegram may have deleted the old message; the draft is already closed. */}}
 }
 async function retireMenu(env,userId,api,message,result){
- if(!message?.message_id||message.message_id===result?.message_id)return;
+ if(!message?.message_id||String(message.message_id)===String(result?.message_id))return;
  try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:message.message_id,reply_markup:{inline_keyboard:[]}});}catch{/* Deleted messages do not block the next screen. */}
 }
 export function compactMenuRows(buttons,routes,name){
@@ -44,7 +45,7 @@ export function compactMenuRows(buttons,routes,name){
   fullWidth:(button,i)=>!!(routes[i]?.args?.id&&records.has(routes[i]?.view))||/[₽$€]|\d{4}-\d{2}-\d{2}/.test(button.text)});
 }
 async function latestView(env,userId){
- const row=await env.DB.prepare("SELECT payload FROM telegram_drafts WHERE owner=? AND id GLOB 'bv_*' AND consumed=0 AND expires_at>? ORDER BY rowid DESC LIMIT 1").bind(userId,Date.now()).first();
+ const row=await env.DB.prepare("SELECT payload FROM telegram_drafts WHERE owner=? AND (id GLOB 'bv_*' OR id GLOB 'bf_*') AND consumed=0 AND expires_at>? ORDER BY rowid DESC LIMIT 1").bind(userId,Date.now()).first();
  if(!row)return null;
  const p=JSON.parse(row.payload);
  return p.cardId?{message_id:p.cardId,...(p.cardPhoto?{photo:true}:{})}:null;
@@ -63,11 +64,8 @@ async function menu(env,userId,screen){
 async function render(env,userId,api,screen){
  const previous=api.viewMessage?.message_id?api.viewMessage:await latestView(env,userId);
  const text=[screen.title,'',...(screen.lines||[])].join('\n').slice(0,3700),{id,reply_markup}=await menu(env,userId,screen);
- if(previous?.message_id&&!previous.photo)try{
-  const result=await api.telegram(env,'editMessageText',{chat_id:userId,message_id:previous.message_id,text,reply_markup});
-  await rememberView(env,userId,id,result?.message_id||previous.message_id);
-  return result||{message_id:previous.message_id};
- }catch{/* Deleted/expired/unedittable message: send a new screen. */}
+ const edited=screen.origin?.args?.textOnly&&previous?.photo?undefined:await editBotCard(api,env,userId,previous,text,reply_markup);
+ if(edited){await rememberView(env,userId,id,edited.message_id,!!edited.photo);return edited;}
  const result=await send(api,env,userId,text,reply_markup);
  await rememberView(env,userId,id,result?.message_id);
  await retireMenu(env,userId,api,previous,result);
@@ -85,17 +83,17 @@ async function showBotViewUnlocked(env,userId,api,name='home',args={}){
  if(name==='attention'){const {notificationChecks}=await import('./habits.js');args={...args,responses:await notificationChecks(env,userId,todayMoscow(s.data.settings.timeZone))};}
  if(name==='operations'){if(!s.isOwner)throw Error('Только владелец');return render(env,userId,api,{title:'Состояние сервиса',lines:operationsLines(await operationsReport(env)),actions:[view('Обновить','operations'),view('← Владелец','admin')]});}
  if(name==='backups'){const page=Math.max(0,Number(args.page)||0),rows=(await env.DB.prepare('SELECT revision,created_at FROM user_state_backups WHERE user_id=? ORDER BY revision DESC LIMIT 50').bind(userId).all()).results;return render(env,userId,api,{title:'Серверные резервные копии',lines:['Восстановление только после проверки.'],actions:[...rows.slice(page*8,page*8+8).map(r=>({label:`${r.created_at} · версия ${r.revision}`,special:'backup',args:{revision:r.revision}})),...(page>0?[view('← Копии','backups',{page:page-1})]:[]),...((page+1)*8<rows.length?[view('Копии →','backups',{page:page+1})]:[]),view('Меню копий','backup')]});}
- const screen=botView(s.data,name,args,s.isOwner);screen.origin={name,args};if(name==='transaction'&&args.backTo)screen.actions=screen.actions.map(r=>r.view==='history'?{...r,args:args.backTo.args}:r);
+ const screen=botView(s.data,name,args,s.isOwner);screen.origin={name,args};if(api.screenOverride)Object.assign(screen,api.screenOverride);if(name==='transaction'&&args.backTo)screen.actions=screen.actions.map(r=>r.view==='history'?{...r,args:args.backTo.args}:r);
  if(screen.picture&&(env.BROWSER||api.capturePicture)){
   try{
    try{await api.telegram(env,'sendChatAction',{chat_id:userId,action:'upload_photo'});}catch{}
    const picture=await getPicture(env,userId,s,screen.picture,api.capturePicture);
    const actions=[...screen.actions,{label:'📄 Скачать PNG',special:'pictureOriginal',args:{...picture.params,key:picture.cache_key}},view('📝 Текстом',name,{...args,textOnly:true})];
    const previous=api.viewMessage?.message_id?api.viewMessage:await latestView(env,userId),{id,reply_markup}=await menu(env,userId,{actions,origin:screen.origin});
-    const result=await uploadPicture(env,userId,picture,reply_markup,false,[screen.title,'',...screen.lines].join('\n'),previous?.photo?previous.message_id:undefined);
+    const result=await uploadPicture(env,userId,picture,reply_markup,false,([screen.title,'',...screen.lines].join('\n').length<=1000?[screen.title,'',...screen.lines].join('\n'):screen.title),previous?.message_id);
     await rememberView(env,userId,id,result?.message_id||previous?.message_id,true);
     await retireMenu(env,userId,api,previous,result);return result;
-  }catch(error){console.warn('Picture fallback',pictureErrorCode(error));}
+  }catch(error){if(error.pictureDelivery)throw error;console.warn('Picture fallback',pictureErrorCode(error));}
  }
  return render(env,userId,api,screen);
 }
@@ -104,15 +102,16 @@ async function formCard(env,userId,api,id,text,markup,expectedValues){
  if(expectedValues&&JSON.stringify(expectedValues)!==JSON.stringify(p.values))throw Error('Карточка изменилась. Открой последний шаг.');
  await replace(env,userId,loaded.row,{...p,cardVersion:version});
  const reply_markup={...markup,inline_keyboard:markup.inline_keyboard.map(row=>row.map(b=>b.callback_data?{...b,callback_data:b.callback_data+':g'+version}:b))};
- let message;if(p.cardId)try{message=await api.telegram(env,'editMessageText',{chat_id:userId,message_id:p.cardId,text,reply_markup});}catch{}
- if(!message)message=await send(api,env,userId,text,reply_markup);
- const fresh=await load(env,userId,id);if(fresh.p.cardVersion===version)await replace(env,userId,fresh.row,{...fresh.p,cardId:message?.message_id||p.cardId});return message;
+ const previous=p.cardId?{message_id:p.cardId,photo:p.cardPhoto}:await latestView(env,userId);
+ let message=await editBotCard(api,env,userId,previous,text,reply_markup);
+ if(!message){message=await send(api,env,userId,text,reply_markup);await retireMenu(env,userId,api,previous,message);}
+ const fresh=await load(env,userId,id);if(fresh.p.cardVersion===version)await replace(env,userId,fresh.row,{...fresh.p,cardId:message?.message_id||p.cardId,cardPhoto:!!message?.photo});return message;
 }
 export async function pauseBotForm(env,userId,api){const active=await pendingForm(env,userId);if(active&&!active.p.paused){await replace(env,userId,active.row,{...active.p,paused:true});if(active.p.cardId&&api)try{await api.telegram(env,'editMessageReplyMarkup',{chat_id:userId,message_id:active.p.cardId,reply_markup:{inline_keyboard:[]}});}catch{/* Old or deleted message: draft remains safely paused. */}}}
 async function resumeMenu(env,userId,api,active,op,args){return render(env,userId,api,{title:'✍️ Есть незавершённая запись',lines:[active.p.values.amount?money(active.p.values.amount,active.p.values.currency||'RUB'):'Можно продолжить с последнего поля.'],actions:[{label:'▶️ Продолжить запись',special:'resumeForm',args:{id:active.row.id}},{label:'Начать заново',special:'restartForm',args:{op,args}},view('Главная','home')]});}
 async function start(env,userId,api,op,args={}){
  const active=await pendingForm(env,userId);if(active&&!args.forceNew)return resumeMenu(env,userId,api,active,op,args);
- await cancelBotFlow(env,userId,api);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...(op==='tx'&&!args.id?quickDefaults(s.data,args):{}),...initialValues(s.data,op,args),...args.prefill},step:args.quickInput?1:0,status:'form',revision:s.revision,...(api.viewMessage?.message_id&&!api.viewMessage.photo?{cardId:api.viewMessage.message_id}:{})};
+ await cancelBotFlow(env,userId,api);const s=await api.readState(env,userId),p={kind:'bot-form',op,args:{newId:crypto.randomUUID(),...args},values:{...(op==='tx'&&!args.id?quickDefaults(s.data,args):{}),...initialValues(s.data,op,args),...args.prefill},step:args.quickInput?1:0,status:'form',revision:s.revision,...(api.viewMessage?.message_id?{cardId:api.viewMessage.message_id,cardPhoto:!!api.viewMessage.photo}:{})};
  if(args.ownLunch){p.values.note=p.values.note||'Обед за свои';p.values.cat='food';p.values.tags=['обед-за-свои'];}
  const id=await create(env,userId,p,'bf_');if(args.review)return preview(env,userId,api,id,p);if(op==='restore')await api.sendFile(env,userId,s.data,'byurdzhet-before-restore.json');return prompt(env,userId,api,id,p);
 }
@@ -130,6 +129,7 @@ async function prompt(env,userId,api,id,p,page=0){
  const message=await formCard(env,userId,api,id,`✍️ ${f.label}\n${f.hint?f.hint+'\n':''}${p.args.lunchCheckDay?'Обед за '+p.args.lunchCheckDay+'\n':''}\n${f.type==='choice'?(items.length?'Выбери вариант кнопкой.':'Подходящих записей нет. Создай их в соответствующем разделе.'):f.type==='document'?'Отправь файл или вставь содержимое.':'Напиши ответ сообщением.'}`,{inline_keyboard:rows},p.values);
  // A reply to an old prompt must never become the answer to a later field.
  const loaded=await load(env,userId,id);if(loaded.p.step===p.step&&loaded.p.status==='form')await replace(env,userId,loaded.row,{...loaded.p,promptId:message?.message_id});
+ return message;
 }
 const actionTitles={tx:'Запись операции',account:'Новый счёт',transfer:'Перевод своим',editTransfer:'Изменение перевода',reverseTransfer:'Отмена перевода и комиссии',notificationMode:'Режим уведомлений',moveCalendarEvent:'Перенести событие календаря',schedulePlan:'Назначить дату платежа',reschedulePlan:'Перенос платежа',paymentReminder:'Разовое напоминание',lunchAnswer:'Ответ об обеде',reconcile:'Сверка остатка',wish:'Заметка о покупке',debt:'Существующий долг',repay:'Возврат долга',linkDebt:'Связать возврат',plan:'План операции',installment:'График обязательства',restore:'Замена бюджета',import:'Импорт операций',feedback:'Обратная связь'};
 export async function preview(env,userId,api,id,p){
@@ -137,7 +137,7 @@ export async function preview(env,userId,api,id,p){
  try{
   if(p.op==='importRow'){const parent=p.importParent,doc=parseImportJson(parent.values.content),row={...p.values};if(row.type==='lunch')for(const key of ['account','category','paymentMethod','from','to','fee'])delete row[key];else if(row.type==='transfer')for(const key of ['account','category','paymentMethod'])delete row[key];else {for(const key of ['from','to','fee'])delete row[key];if(row.type==='income')delete row.category;}
    doc.operations[p.args.index]=row;const values={...parent.values,content:JSON.stringify(doc)};if(['account','from','to','type'].some(k=>row[k]!==parent.row[k]))for(const key of Object.keys(values))if(key.startsWith('map_'))delete values[key];
-   const next={...parent,values,status:'confirm',cardId:p.cardId,cardVersion:p.cardVersion,args:{...parent.args,excluded:(parent.args.excluded||[]).filter(x=>x!==p.args.index)}};delete next.row;const loaded=await load(env,userId,id);await replace(env,userId,loaded.row,next);return importPreview(env,userId,api,id,next,next.importPage||0);
+   const next={...parent,values,status:'confirm',cardId:p.cardId,cardPhoto:p.cardPhoto,cardVersion:p.cardVersion,args:{...parent.args,excluded:(parent.args.excluded||[]).filter(x=>x!==p.args.index)}};delete next.row;const loaded=await load(env,userId,id);await replace(env,userId,loaded.row,next);return importPreview(env,userId,api,id,next,next.importPage||0);
   }
   if(p.op==='search'){await cancelBotFlow(env,userId,api);return showBotView(env,userId,api,'history',{query:p.values.query});}
   if(p.op==='calculator'){const items=p.values.items.split('\n').filter(Boolean).map(line=>{const [name,price,count='1']=line.split(';');return {name,price,count:Number(count)};});const total=lunchCalculator(items);await cancelBotFlow(env,userId,api);return render(env,userId,api,{title:'🍽 Калькулятор',lines:[...items.map(i=>`${i.name} × ${i.count} · ${i.price}`),`Итого: ${money(total)}`],actions:[act('Записать обед компании','tx',{type:'lunch',prefill:{amount:total,note:items.map(i=>i.name+' × '+i.count).join(', ')}}),view('Обеды','lunch')]});}
@@ -181,9 +181,12 @@ async function route(env,userId,api,r){
    if(['analytics','categories'].includes(p.kind))actions.unshift(...[7,30].map(days=>({label:`${days} дней`,special:'picture',args:{...p,days}})));
    if(p.kind==='lunch')actions.unshift(view('Выбрать месяц','lunchMonths'));
    if(p.kind==='savings'){if(p.page>0)actions.unshift({label:'← Накопления',special:'picture',args:{...p,page:p.page-1}});if((p.page+1)*6<Math.max(s.data.accounts.filter(isSavings).length,s.data.goals.length))actions.unshift({label:'Накопления →',special:'picture',args:{...p,page:p.page+1}});}
-   actions.push(view('Открыть раздел',p.kind==='budget'?'home':['categories','forecast'].includes(p.kind)?'analytics':p.kind,p.kind==='lunch'?{month:p.month}:{}));
-   return await uploadPicture(env,userId,picture,(await menu(env,userId,{actions})).reply_markup,r.special==='pictureOriginal',undefined,api.viewMessage?.photo?api.viewMessage.message_id:undefined);
-  }catch{return render(env,userId,api,{title:'🖼 Снимок миниаппы',lines:[PICTURE_ERROR],actions:[{label:'Повторить',special:'picture',args:r.args},view('Картинки','pictures'),view('Главная','home')]});}
+   actions.push(view('Открыть раздел',p.kind==='screen'?p.name:p.kind==='budget'?'home':['categories','forecast'].includes(p.kind)?'analytics':p.kind,p.kind==='screen'?p.args:p.kind==='lunch'?{month:p.month}:{}));
+   const previous=api.viewMessage?.message_id?api.viewMessage:await latestView(env,userId),m=await menu(env,userId,{actions});
+   const result=await uploadPicture(env,userId,picture,m.reply_markup,r.special==='pictureOriginal',undefined,previous?.message_id);
+   if(r.special!=='pictureOriginal'){await rememberView(env,userId,m.id,result?.message_id||previous?.message_id,true);await retireMenu(env,userId,api,previous,result);}
+   return result;
+  }catch(error){if(error.pictureDelivery)throw error;return render(env,userId,api,{title:'🖼 Снимок миниаппы',lines:[PICTURE_ERROR],actions:[{label:'Повторить',special:'picture',args:r.args},view('Картинки','pictures'),view('Главная','home')]});}
  }
  if(r.special==='lunchQuestion'){const day=r.args?.day||todayMoscow(s.data.settings.timeZone);await setDayCheck(env,userId,day,'lunch','open');const body=lunchReminder(day);return send(api,env,userId,body.text,body.reply_markup);}
  if(r.special==='example')return api.sendFile(env,userId,IMPORT_EXAMPLE,'byurdzhet-operations-example.json');
@@ -219,7 +222,7 @@ export async function botChat(update,env,userId,api){
   if(p.kind!=='bot-form')throw Error('Карточка устарела');
   const generation=callback.data.split(':').at(-1);if(/^g\d+$/.test(generation)&&Number(generation.slice(1))!==p.cardVersion){await send(api,env,userId,'Используй кнопки последнего шага.');return true;}
   if(p.paused){await resumeMenu(env,userId,api,loaded,'tx',{type:'expense'});return true;}
-  if(action==='x'){await cancelBotFlow(env,userId,api);const dest=actionDestination(p);await showBotView(env,userId,api,dest.name,dest.args);return true;}
+  if(action==='x'){await cancelBotFlow(env,userId,api);const dest=actionDestination(p);await showBotView(env,userId,{...api,viewMessage:p.cardId?{message_id:p.cardId,photo:p.cardPhoto}:undefined},dest.name,dest.args);return true;}
   if(action==='c'){
    if(p.status!=='confirm')throw Error('Сначала проверь карточку');const current=await api.readState(env,userId);if(current.revision!==p.revision){await send(api,env,userId,'Данные изменились в другом окне. Обновил предпросмотр — проверь и подтверди ещё раз.');await preview(env,userId,api,id,p);return true;}
    if(p.op==='moderate'){if(!current.isOwner)throw Error('Только владелец');await moderateLearning(env,p.args);await cancelBotFlow(env,userId,api);await send(api,env,userId,'✅ Решение сохранено');return true;}
@@ -227,7 +230,7 @@ export async function botChat(update,env,userId,api){
    const result=await api.commitAction(env,userId,id,p),fresh=await api.readState(env,userId),outcome=actionOutcome(fresh.data,p,result);
    const dest=outcome.destination,repeatType=p.args.type||fresh.data.transactions.find(t=>t.id===p.args.id)?.type||p.values.type||'expense',actions=[view('↩️ Вернуться в раздел',dest.name,dest.args),...(outcome.undoId?[act('↩️ Отменить изменение','undo',{id:outcome.undoId,returnTo:dest})]:[]),...(p.op==='tx'?[act(repeatType==='lunch'?'＋ Ещё обед':repeatType==='income'?'＋ Ещё доход':'＋ Ещё расход','tx',{type:repeatType,returnTo:dest,...(p.args.checkDay?{checkDay:p.args.checkDay,prefill:{date:p.args.checkDay}}:{})})]:[])];
    if(p.args.checkDay)actions.push({label:'✅ Всё записал за '+p.args.checkDay,special:'dayCheck',args:{day:p.args.checkDay,action:'done'}},{label:'Напомнить через час',special:'dayCheck',args:{day:p.args.checkDay,action:'later'}});
-   await render(env,userId,{...api,viewMessage:p.cardId?{message_id:p.cardId}:undefined},{title:outcome.title,lines:outcome.lines,actions,origin:dest});return true;
+   await showBotView(env,userId,{...api,viewMessage:p.cardId?{message_id:p.cardId,photo:p.cardPhoto}:undefined,screenOverride:{title:outcome.title,lines:outcome.lines,actions}},dest.name,dest.args);return true;
   }
   if(action==='u'&&p.op==='import'){const index=Number(arg),doc=parseImportJson(p.values.content);if(!Number.isInteger(index)||!doc.operations[index])throw Error('Строка отсутствует');const next={kind:'bot-form',cardId:p.cardId,cardVersion:p.cardVersion,op:'importRow',args:{index},values:{...doc.operations[index]},step:0,status:'confirm',revision:p.revision,importParent:{...p,row:doc.operations[index]}};await replace(env,userId,loaded.row,next);return botChat({callback_query:{...callback,data:'b:z:'+id}},env,userId,api);}
   if(action==='z'||action==='l'){const s=await api.readState(env,userId),fields=fieldsFor(s.data,p.op,p.args,p.values),page=action==='l'?Math.max(0,Number(arg)||0):0;await formCard(env,userId,api,id,'✏️ Что изменить?',{inline_keyboard:[...buttonRows(fields.slice(page*6,page*6+6).map((f,i)=>({text:short(f.label),callback_data:`b:j:${id}:${page*6+i}`}))),...(page>0?[[{text:'← Поля',callback_data:`b:l:${id}:${page-1}`}]]:[]),...((page+1)*6<fields.length?[[{text:'Поля →',callback_data:`b:l:${id}:${page+1}`}]]:[]),[{text:'К проверке',callback_data:'b:t:'+id},{text:'Отмена',callback_data:'b:x:'+id}]]});return true;}

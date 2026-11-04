@@ -1,0 +1,130 @@
+[
+  {
+    "name": "budget",
+    "width": 640,
+    "height": 951.125,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "analytics",
+    "width": 640,
+    "height": 753.296875,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "categories",
+    "width": 640,
+    "height": 1132.125,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "forecast",
+    "width": 640,
+    "height": 1168.0625,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "lunch",
+    "width": 640,
+    "height": 1810.3125,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "savings",
+    "width": 640,
+    "height": 877.546875,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "summary",
+    "width": 640,
+    "height": 1121.984375,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "accounts",
+    "width": 640,
+    "height": 766.28125,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "calendar",
+    "width": 640,
+    "height": 1455.671875,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "history",
+    "width": 640,
+    "height": 971.296875,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "more",
+    "width": 640,
+    "height": 406.34375,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "settings",
+    "width": 640,
+    "height": 475.53125,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "settingsData",
+    "width": 640,
+    "height": 337.15625,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "installments",
+    "width": 640,
+    "height": 625.359375,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "installment",
+    "width": 640,
+    "height": 1195.40625,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  },
+  {
+    "name": "add",
+    "width": 640,
+    "height": 683.09375,
+    "font": true,
+    "logo": true,
+    "overflow": false
+  }
+]

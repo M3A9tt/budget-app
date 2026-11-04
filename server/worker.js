@@ -16,6 +16,7 @@ import {sendBotFile,readBotDocument} from './bot-files.js';
 import {lunchChatMessage,lunchChatCallback,pruneLunchChat,pauseLunchEdit} from './lunch-chat.js';
 import {userSwitchedDialog} from './dialog-focus.js';
 import {learningQueue,moderateLearning,pruneLearning} from './lunch-learning.js';
+import {reportAssets} from './report-assets.js';
 import {botKeyboard,navigationCommand,summariesMenu,botHelp} from './bot-navigation.js';
 import {sendTestMessage} from './test-messages.js';
 import {telegramPresentation} from '../src/telegram-presentation.js';
@@ -81,7 +82,7 @@ async function telegram(env,method,body) {
   if(!env.TELEGRAM_BOT_TOKEN)throw new Error('Telegram не настроен');
   if(['sendMessage','editMessageText'].includes(method)&&typeof body.text==='string'&&!body.parse_mode&&!body.entities)body={...body,...telegramPresentation(body.text)};
   const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
-  const result=await r.json();if(method==='editMessageText'&&result.description?.includes('message is not modified'))return null;if(!r.ok||!result.ok){const e=new Error('Не удалось доставить сообщение Telegram');e.telegramCode=result.error_code||r.status;e.retryAfter=result.parameters?.retry_after;e.definitelyNotSent=[400,403,429].includes(e.telegramCode);throw e;}return result.result;
+  const result=await r.json();if(['editMessageText','editMessageCaption','editMessageMedia','editMessageReplyMarkup'].includes(method)&&result.description?.includes('message is not modified'))return {message_id:body.message_id};if(!r.ok||!result.ok){const e=new Error('Не удалось доставить сообщение Telegram');e.telegramCode=result.error_code||r.status;e.telegramDescription=result.description||'';e.retryAfter=result.parameters?.retry_after;e.definitelyNotSent=[400,403,429].includes(e.telegramCode);throw e;}return result.result;
 }
 async function mutateState(env,userId,change){
  const state=await readState(env,userId),next=migrateData(change(structuredClone(state.data)),EMPTY);
@@ -196,7 +197,7 @@ export default {
       try{const storage=await checkPersistence(env,latestRelease.id),picture=await getPicture(env,'__fictional_render_check__',{revision:1,data:demoData()},{kind:'budget'});return json({releaseId:latestRelease.id,storage,...pngInfo(picture.bytes)});}catch{return json({error:'Screenshot smoke check failed'},503);}
     }
     if(url.pathname==='/card-demo'){
-      const data=demoData();try{const params=pictureParams(Object.fromEntries(url.searchParams),data),{renderReportHtml}=await import('./report-html.jsx');return new Response(renderReportHtml(data,params),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch{return json({error:'Unknown demo card'},400);}
+      const data=demoData();try{const params=pictureParams(Object.fromEntries(url.searchParams),data),{renderReportHtml}=await import('./report-html.jsx');return new Response(renderReportHtml(data,params,undefined,await reportAssets(env)),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch{return json({error:'Unknown demo card'},400);}
     }
     if(url.pathname==='/api/v1/releases/announce'){if(request.method!=='POST'||!await equalSecret(request.headers.get('X-Budget-Release-Key'),env.RELEASE_DEPLOY_TOKEN))return json({error:'Unauthorized'},401);const input=await readJsonObject(request);if(input.releaseId!==latestRelease.id)return json({error:'Release mismatch'},409);return json({releaseId:latestRelease.id,...await broadcastRelease(env,telegram)});}
     if(url.pathname==='/telegram/webhook') {

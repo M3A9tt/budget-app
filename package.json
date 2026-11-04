@@ -1,7 +1,7 @@
 {
   "name": "finance-app",
   "private": true,
-  "version": "5.0.5",
+  "version": "5.0.5-a",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,7 +21,8 @@
     "test:calendar": "node scripts/check-connected-calendar.mjs",
     "test:personal": "node scripts/check-personal-interface.mjs",
     "test:entry": "node scripts/check-unified-entry.mjs",
-    "test:layout": "node scripts/check-entry-layout.mjs"
+    "test:layout": "node scripts/check-entry-layout.mjs",
+    "test:bot-cards": "node scripts/check-bot-cards.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

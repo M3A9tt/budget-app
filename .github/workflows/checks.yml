@@ -33,6 +33,11 @@ jobs:
         run: npm run test:layout
         env:
           LAYOUT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/entry-layout
+      - name: Check current bot screenshots
+        if: runner.os == 'Linux'
+        run: npm run test:bot-cards
+        env:
+          BOT_CARD_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/bot-cards
       - name: Check financial UI in Chromium
         if: runner.os == 'Linux'
         run: npm run test:browser
