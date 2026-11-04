@@ -1,7 +1,7 @@
 {
   "name": "finance-app",
   "private": true,
-  "version": "5.0.0",
+  "version": "5.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,7 +20,8 @@
     "test:ondemand": "node scripts/check-on-demand-browser.mjs",
     "test:calendar": "node scripts/check-connected-calendar.mjs",
     "test:personal": "node scripts/check-personal-interface.mjs",
-    "test:entry": "node scripts/check-unified-entry.mjs"
+    "test:entry": "node scripts/check-unified-entry.mjs",
+    "test:layout": "node scripts/check-entry-layout.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
