@@ -7,7 +7,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 947548
+    "bytes": 947646
   },
   {
     "name": "analytics",
@@ -17,7 +17,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 305721
+    "bytes": 305847
   },
   {
     "name": "categories",
@@ -27,7 +27,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 391943
+    "bytes": 392074
   },
   {
     "name": "forecast",
@@ -37,7 +37,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 447414
+    "bytes": 447509
   },
   {
     "name": "lunch",
@@ -47,7 +47,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 597695
+    "bytes": 597754
   },
   {
     "name": "savings",
@@ -57,7 +57,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 523965
+    "bytes": 524063
   },
   {
     "name": "summary",
@@ -67,7 +67,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 942725
+    "bytes": 942857
   },
   {
     "name": "accounts",
@@ -77,7 +77,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 471436
+    "bytes": 471603
   },
   {
     "name": "calendar",
@@ -87,7 +87,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 1251532
+    "bytes": 1251648
   },
   {
     "name": "history",
@@ -97,7 +97,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 778464
+    "bytes": 778579
   },
   {
     "name": "more",
@@ -107,7 +107,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 324707
+    "bytes": 324810
   },
   {
     "name": "settings",
@@ -117,7 +117,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 388586
+    "bytes": 388667
   },
   {
     "name": "settingsData",
@@ -127,7 +127,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 279164
+    "bytes": 279248
   },
   {
     "name": "installments",
@@ -137,7 +137,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 484949
+    "bytes": 485030
   },
   {
     "name": "installment",
@@ -147,7 +147,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 953012
+    "bytes": 953102
   },
   {
     "name": "add",
@@ -157,7 +157,7 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 559513
+    "bytes": 559598
   },
   {
     "name": "calendarEvent",
@@ -167,6 +167,36 @@
     "logo": true,
     "logoPixels": true,
     "overflow": false,
-    "bytes": 685784
+    "bytes": 685874
+  },
+  {
+    "name": "budget-smoke",
+    "width": 640,
+    "height": 909.78125,
+    "font": true,
+    "logo": true,
+    "logoPixels": true,
+    "overflow": false,
+    "bytes": 899926
+  },
+  {
+    "name": "calendar-smoke",
+    "width": 640,
+    "height": 1289.671875,
+    "font": true,
+    "logo": true,
+    "logoPixels": true,
+    "overflow": false,
+    "bytes": 1107363
+  },
+  {
+    "name": "calendarEvent-smoke",
+    "width": 640,
+    "height": 867.015625,
+    "font": true,
+    "logo": true,
+    "logoPixels": true,
+    "overflow": false,
+    "bytes": 678599
   }
 ]
