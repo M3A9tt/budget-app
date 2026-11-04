@@ -16,7 +16,7 @@ export function appearanceColors(values){
 export function accountBackground(values){
  const colors=appearanceColors(values);
  if(!colors.length)return undefined;
- const stops=colors.map(color=>"color-mix(in srgb,"+color+" 25%, #192431)");
+ const stops=colors.map(color=>"color-mix(in srgb,"+color+" 40%, #192431)");
  return {background:stops.length===1?stops[0]:"linear-gradient(120deg,"+stops.join(",")+")"};
 }
 export function setAccountAppearance(data,id,values){

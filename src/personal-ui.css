@@ -783,14 +783,14 @@
   border-radius: 8px;
 }
 
-.mini-shell :is(.transfer-form,.entry-composer) .entry-money {
+.mini-shell :is(.transfer-form,.entry-composer,.reconcile-form) .entry-money {
   width: 100%;
   padding: 12px 16px 15px;
   border: 1px solid var(--glass-line);
   border-radius: 18px;
   background: var(--glass-surface);
 }
-.mini-shell :is(.transfer-form,.entry-composer) .entry-money > .entry-amount {
+.mini-shell :is(.transfer-form,.entry-composer,.reconcile-form) .entry-money > .entry-amount {
   border: 0;
   background: none;
   padding: 0;
@@ -1357,3 +1357,224 @@
 }
 
 .mini-shell.personal-ui .entry-header-tools .entry-title h1{white-space:nowrap;overflow-wrap:normal;word-break:normal}
+/* Account surfaces use the same visual hierarchy as the shared entry form. */
+.custom-color-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;margin-top:14px}
+.custom-color-controls label,.chosen-colors label{display:flex;align-items:center;gap:10px}
+.custom-color-controls input[type=color],.chosen-colors input[type=color]{width:52px;height:42px;padding:3px;border-radius:12px}
+.custom-color-controls input:not([type=color]){width:112px;min-width:0}
+.custom-color-controls button{width:auto;min-width:100px}
+.chosen-colors{display:flex;gap:12px;flex-wrap:wrap;width:100%;margin-top:12px}
+.chosen-colors label{padding:8px;border:1px solid var(--mini-border,#52636c);border-radius:14px}
+.chosen-colors button{width:32px;height:32px}
+.reconcile-account{display:flex;align-items:center;gap:14px;padding:14px 18px;border:1px solid #71858b;border-radius:18px}
+.reconcile-account select{flex:1;min-width:0;border:0;background:transparent}
+.reconcile-comparison{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;padding:14px;border-top:1px solid #ffffff20}
+.reconcile-comparison span{display:flex;gap:10px}
+.reconcile-note{display:flex;align-items:center;gap:10px;border-bottom:1px solid #ffffff26}
+.reconcile-note input{border:0;background:transparent;min-width:0}
+.savings-tile>details:not(.account-appearance)>button{display:inline-flex;align-items:center;justify-content:center;margin:10px 10px 0 0;padding:12px 16px;border:1px solid #81959d55;border-radius:12px;background:#ffffff08}
+.entry-picker-options>button{border:1px solid #ffffff20;border-radius:14px;margin:7px 0;padding:15px}
+.account-action-panel>.mini-between:first-child{gap:16px;margin-bottom:20px}
+.account-action-panel>.mini-between:first-child h2{flex:1;text-align:center;font-size:clamp(25px,4vw,34px)}
+@media(max-width:420px){.custom-color-controls{gap:8px}.reconcile-account{padding:12px}.reconcile-comparison{gap:10px;font-size:14px}}
+
+
+
+.mini-shell.personal-ui .reconcile-form .reconcile-note{display:flex;align-items:center;gap:10px}
+.mini-shell.personal-ui .reconcile-form .reconcile-note input{margin:0;padding:10px 0;background:none;border:0;border-radius:0;min-width:0}
+.mini-shell.personal-ui .reconcile-form .entry-picker-trigger{padding:15px;border:1px solid var(--glass-line);border-radius:16px}
+
+.gradient-editor{border:0;padding:0;min-width:0;margin:16px 0}
+.gradient-editor legend{font-size:16px;font-weight:600;margin-bottom:12px}
+.gradient-preview{height:44px;border:1px solid var(--glass-line);border-radius:14px;margin-bottom:12px;background:var(--glass-surface)}
+.gradient-stops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.gradient-stop{position:relative;padding:12px;border:1px solid var(--glass-line);border-radius:16px;background:var(--glass-field);min-width:0}
+.mini-shell .gradient-stop label{display:flex;flex-direction:column;gap:10px;font-size:14px}
+.mini-shell .gradient-stop input[type=color]{width:100%;height:50px;padding:0;border:0;border-radius:12px;cursor:pointer}
+.mini-shell .gradient-stop input:not([type=color]){width:100%;min-width:0;padding:8px 2px;text-align:center;font-size:14px;background:none;border:0}
+.gradient-stop button{position:absolute;right:5px;top:5px;width:26px;height:26px;border:0;background:none;color:var(--mini-muted)}
+.mini-shell.personal-ui .mini-nav{gap:7px;padding:8px}
+.mini-shell.personal-ui .mini-nav>button{box-sizing:border-box;border-radius:15px;overflow:hidden}
+.mini-shell.personal-ui .mini-nav>button:not(.personal-nav-add){padding:8px 2px;gap:3px}
+.mini-shell.personal-ui .entry-account-field[data-entry-type=expense] .entry-picker-trigger{border:2px solid #d397925e}
+.mini-shell.personal-ui .entry-account-field[data-entry-type=income] .entry-picker-trigger{border:2px solid #9acbac5e}
+
+.mini-shell :is(.calendar-create-kinds,.entry-timing) [data-operation-type=expense]{color:#e4a29c;background:#d07c7415;border-color:#d7948b55}
+.mini-shell :is(.calendar-create-kinds,.entry-timing) [data-operation-type=income]{color:#a9d7b8;background:#8ec4a115;border-color:#97caaa55}
+.mini-shell :is(.calendar-create-kinds,.entry-timing) [data-operation-type][aria-pressed=true]{border-width:2px}
+.mini-shell :is(.calendar-create-kinds,.entry-timing) [data-operation-type=expense] svg{color:#e89b94}
+.mini-shell :is(.calendar-create-kinds,.entry-timing) [data-operation-type=income] svg{color:#9dd3ad}
+.mini-shell .account-create-form{gap:16px}
+.mini-shell .account-create-form>.entry-picker-trigger{border:1px solid var(--glass-line);border-radius:16px;padding:14px}
+
+.app-select{display:block;position:relative;min-width:0;width:100%}
+.app-select .app-select-native{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0;pointer-events:none;clip-path:inset(50%)}
+.mini-shell .app-select>.entry-picker-trigger{width:100%;min-width:0;padding:12px 14px;border:1px solid var(--glass-line);border-radius:14px;background:var(--glass-field);gap:10px}
+.app-select>.entry-picker-trigger>span{display:none}
+.app-select>.entry-picker-trigger>strong{flex:1;text-align:left;min-width:0;overflow-wrap:anywhere;font-size:16px}
+.mini-shell .entry-picker{width:min(32rem,calc(100vw - 24px));max-width:calc(100vw - 24px);box-sizing:border-box}
+.mini-shell .entry-picker-trigger{box-sizing:border-box;max-width:100%;gap:12px}
+.mini-shell .entry-picker-trigger strong{min-width:0;overflow-wrap:anywhere}
+.mini-shell .entry-picker-trigger:focus-visible{outline:2px solid #c3ddd0;outline-offset:3px}
+@media(max-width:380px){.mini-shell.personal-ui .mini-nav{gap:5px;padding:7px}.mini-shell.personal-ui .mini-nav>button:not(.personal-nav-add){font-size:12px;padding-inline:1px}.mini-shell.personal-ui .mini-nav>.personal-nav-add{min-width:0}}
+
+.mini-shell.personal-ui .gradient-editor .gradient-stop label{display:flex;flex-direction:column;align-items:stretch;width:100%;gap:10px}
+.mini-shell.personal-ui .gradient-editor input[type=color]{display:block;width:100%;min-width:0;height:56px;padding:0;border:0;border-radius:12px}
+.mini-shell.personal-ui .gradient-editor input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.mini-shell.personal-ui .gradient-editor input[type=color]::-webkit-color-swatch{border:0;border-radius:12px}
+.mini-shell.personal-ui .account-create-form{display:grid;gap:16px}
+.mini-shell.personal-ui .account-create-form>label,.mini-shell.personal-ui .account-create-form>input{margin:0}
+.mini-shell.personal-ui .account-create-form .entry-money{width:100%;border:1px solid var(--glass-line);border-radius:18px;background:var(--glass-surface);padding:16px}
+.mini-shell.personal-ui .entry-type-tabs [data-operation-type=expense]{color:#e8a59d;background:linear-gradient(145deg,#c9766b24,#c9766b0a);border-color:#d08f855e}
+.mini-shell.personal-ui .entry-type-tabs [data-operation-type=income]{color:#a8d5b6;background:linear-gradient(145deg,#88bd9b24,#88bd9b0a);border-color:#98c6a75e}
+.mini-shell.personal-ui .entry-type-tabs [data-operation-type][aria-pressed=true]{border-width:2px}
+
+.mini-shell .entry-picker-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;align-content:start;padding:3px}
+.mini-shell .entry-picker-options>button{margin:0;min-width:0;min-height:76px;border:1px solid var(--glass-line);border-radius:16px;background:linear-gradient(145deg,#d2dfea12,#d2dfea04);padding:14px}
+.mini-shell .entry-picker-options>button[aria-pressed=true]{border:2px solid #a6cebc;background:linear-gradient(135deg,#94c6ab29,#a494cf18);padding:13px}
+.mini-shell .entry-picker-options>button:disabled{opacity:.35}
+.mini-shell .entry-picker-option{min-width:0;align-items:center}
+.mini-shell .entry-picker-option>span{min-width:0;overflow-wrap:anywhere;line-height:1.35}
+.mini-shell .entry-picker-option>svg{width:22px;height:22px;flex-shrink:0}
+.mini-shell .entry-picker-options>button>svg{flex-shrink:0}
+.mini-shell .entry-picker-head{gap:12px;align-items:center;margin-bottom:14px}
+.mini-shell .entry-picker-head h2{font-size:clamp(24px,5vw,30px)}
+@media(max-width:350px){.mini-shell .entry-picker-options{grid-template-columns:1fr}.mini-shell .entry-picker-options>button{min-height:60px}}
+
+.mini-shell.personal-ui .reconcile-form{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.mini-shell.personal-ui .reconcile-form>.entry-picker-trigger,.mini-shell.personal-ui .reconcile-form>.entry-money{margin:0;width:100%;box-sizing:border-box}
+.mini-shell.personal-ui .reconcile-form>.reconcile-comparison{border-top:0;padding:0 0 8px}
+
+.mini-shell.personal-ui .mini-header{gap:14px}
+.header-summary{display:flex;align-items:center;justify-content:center;gap:24px;flex:1;min-width:0;font-variant-numeric:tabular-nums}
+.header-summary>div{display:grid;gap:3px;min-width:0}
+.header-summary span{font-size:14px;color:var(--mini-muted);line-height:1.2}
+.header-summary strong{font-size:18px;line-height:1.25;font-weight:600;white-space:nowrap}
+.header-summary-savings{padding-left:20px;border-left:1px solid var(--mini-line)}
+@media(max-width:600px){.header-summary-savings{display:none}.header-summary strong{font-size:16px}.mini-shell.personal-ui .mini-header{gap:10px}.mini-shell.personal-ui .mini-brand{flex:0 1 160px;min-width:0}.mini-shell.personal-ui .mini-brand .burget-lockup{max-width:100%;height:auto}}
+@media(max-width:360px){.mini-shell.personal-ui .mini-brand{flex-basis:122px}.mini-shell.personal-ui .mini-header{gap:8px;padding-inline:10px}.header-summary strong{font-size:14px}.header-summary span{font-size:14px}}
+
+.mini-shell.personal-ui .mini-header .mini-brand{display:block;flex:0 1 180px}
+@media(max-width:600px){.header-summary>.header-summary-savings{display:none}.mini-shell.personal-ui .mini-header .mini-brand{flex-basis:160px}}
+@media(max-width:360px){.mini-shell.personal-ui .mini-header .mini-brand{flex-basis:122px}}
+
+.header-summary>div{max-width:100%}
+.header-summary span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.header-summary strong{display:block;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.header-summary [data-tone=income] strong{color:#b6d9c2}
+.header-summary [data-tone=expense] strong{color:#e3aaa3}
+@media(max-width:600px){.header-summary>div{width:100%}}
+
+.currency-converter{max-width:850px;margin:0 auto}
+.converter-pair{display:grid;grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);gap:14px;align-items:center}
+.converter-side{min-width:0;padding:18px;border:1px solid var(--glass-line);background:var(--glass-surface);border-radius:22px}
+.converter-side>.entry-picker-trigger{width:100%;gap:8px}
+.converter-side label{display:block;margin-top:20px;color:var(--mini-muted);font-size:14px}
+.converter-side input{box-sizing:border-box;width:100%;min-width:0;margin-top:10px;padding:12px 0;background:none;border:0;border-bottom:1px solid var(--mini-line);border-radius:0;color:var(--mini-text);font:inherit;font-size:clamp(24px,4vw,38px);font-variant-numeric:tabular-nums}
+.converter-rate{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin:24px 0}
+.converter-rate label{display:flex;align-items:center;gap:10px}
+.converter-rate input{width:120px;min-width:0}
+@media(max-width:520px){.converter-pair{grid-template-columns:minmax(0,1fr);gap:10px}.converter-pair>.icon-button{justify-self:center;transform:rotate(90deg)}.converter-side{padding:14px}.converter-side label{margin-top:12px}}
+
+.converter-source{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;font-size:14px;color:var(--mini-muted)}
+
+.converter-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
+.converter-actions>button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px}
+@media(max-width:360px){.converter-actions{grid-template-columns:1fr}}
+
+.mini-shell.personal-ui .currency-converter .entry-money{width:100%;padding:12px 0 0}
+.mini-shell.personal-ui .currency-converter .entry-amount>div{grid-template-columns:0 minmax(0,1fr) 40px}
+.mini-shell.personal-ui .currency-converter .entry-money input{margin:0;background:transparent;border:0;border-radius:0;padding:6px 0}
+
+.mini-shell .entry-picker-options>.currency-option{position:relative;align-items:center;min-height:86px;padding:14px}
+.mini-shell .currency-option .entry-picker-option{align-items:center;gap:12px}
+.currency-flag{width:32px;height:24px;object-fit:cover;border-radius:5px;box-shadow:0 0 0 1px #ffffff26;flex-shrink:0}
+.mini-shell .currency-option .entry-picker-option>span{font-size:15px;font-weight:500;line-height:1.3}
+.mini-shell .currency-option small{font-size:13px;letter-spacing:.08em;margin-top:5px;color:var(--mini-muted)}
+.mini-shell .currency-option[aria-pressed=true]{padding:13px}
+@media(max-width:450px){.mini-shell .entry-picker-options:has(.currency-option){grid-template-columns:1fr}.mini-shell .entry-picker-options>.currency-option{min-height:66px}}
+
+.currency-converter .converter-pair{align-items:stretch}
+.currency-converter .converter-pair>.icon-button{align-self:center}
+.currency-converter .converter-side{display:flex;flex-direction:column;gap:18px}
+.mini-shell .currency-converter .converter-side>.entry-picker-trigger{height:58px;min-height:58px;margin:0;display:flex;align-items:center;gap:10px}
+.currency-converter .converter-side>.entry-picker-trigger>span{white-space:nowrap;flex-shrink:0;font-size:14px}
+.currency-converter .converter-side>.entry-picker-trigger>strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
+.currency-converter .converter-side>.entry-picker-trigger>svg{flex-shrink:0}
+.mini-shell.personal-ui .currency-converter .entry-money{margin:0;padding:0;width:100%;flex:1}
+.mini-shell.personal-ui .currency-converter .entry-amount>label{margin:0 0 12px;line-height:1.3}
+.currency-converter .converter-rate label{gap:12px;white-space:nowrap}
+@media(max-width:520px){.currency-converter .converter-side{gap:14px}.mini-shell .currency-converter .converter-side>.entry-picker-trigger{height:48px;min-height:48px}}
+
+.currency-converter .converter-side>.entry-picker-trigger>strong{white-space:normal;overflow:visible}
+.selected-currency{display:flex;align-items:center;gap:9px;min-width:0}
+.selected-currency>img{width:28px;height:21px;object-fit:cover;border-radius:4px;flex-shrink:0}
+.selected-currency>span{min-width:0;line-height:1.25;font-size:15px;overflow-wrap:normal}
+.mini-shell .currency-converter .converter-side>.entry-picker-trigger{height:74px;min-height:74px}
+@media(max-width:520px){.mini-shell .currency-converter .converter-side>.entry-picker-trigger{height:58px;min-height:58px}}
+
+.entry-picker-selected{display:flex;align-items:center;gap:9px}
+.entry-picker-selected-symbol{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;border:1px solid currentColor;border-radius:10px;background:#ffffff09}
+.entry-picker-selected-symbol svg{width:19px;height:19px}
+.mini-shell.personal-ui .entry-context-fields .entry-picker-trigger{padding-inline:10px;border-radius:12px}
+
+.mini-shell.personal-ui .finance-report .report-spending-hero{border:1px solid var(--glass-line);border-radius:24px;background:radial-gradient(ellipse at 0 0,#bc949b18,transparent 65%),var(--glass-surface);padding:24px}
+.mini-shell.personal-ui .report-total-button strong{font-size:clamp(38px,7vw,58px);font-weight:600;letter-spacing:-.04em}
+.report-recorded-days{display:flex;align-items:center;gap:9px 14px;flex-wrap:wrap;padding-top:15px;margin-top:16px;border-top:1px solid var(--mini-line);font-size:14px;color:var(--mini-muted)}
+.report-recorded-days>span:last-child{flex-basis:100%}
+.mini-shell.personal-ui .report-income-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}
+.mini-shell.personal-ui .report-income-row>button,.mini-shell.personal-ui .report-income-row>div{border:1px solid var(--glass-line);border-radius:16px;background:#ffffff06;padding:14px;min-width:0}
+.mini-shell.personal-ui .report-income-row>button strong{color:#b3d9be}
+.mini-shell.personal-ui .report-income-row strong{font-size:22px;overflow-wrap:anywhere}
+.mini-shell.personal-ui .report-section-heading{display:flex;align-items:center;gap:14px;margin:24px 0 14px}
+.mini-shell.personal-ui .report-section-heading h2{font-size:clamp(21px,4vw,27px);line-height:1.2}
+.mini-shell.personal-ui .report-section-heading:after{content:'';flex:1;height:1px;background:var(--mini-line)}
+.mini-shell.personal-ui .report-category-list{border:1px solid var(--glass-line);border-radius:20px;background:var(--glass-surface);padding:0 16px}
+.mini-shell.personal-ui .report-category{padding:18px 0;align-items:center;gap:13px}
+.mini-shell.personal-ui .report-category-symbol{width:44px;height:44px;border:1px solid currentColor;border-radius:14px;flex-shrink:0}
+.report-category-examples{display:block;font-size:14px;color:var(--mini-muted);line-height:1.4;margin:4px 0 9px}
+.mini-shell.personal-ui .report-takeaways{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin-top:16px}
+.mini-shell.personal-ui .report-finding{height:100%;padding:16px;border:1px solid var(--glass-line);border-radius:18px;background:var(--glass-field)}
+.mini-shell.personal-ui .report-advanced>summary,.mini-shell.personal-ui .report-largest>summary{padding:16px;border:1px solid var(--glass-line);border-radius:15px;background:var(--glass-field)}
+@media(max-width:380px){.mini-shell.personal-ui .finance-report .report-spending-hero{padding:18px}.mini-shell.personal-ui .report-income-row{gap:8px}.mini-shell.personal-ui .report-income-row>button,.mini-shell.personal-ui .report-income-row>div{padding:12px 9px}.mini-shell.personal-ui .report-income-row strong{font-size:20px}}
+
+.mini-shell :is(.transfer-form,.entry-composer,.reconcile-form,.shared-financial-form) .entry-money{width:100%;padding:14px 16px;border:1px solid var(--glass-line);border-radius:18px;background:var(--glass-surface)}
+.mini-shell.personal-ui .shared-financial-form{gap:16px;margin-top:16px}
+.mini-shell.personal-ui .shared-financial-form .entry-amount{background:none;border:0;padding:0;margin:0}
+.mini-shell.personal-ui .shared-financial-form>label{font-size:14px;margin:0;min-width:0}
+.mini-shell.personal-ui .shared-financial-form>label>input{margin-top:8px}
+.mini-shell.personal-ui .goal-tools .goal-actions{display:flex;gap:12px;flex-wrap:wrap;padding-block:12px}
+.mini-shell.personal-ui .goal-panel>h2{font-size:28px;text-align:center;display:flex;align-items:center;gap:14px}
+.mini-shell.personal-ui .goal-panel>h2:before,.mini-shell.personal-ui .goal-panel>h2:after{content:'';height:1px;flex:1;background:var(--mini-line)}
+.mini-shell.personal-ui .goal-tools>.mini-card{padding:18px;border:1px solid var(--glass-line);background:var(--glass-surface);border-radius:20px}
+.mini-shell.personal-ui .goal-tools .mini-progress{height:7px;margin:14px 0}
+
+.mini-shell.personal-ui .report-takeaways{border:0;background:none;padding:0}
+.mini-shell.personal-ui .report-advanced-content>.ins-card{border:0;background:none;padding:18px 0}
+.mini-shell.personal-ui .ins-bars{padding:20px 6px 8px}
+.mini-shell.personal-ui .ins-day{border-radius:12px;transition:background .25s ease}
+.mini-shell.personal-ui .ins-day:hover,.mini-shell.personal-ui .ins-day:focus-visible{background:#afcfc618}
+.mini-shell.personal-ui .ins-legend{gap:10px;flex-wrap:wrap}
+.mini-shell.personal-ui .ins-legend button{padding:8px 12px;border:1px solid var(--glass-line);border-radius:12px;background:var(--glass-field)}
+.mini-shell.personal-ui .ins-card-head h2{font-size:clamp(22px,4vw,28px)}
+.mini-shell.personal-ui .ins-goal{gap:15px;padding:18px 0}
+.mini-shell.personal-ui .ins-limit{padding:16px 0}
+.mini-shell.personal-ui .forecast-date{display:flex;align-items:center;gap:14px;margin:14px 0}
+.mini-shell.personal-ui .ins-data-table>summary{padding:14px;border:1px solid var(--glass-line);border-radius:14px;background:var(--glass-field)}
+.mini-shell .shared-financial-form .entry-amount>div>span:empty{display:none}
+
+/* Shared compact fields keep the transfer form's hierarchy in goal tools. */
+.mini-shell.personal-ui .shared-financial-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
+.mini-shell.personal-ui .shared-financial-form>:is(.financial-field-text,.entry-money,button,[role=alert]){grid-column:1/-1}
+.mini-shell.personal-ui .shared-financial-form .financial-field>input{border:0;border-bottom:1px solid var(--mini-line);border-radius:0;background:transparent;padding:10px 0;min-height:44px;width:100%}
+.mini-shell.personal-ui .shared-financial-form .financial-field-choice .entry-picker-trigger{margin-top:8px;min-height:46px}
+.mini-shell.personal-ui .shared-financial-form .financial-field-choice .entry-picker-selected{white-space:normal}
+.mini-shell.personal-ui .shared-financial-form>.entry-money{margin:0}
+@media(max-width:380px){.mini-shell.personal-ui .shared-financial-form{grid-template-columns:minmax(0,1fr)}.mini-shell.personal-ui .shared-financial-form>*{grid-column:1}}
+.mini-shell.personal-ui .finance-report{width:100%;max-width:900px;margin-inline:auto}
+.mini-shell.personal-ui .finance-report>:is(.report-spending-hero,.report-section,.report-takeaways,.report-filters,.report-largest,.report-advanced,.report-method){width:100%;max-width:none;box-sizing:border-box}
+.mini-shell.personal-ui .report-spending-hero>.report-eyebrow{text-transform:none;letter-spacing:0;line-height:1.5}
+.mini-shell.personal-ui .finance-report>details>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px}
+.mini-shell.personal-ui .finance-report>details>summary::-webkit-details-marker{display:none}
+.mini-shell.personal-ui .finance-report>details:not(.report-advanced)>summary:after{content:'⌄';margin-left:auto;font-size:22px;line-height:1;transition:transform .3s ease}
+.mini-shell.personal-ui .finance-report>details[open]:not(.report-advanced)>summary:after{transform:rotate(180deg)}

@@ -180,7 +180,7 @@ test('Calendar selected day opens shared forms for every source and saves the ac
  const today=todayMoscow(),date=new Date(Date.parse(today+'T12:00Z')+2*86400000).toISOString().slice(0,10),changed=new Date(Date.parse(today+'T12:00Z')+7*86400000).toISOString().slice(0,10);let data=state(),v,saved;
  const props=()=>({data,busy:false,onStateChange:x=>saved=x,mutate:async fn=>{data=fn(data);v.update(React.createElement(ui.MoneyCalendar,props()));return true;}});
  v=mount('MoneyCalendar',props());act(()=>v.root.findByProps({'aria-label':'Перейти к дате'}).props.onChange({target:{value:date}}));click(v,b=>text(b)==='Добавить на этот день');
- const kinds=v.root.findByProps({'aria-label':'Что добавить в календарь'});assert.deepEqual(kinds.findAllByType('button').map(b=>text(b)),['Расход','Доход']);
+ const kinds=v.root.findByProps({'aria-label':'Что добавить в календарь'});assert.deepEqual(kinds.findAllByType('button').map(b=>text(b)),['Доход','Расход']);
  const planned=v.root.findByType(ui.PlannedForm);assert.equal(planned.props.initial.startDate,date);const balances=structuredClone(data.accounts);
  await act(async()=>{await planned.props.save({id:'calendar-direct',type:'expense',name:'Покупка из календаря',amount:250,frequency:'once',accountId:'large',startDate:changed});});
  assert.deepEqual(data.accounts,balances);assert.equal(data.transactions.length,0);assert.equal(saved.date,changed);assert.ok(text(v.toJSON()).includes('Покупка из календаря'));assert.equal(data.recurring[0].startDate,changed);v.unmount();
@@ -194,7 +194,7 @@ test('Calendar moves a debt through its source and displays transfers as editabl
 
 
 test('Calendar can create another irregular template when saved templates already exist',()=>{
- const data=createPlanned(state(),{id:'saved',name:'Сохранённый',type:'expense',frequency:'manual',amount:100,accountId:'large'}),today=todayMoscow(),v=mount('MoneyCalendar',{data,mutate:()=>assert.fail('Choosing a form must not save')});click(v,b=>text(b)==='Добавить на этот день');const kinds=v.root.findByProps({'aria-label':'Что добавить в календарь'});act(()=>v.root.findByProps({'aria-label':'Как учесть'}).props.onChange({target:{value:'manual'}}));assert.ok(v.root.findByProps({'aria-label':'Сохранённая операция'}));click(v,b=>text(b)==='Создать другую операцию');assert.equal(v.root.findByType(ui.PlannedForm).props.initial.frequency,'manual');assert.equal(v.root.findByType(ui.PlannedForm).props.initial.startDate,today);click(v,b=>text(b)==='Выбрать сохранённую операцию');assert.ok(v.root.findByProps({'aria-label':'Сохранённая операция'}));v.unmount();
+ const data=createPlanned(state(),{id:'saved',name:'Сохранённый',type:'expense',frequency:'manual',amount:100,accountId:'large'}),today=todayMoscow(),v=mount('MoneyCalendar',{data,mutate:()=>assert.fail('Choosing a form must not save')});click(v,b=>text(b)==='Добавить на этот день');const kinds=v.root.findByProps({'aria-label':'Что добавить в календарь'});act(()=>v.root.findByProps({label:'Как учесть'}).props.onChange('manual'));assert.ok(v.root.findByProps({'aria-label':'Сохранённая операция'}));click(v,b=>text(b)==='Создать другую операцию');assert.equal(v.root.findByType(ui.PlannedForm).props.initial.frequency,'manual');assert.equal(v.root.findByType(ui.PlannedForm).props.initial.startDate,today);click(v,b=>text(b)==='Выбрать сохранённую операцию');assert.ok(v.root.findByProps({'aria-label':'Сохранённая операция'}));v.unmount();
 });
 
 test('Every local gallery symbol renders its SVG; untrusted names cannot reach arbitrary object properties',()=>{

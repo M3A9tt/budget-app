@@ -4,7 +4,7 @@ import {moduleEnabled} from './modules.js';
 
 export default function MoreMenu({personal=false,data,onOpen,onPage}){
  const groups=[
-  ['Деньги',[['accounts','wallet','Счета','Остатки, переводы и сверка'],['savings','shield','Накопления','Отложенные деньги'],...(moduleEnabled(data,'goals')?[['goals','goal','Цели','Покупки и планы накоплений']]:[])]],
+  ['Деньги',[['converter','repeat','Конвертер','Расчёт обмена валют'],['accounts','wallet','Счета','Остатки, переводы и сверка'],['savings','shield','Накопления','Отложенные деньги'],...(moduleEnabled(data,'goals')?[['goals','goal','Цели','Покупки и планы накоплений']]:[])]],
   ['Планы и отчёты',[['payments','calendar','Планы','Будущие расходы, доходы и обязательства'],['calendar','history','Календарь','Расходы и доходы по датам'],['stats','chart','Аналитика','Куда уходят деньги'],...(moduleEnabled(data,'lunch')?[['lunch','lunch','Обеды','Дни, стоимость и доплаты']]:[])]],
   ['Приложение',[['settings','settings','Настройки','Категории, уведомления и резервные копии'],['updates','file','Что нового','Изменения в приложении'],['feedback','message','Обратная связь','Сообщить об ошибке или предложить идею']]]
  ];

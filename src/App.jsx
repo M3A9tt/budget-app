@@ -1,3 +1,4 @@
+import AppSelect from './AppSelect.jsx';
 import QuickEntry from "./QuickEntry.jsx";
 import { parseMoney, putTransaction, deleteTransaction, undoTransaction, transferMoney, migrateData, historicalRub } from "./ledger.js";
 import { parseEntry } from "./quick-entry.js";
@@ -405,7 +406,7 @@ function Inp({label,...p}){
 function Sel({label,children,...p}){
   return <div style={{marginBottom:14}}>
     {label&&<label style={LS}>{label}</label>}
-    <select {...p} style={{
+    <AppSelect {...p} style={{
       width:'100%',background:'var(--s2)',
       border:'1px solid var(--border)',
       borderRadius:'var(--radius-sm)',
@@ -418,7 +419,7 @@ function Sel({label,children,...p}){
       backgroundRepeat:'no-repeat',
       paddingRight:32,
       ...p.style
-    }}>{children}</select>
+    }}>{children}</AppSelect>
   </div>;
 }
 
@@ -677,10 +678,10 @@ function QuickAddModal({data, allCats, upd, msg, toR, onClose}) {
             </button>)}
           </div>
         </>}
-        {accounts.length>0&&type!=='lunch'&&<select value={accId} onChange={e=>setAccId(e.target.value)} style={{width:'100%',background:'var(--s2)',border:`1px solid ${!accId?'var(--danger)':'var(--border)'}`,borderRadius:10,padding:'9px 12px',color:'var(--text)',fontSize:13,outline:'none',appearance:'none',marginBottom:10,cursor:'pointer'}}>
+        {accounts.length>0&&type!=='lunch'&&<AppSelect value={accId} onChange={e=>setAccId(e.target.value)} style={{width:'100%',background:'var(--s2)',border:`1px solid ${!accId?'var(--danger)':'var(--border)'}`,borderRadius:10,padding:'9px 12px',color:'var(--text)',fontSize:13,outline:'none',appearance:'none',marginBottom:10,cursor:'pointer'}}>
           <option value="">— Счёт обязателен —</option>
           {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name} · {fN(a.balance)} {curSym(a.currency||'RUB')}</option>)}
-        </select>}
+        </AppSelect>}
         <input type="text" value={note} onChange={e=>setNote(e.target.value)} placeholder="Описание (необязательно)" style={{width:'100%',background:'var(--s2)',border:`1px solid var(--border)`,borderRadius:10,padding:'9px 12px',color:'var(--text)',fontSize:13,outline:'none',marginBottom:10}}/>
         {recentNotes.length>0&&!note&&<div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>{recentNotes.map(n=><button key={n} onClick={()=>setNote(n)} style={{background:'var(--s3)',border:'0.5px solid var(--border)',color:'var(--muted)',fontSize:11,padding:'4px 10px',borderRadius:8,cursor:'pointer'}}>{n}</button>)}</div>}
         <div style={{display:'grid',gridTemplateColumns:'repeat(3, 1fr)',gap:5,marginBottom:10}}>
@@ -1748,10 +1749,10 @@ function AddPage({data,upd,cats,msg,toR,go,showAddCat,setShowAddCat}) {
     {currency!=='RUB'&&amount&&<div style={{fontSize:12,color:'var(--muted)',fontFamily:'var(--mono)',marginBottom:14,marginTop:-8}}>≈ {fmt(toR(parseMoney(amount)||0,currency))}</div>}
     {accounts.length>0&&type!=='debt'&&type!=='lunch'&&<div style={{marginBottom:14}}>
       <label style={LS}>Счёт <span style={{color:'var(--danger)'}}>*</span></label>
-      <select value={accId} onChange={e=>setAccId(e.target.value)} style={{width:'100%',background:'var(--s2)',border:`1px solid ${!accId?'var(--danger)':'var(--border)'}`,borderRadius:12,padding:'12px 14px',color:'var(--text)',fontSize:15,outline:'none',appearance:'none',cursor:'pointer'}}>
+      <AppSelect value={accId} onChange={e=>setAccId(e.target.value)} style={{width:'100%',background:'var(--s2)',border:`1px solid ${!accId?'var(--danger)':'var(--border)'}`,borderRadius:12,padding:'12px 14px',color:'var(--text)',fontSize:15,outline:'none',appearance:'none',cursor:'pointer'}}>
         <option value="">— Выбери счёт —</option>
         {accounts.map(a=><option key={a.id} value={a.id}>{a.icon} {a.name} ({fN(a.balance)} {curSym(a.currency||'RUB')})</option>)}
-      </select>
+      </AppSelect>
     </div>}
     {type==='expense'&&<>
       <Sel label="Категория" value={cat} onChange={e=>setCat(e.target.value)}>{cats.map(c=><option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</Sel>
