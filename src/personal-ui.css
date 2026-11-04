@@ -1083,6 +1083,7 @@
   }
 }
 
+.mini-shell.personal-ui .mini-header > .mini-brand { display: flex; }
 .mini-shell.personal-ui .mini-header {
   background: linear-gradient(125deg,#263644,#1b2936);
   backdrop-filter: none;
