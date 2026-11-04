@@ -28,6 +28,11 @@ jobs:
       - name: Install browser for UI checks
         if: runner.os == 'Linux'
         run: npx --no-install playwright-core install --with-deps chromium
+      - name: Check entry layout, pickers and complete financial flow
+        if: runner.os == 'Linux'
+        run: npm run test:layout
+        env:
+          LAYOUT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/entry-layout
       - name: Check financial UI in Chromium
         if: runner.os == 'Linux'
         run: npm run test:browser
