@@ -55,7 +55,7 @@ try{
    const item=page.locator('.attention-center article').filter({has:page.getByText('ЖКХ',{exact:true})});
    await item.getByRole('button',{name:'Уже учтено',exact:true}).click();
    await item.getByLabel('Найти запись',{exact:true}).fill('ЖКХ уже');
-   await item.getByLabel('Уже записанная операция').selectOption('manual');await shot('payment-390');
+   await item.getByLabel('Уже записанная операция').and(page.locator('select')).selectOption('manual');await shot('payment-390');
    if(label==='after'){
     const balances=structuredClone(data.accounts);
     await item.getByRole('button',{name:'Связать без списания',exact:true}).click();
