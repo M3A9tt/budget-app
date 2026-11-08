@@ -120,6 +120,24 @@ test('Telemetry respects explicit opt-out, server-derived owner admin access can
  assert.equal(db.prepare('SELECT count(*) n FROM ui_telemetry_receipts').get().n,1);
  const state=await(await call('222')).json();state.data.settings.telemetryEnabled=false;await call('222','state','PUT',{expectedRevision:state.revision,data:state.data});assert.equal((await(await call('222','telemetry','POST',{...batch,id:crypto.randomUUID()})).json()).accepted,0);
 });
+test('Owner-only Mini App telemetry export sends the aggregate JSON to the owner chat',async()=>{
+ const {call,data}=fixture(),profile=data(998877);profile.settings.telemetryEnabled=true;
+ await call('222','state','PUT',{expectedRevision:0,data:profile});
+ await call('222','telemetry','POST',{id:crypto.randomUUID(),events:[{event:'entry_save',screen:'add',device:'mobile'}]});
+ const before=await(await call('222')).json(),sent=[],original=globalThis.fetch;
+ globalThis.fetch=async(url,options)=>{sent.push({url,options});return Response.json({ok:true,result:{message_id:12}});};
+ try{
+  assert.equal((await call('222','admin/telemetry/send','POST')).status,403);
+  assert.equal(sent.length,0);
+  const response=await call('111','admin/telemetry/send','POST');assert.equal(response.status,200);assert.deepEqual(await response.json(),{sent:true});
+  assert.equal(sent.length,1);assert.match(sent[0].url,/\\/sendDocument$/);
+  assert.equal(sent[0].options.body.get('chat_id'),'111');
+  const file=sent[0].options.body.get('document');assert.match(file.name,/^byurdzhet-telemetry-\\d{4}-\\d{2}-\\d{2}\\.json$/);
+  const report=JSON.parse(await file.text());assert.equal(report.format,'burget-telemetry');assert.equal(report.rows.length,1);assert.equal(report.rows[0].count,1);
+  for(const secret of ['998877','same-account','Bank'])assert.ok(!JSON.stringify(report).includes(secret));
+  assert.deepEqual(await(await call('222')).json(),before);
+ }finally{globalThis.fetch=original;}
+});
 test('Telemetry rejects notes, sums, arbitrary events, oversized batches and invalid consent without changing finances',async()=>{
  const{call,data}=fixture();const d=data(1000);d.settings.telemetryEnabled=true;await call('222','state','PUT',{expectedRevision:0,data:d});const event={event:'entry_save',screen:'add',device:'mobile'};
  for(const events of [[{...event,note:'SECRET'}],[{...event,amount:999}],[{...event,event:'anything'}],Array.from({length:41},()=>event)])assert.equal((await call('222','telemetry','POST',{id:crypto.randomUUID(),events})).status,400);
