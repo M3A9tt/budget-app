@@ -130,9 +130,9 @@ test('Owner-only Mini App telemetry export sends the aggregate JSON to the owner
   assert.equal((await call('222','admin/telemetry/send','POST')).status,403);
   assert.equal(sent.length,0);
   const response=await call('111','admin/telemetry/send','POST');assert.equal(response.status,200);assert.deepEqual(await response.json(),{sent:true});
-  assert.equal(sent.length,1);assert.match(sent[0].url,/\\/sendDocument$/);
+  assert.equal(sent.length,1);assert.match(sent[0].url,/\/sendDocument$/);
   assert.equal(sent[0].options.body.get('chat_id'),'111');
-  const file=sent[0].options.body.get('document');assert.match(file.name,/^byurdzhet-telemetry-\\d{4}-\\d{2}-\\d{2}\\.json$/);
+  const file=sent[0].options.body.get('document');assert.match(file.name,/^byurdzhet-telemetry-\d{4}-\d{2}-\d{2}\.json$/);
   const report=JSON.parse(await file.text());assert.equal(report.format,'burget-telemetry');assert.equal(report.rows.length,1);assert.equal(report.rows[0].count,1);
   for(const secret of ['998877','same-account','Bank'])assert.ok(!JSON.stringify(report).includes(secret));
   assert.deepEqual(await(await call('222')).json(),before);
