@@ -48,20 +48,50 @@
 @media(prefers-reduced-motion:reduce){.payment-table-disclosure,.payment-table-amount svg{transition:none}}
 
 .payment-table-disclosure .payment-table-actions{
- display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:7px;
- padding:12px;background:linear-gradient(125deg,#9dafd011,transparent 70%),var(--glass-field);
+ display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:center;gap:4px 0;
+ padding:8px 10px 4px;border:0;border-radius:0 0 10px 10px;
+ background:linear-gradient(110deg,#9dafd012,transparent 76%),var(--glass-field);
 }
-.payment-table-actions>:is(p,form),.payment-table-actions>.recorded-payment:has(.recorded-payment-panel){grid-column:1/-1}
-.payment-table-actions>.payment-event-account{margin:0 0 3px}
+.payment-table-actions>.recorded-payment{display:contents}
+.payment-table-actions>:is(p,form),.payment-table-actions .recorded-payment-panel{grid-column:1/-1}
+.payment-table-actions>.payment-event-account{grid-column:span 3;margin:0;padding-inline:2px 8px;overflow-wrap:anywhere}
+.payment-table-actions>:is(form,.payment-hint),.payment-table-actions .recorded-payment-panel{order:3}
 .payment-table-actions>:is(.payment-table-record,.mini-text-button),.payment-table-actions .recorded-payment>.mini-text-button{
- display:flex;align-items:center;justify-content:flex-start;gap:7px;width:100%;min-height:44px;padding:7px 9px;
- text-align:left;line-height:1.3;border:1px solid #becbe329;border-radius:10px;background:var(--glass-surface);color:var(--mini-text);
+ display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:44px;padding:6px;
+ text-align:center;line-height:1.25;white-space:normal;color:var(--mini-text);
+ transition:background-color .2s ease,color .2s ease,transform .2s ease;
 }
-.payment-table-actions>.payment-table-record{background:linear-gradient(120deg,#a2c6ae32,#a2c6ae0e);border-color:#b8dec455;color:#e0f2e7}
+.payment-table-actions>.payment-table-record{grid-column:span 3;justify-self:end;width:auto;border:1px solid #b8dec455;border-radius:10px;padding-inline:10px;background:linear-gradient(120deg,#a2c6ae32,#a2c6ae0e);color:#e0f2e7}
+.payment-table-actions>.mini-text-button,.payment-table-actions .recorded-payment>.mini-text-button{
+ grid-column:span 2;order:2;align-self:stretch;border:0;border-top:1px solid #becbe32b;border-radius:0;background:transparent;color:#c3d1dd
+}
+.payment-table-actions>.mini-text-button+.mini-text-button,.payment-table-actions>.recorded-payment+.mini-text-button{border-inline-start:1px solid #becbe323}
 .payment-table-actions .recorded-payment>.mini-text-button svg{color:#b6b5dc}
 .payment-table-actions>.mini-text-button svg{color:#a9becf}
 .payment-table-actions :is(.mini-text-button,.payment-table-record)>svg{flex:none}
-@media(hover:hover){.payment-table-actions :is(.mini-text-button,.payment-table-record):hover{border-color:#c5dfd282}}
-@media(min-width:768px){.payment-table-disclosure .payment-table-actions{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.payment-table-actions :is(.mini-text-button,.payment-table-record):active{transform:scale(.97);background-color:#c5dfd226}
+.payment-table-actions :is(.mini-text-button,.payment-table-record)[aria-expanded=true]{background-color:#c5dfd219;color:#edf7f1}
+@media(hover:hover){.payment-table-actions :is(.mini-text-button,.payment-table-record):hover{background-color:#c5dfd219}}
+@media(max-width:360px){.payment-table-actions>.mini-text-button,.payment-table-actions .recorded-payment>.mini-text-button{flex-direction:column;gap:3px}}
+@media(prefers-reduced-motion:reduce){.payment-table-actions :is(.mini-text-button,.payment-table-record){transition:none}.payment-table-actions :is(.mini-text-button,.payment-table-record):active{transform:none}}
 
-.payment-table-actions>.recorded-payment:not(:has(.recorded-payment-panel))>button{height:100%}
+.planned-actions>summary{
+ display:flex;align-items:center;gap:8px;min-height:44px;padding:5px 8px;
+ list-style:none;color:var(--mini-text);font-weight:600
+}
+.planned-actions>summary::-webkit-details-marker{display:none}
+.planned-actions>summary>span{flex:1;min-width:0}
+.planned-actions>summary>svg{flex:none;color:#a9becf}
+.planned-actions>summary>svg:last-child{transition:transform .24s ease}
+.planned-actions[open]>summary>svg:last-child{transform:rotate(90deg)}
+.planned-action-list{border:1px solid #becbe32b;border-radius:12px;background:linear-gradient(120deg,#9dafd010,transparent 70%),var(--glass-field);overflow:hidden}
+.planned-action-list>*+*{border-top:1px solid #becbe323}
+.planned-action-list>.mini-text-button{
+ display:flex;align-items:center;min-height:44px;width:100%;border-radius:0;
+ padding:8px 11px;text-align:left;color:var(--mini-text);transition:background-color .2s ease
+}
+.planned-action-list>:is(details,p){padding:8px 11px;margin:0}
+.planned-actions .planned-action-list>.mini-text-button.planned-action-danger{color:#efb3b0;background:#a96a6314}
+.planned-action-list>.mini-text-button:active{background-color:#becbe32b}
+@media(hover:hover){.planned-actions>summary:hover,.planned-action-list>.mini-text-button:hover{background-color:#becbe319}}
+@media(prefers-reduced-motion:reduce){.planned-actions>summary>svg,.planned-action-list>.mini-text-button{transition:none}}
