@@ -104,7 +104,14 @@ export default function MiniApp(){
     return()=>{active=false;tg?.offEvent?.('contentSafeAreaChanged',insets);};
   },[]);
   useEffect(()=>{try{tg?.ready();tg?.expand();}catch{}},[tg]);
-  useEffect(()=>{const back=()=>{if(busyRef.current)return;if(page==='add'){returnFromEntry();}else if(page==='account'){backFromAccount();}else if(page==='payments'&&calendarState.sourceRoute){const route=calendarState.sourceRoute;setCalendarState(state=>({...state,sourceRoute:null,eventId:route.from==='calendar'?route.eventId:undefined}));setPaymentsSection(route.from);setPaymentsViewReset(n=>n+1);}else if(page==='history'&&historyAccount){setHistoryAccount('');setPage('account');}else if(page==='history'&&chartFilter?.fromAnalytics){backToAnalytics();}else if(page==='more'&&tab!=='menu'){backFromMore();}else if(!personal&&['stats','lunch','updates','feedback'].includes(page)){setTab('menu');setPage('more');}else setPage('overview');};try{if(page==='overview')tg?.BackButton?.hide();else tg?.BackButton?.show();tg?.BackButton?.onClick(back);}catch{}return()=>tg?.BackButton?.offClick(back);},[tg,page,draft,tab,accountContext,historyAccount,personal,chartFilter,converterFromEntry,savingsGoal,calendarState.sourceRoute]);
+  useEffect(()=>{const back=()=>{if(busyRef.current)return;
+   const dialog=Array.from(document.querySelectorAll('dialog[open]')).at(-1);
+   if(dialog){
+    if(dialog.requestClose)dialog.requestClose();
+    else if(dialog.dispatchEvent(new Event('cancel',{cancelable:true})))dialog.close();
+    return;
+   }
+   if(page==='add'){returnFromEntry();}else if(page==='account'){backFromAccount();}else if(page==='payments'&&calendarState.sourceRoute){const route=calendarState.sourceRoute;setCalendarState(state=>({...state,sourceRoute:null,eventId:route.from==='calendar'?route.eventId:undefined}));setPaymentsSection(route.from);setPaymentsViewReset(n=>n+1);}else if(page==='history'&&historyAccount){setHistoryAccount('');setPage('account');}else if(page==='history'&&chartFilter?.fromAnalytics){backToAnalytics();}else if(page==='more'&&tab!=='menu'){backFromMore();}else if(!personal&&['stats','lunch','updates','feedback'].includes(page)){setTab('menu');setPage('more');}else setPage('overview');};try{if(page==='overview')tg?.BackButton?.hide();else tg?.BackButton?.show();tg?.BackButton?.onClick(back);}catch{}return()=>tg?.BackButton?.offClick(back);},[tg,page,draft,tab,accountContext,historyAccount,personal,chartFilter,converterFromEntry,savingsGoal,calendarState.sourceRoute]);
   useEffect(()=>{const foreground=()=>{if(document.visibilityState==='visible')refresh();};document.addEventListener('visibilitychange',foreground);tg?.onEvent?.('activated',foreground);return()=>{document.removeEventListener('visibilitychange',foreground);tg?.offEvent?.('activated',foreground);};},[]);
   useEffect(()=>{if(error&&loaded)document.querySelector('.mini-alert')?.scrollIntoView({behavior:'smooth',block:'center'});},[error,loaded]);
   async function mutate(fn,message){
