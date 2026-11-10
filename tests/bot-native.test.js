@@ -33,6 +33,26 @@ function fixture(data=seed()){
  return {env,sqlite,sent,files,update,last,button,press,snapshot,close:()=>{globalThis.fetch=original;sqlite.close();}};
 }
 async function run(fn,data){const f=fixture(data);try{await fn(f);}finally{f.close();}}
+test('Widget menu receives authenticated private queries and opens the existing add menu',()=>run(async f=>{
+ await f.update('/widget on');
+ const widget=f.sent.at(-1);
+ assert.equal(widget.method,'sendWidget');
+ assert.deepEqual(widget.body.reply_markup,{remove_keyboard:true});
+ const before=f.snapshot();
+ const query=async(data,secret='test-hook',who=111)=>worker.fetch(new Request('https://budget.test/telegram/webhook',{
+  method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':secret,'Content-Type':'application/json'},
+  body:JSON.stringify({widget_query:{id:data,from:{id:who},chat:{id:who,type:'private'},message_id:101,type:{type:'data'},data:'budget-menu:'+data}})
+ }),f.env);
+ assert.equal((await query('home','wrong')).status,401);
+ assert.equal((await query('home','test-hook',222)).status,200);
+ assert.equal(f.sent.at(-1),widget);
+ assert.equal((await query('home')).status,200);
+ assert.equal(f.sent.at(-1).method,'answerWidgetQuery');
+ assert.equal(JSON.parse(f.sent.at(-1).body.data).page,'home');
+ assert.equal((await query('add')).status,200);
+ assert(f.last().reply_markup.inline_keyboard.flat().some(button=>/Расход/.test(button.text)));
+ assert.deepEqual(f.snapshot(),before);
+}));
 test('Bot history includes transfers, filters both account endpoints and opens neutral movement details',()=>run(async f=>{
  const {transferMoney}=await import('../src/ledger.js');
  const data=transferMoney(f.snapshot(),{id:'visible-move',date:today,from:'bank',to:'reserve',amount:500,fee:5,note:'На учёбу'});
