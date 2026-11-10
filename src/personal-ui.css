@@ -1637,3 +1637,8 @@
  .mini-shell.personal-ui .mini-header .mini-brand{flex-basis:104px}
  .header-summary span{white-space:normal;font-size:12px;overflow-wrap:anywhere}
 }
+
+@media(max-width:480px){
+ .mini-shell.personal-ui .mini-header .mini-brand{flex-basis:clamp(104px,32vw,148px)}
+ .header-summary span{white-space:normal;font-size:12px;overflow-wrap:anywhere}
+}
