@@ -14,58 +14,59 @@ import {accountBackground,appearanceColors} from '../src/appearance.js';
 import {iconShape} from '../src/mini-icon-shapes.js';
 import {isIcon} from '../src/icon-catalog.js';
 import {hasAccess} from './users.js';
+import {widgetGlass} from './widget-glass.js';
+import {widgetBrand} from './widget-brand.js';
 
 const html=String.raw`<style>
-body{margin:0;color:#e8eff4;font:15px system-ui,sans-serif}
+${widgetGlass}
+body{margin:0;color:#e8eff4;font:15px system-ui}
 [hidden]{display:none!important}
-.panel{padding:13px;border-radius:16px;background:linear-gradient(130deg,#293544,#16232d)}
-h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:20px}
+.panel{padding:13px}
+h3{display:flex;align-items:center;gap:8px;margin:0 0 10px}
 h3:before,h3:after{content:'';flex:1;height:1px;background:#ffffff25}
-h4{margin:9px 0;text-align:center}
+h4{text-align:center}
 ol{margin:0;padding:0;list-style:none}
-li{display:flex;align-items:center;gap:8px;padding:9px 7px;background:#ffffff06}
+li{display:flex;align-items:center;gap:8px;padding:5px 7px}
 li+li{border-top:1px solid #ffffff22}
-.income{background:linear-gradient(90deg,transparent,#94c9b52c)}
-.expense{background:linear-gradient(90deg,transparent,#df99952c)}
 .event{flex:1;min-width:0;overflow-wrap:anywhere}
-.event b,.event small{display:block}
+small{display:block}
 time,small{color:#b6c5d3;font-size:13px}
 time{padding-right:8px;border-right:1px solid #ffffff2a}
 time,strong{white-space:nowrap}
 .income strong{color:#bde3cb}.expense strong{color:#f1bfbb}
-footer,.picker-nav{display:flex;align-items:center;justify-content:space-between}
+footer,.picker-nav{display:flex;justify-content:space-between}
+footer{margin-top:8px}
 button{min-height:44px;padding:0 8px;border:1px solid #ffffff24;border-radius:10px;background:#ffffff09;color:#d6e4e8;font:inherit}
-button:active{background:#b7d5ca38}
-nav{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:12px;border-bottom:1px solid #ffffff24}
-nav button{flex:1;border:0;padding:0 6px;font-size:13px;background:none}
-nav button[aria-pressed=true]{background:#b7d5ca22;color:#eff8f3}
-nav button:last-child{flex:none;width:44px;color:#bde3cb;font-size:21px}
+button:active{background:#3a5356}
+nav{display:flex;margin-bottom:12px;border-bottom:1px solid #ffffff24}
+nav button{flex:1;padding:0;border:0;border-radius:0;background:none;font-size:12px}
+nav button+button{border-left:1px solid #ffffff24}
+nav button[aria-pressed=true]{background:linear-gradient(#b7d5ca26,transparent)}
+nav button:last-child{flex:none;width:32px;font-size:20px}
 .balance{display:block;text-align:center;font-size:30px;margin:12px 0}
-.transfer strong{color:#b9d5ef}
-.event button,.picker-nav button{border:0;background:none}
-.event button{padding:0;color:inherit;text-align:left;font-weight:bold}
+#balance:before{content:'На обычных счетах';display:block;font:13px system-ui;color:#b6c5d3}
+.event summary{font-weight:bold}
 .entry{display:grid;gap:8px}
 .entry-tools,.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
 .entry-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
-.entry>button,.entry-tools button{overflow-wrap:anywhere}
-.picker{gap:1px;border-radius:12px;overflow:hidden;background:#455766}
-.picker button{border:0;border-radius:0;text-align:left;background:#26343e}
 .entry-tools.picker button:last-child:nth-child(odd){grid-column:span 2}
-.picker button:active{background:#3a5356}
-.keypad button{text-align:center;font-size:19px;background:#24313d}
-.entry .balance{margin:2px 0 6px}
-.review:enabled{background:#b9d9cb;color:#182b28}
-.choice svg{width:16px;vertical-align:middle;margin-right:5px}
+.keypad button{text-align:center;font-size:19px}
+.review:enabled{background:#c5e4d4;color:#182b28}
+.choice svg{width:16px;margin-right:5px}
 .out{color:#f1bfbb}.in{color:#bde3cb}
 .out[aria-pressed=true]{background:#ed999533}
 .in[aria-pressed=true]{background:#92c9ac33}
-@media(max-width:245px){li{flex-wrap:wrap}}
+@media(max-width:245px){li,nav{flex-wrap:wrap}}
+@media(prefers-reduced-motion:no-preference){
+li,.entry>*,.event small{animation:appear .22s}
+@keyframes appear{from{opacity:0}}
+}
 </style>
-<section class="panel"><h3>Бюрджет</h3>
-<nav id="nav" aria-label="Разделы Бюрджета" hidden>
+<section class="panel widget-glass"><h3><img width="96" height="28" alt="Бюрджет"></h3>
+<nav id="nav" hidden>
 <button type="button" data-page="home">Главная</button><button type="button" data-page="calendar">Календарь</button><button type="button" data-page="history">Операции</button><button type="button" data-page="add" aria-label="Записать">＋</button>
-</nav><h4 id="title"></h4><strong id="balance" class="balance" hidden></strong><ol id="payments"></ol><div id="entry" class="entry" hidden></div>
-<footer><small id="status" aria-live="polite">/menu</small>
+</nav><strong id="balance" class="balance" hidden></strong><h4 id="title"></h4><ol id="payments"></ol><div id="entry" class="entry" hidden></div>
+<footer><small id="status" aria-live="polite"></small>
 <button type="button" id="refresh" hidden>Обновить</button></footer></section>
 <script>
 const widget=window.TelegramWidget;
@@ -88,20 +89,17 @@ function render(){
  balance.hidden=!view.balance;
  status.textContent=view.rows.length?'':view.empty;
  for(const button of buttons)button.setAttribute('aria-pressed',String(button.dataset.page===view.page));
- for(const [date,label,amount,category,direction,detail] of view.rows){
+ for(const [date,label,amount,category,direction,detail,icon,color] of view.rows){
   const row=document.createElement('li');
-  row.className=direction==='income'?'income':direction==='transfer'?'transfer':'expense';
+  row.className=direction||'expense';
   node(row,'time',date);
   const event=node(row,'span','','event');
-  const name=node(event,detail?'button':'b',label);
+  const content=detail?node(event,'details'):event;
+  const name=node(content,detail?'summary':'b','','choice');
+  if(icon)name.innerHTML=svg(icon,color);
+  node(name,'span',label);
+  if(detail)node(content,'small',detail);
   if(category&&category!==label)node(event,'small',category);
-  if(detail){
-   const info=node(event,'small',detail);
-   info.hidden=true;
-   name.type='button';
-   name.setAttribute('aria-expanded','false');
-   name.addEventListener('click',()=>{info.hidden=!info.hidden;name.setAttribute('aria-expanded',String(!info.hidden));});
-  }
   node(row,'strong',amount);
   payments.appendChild(row);
  }
@@ -125,16 +123,21 @@ function node(parent,tag,text='',className=''){
  const el=document.createElement(tag);
  el.className=className;el.textContent=text;parent.appendChild(el);return el;
 }
+function svg(shape,color='currentColor'){
+ return '<svg viewBox="0 0 24 24" fill="none" stroke="'+color+'" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shape+'</svg>';
+}
 function control(parent,label,action,icon='',colors=[],background=''){
  const button=node(parent,'button',label);
  button.type='button';
  if(icon){
   button.className='choice';
-  button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+icon+'</svg>';
+  button.innerHTML=svg(icon,colors[0]);
   node(button,'span',label);
-  if(colors.length){button.firstChild.style.color=colors[0];button.firstChild.style.background=colors[0]+'15';}
+  if(colors.length){
+   button.style.borderColor=colors[0]+'66';
+  }
  }
- if(background)button.style.background=background;
+ if(background)button.style.background='linear-gradient(#17242da6,#17242da6),'+background;
  button.addEventListener('click',action);
  return button;
 }
@@ -223,12 +226,12 @@ function showPreview(preview){
 }
 for(const button of buttons)button.addEventListener('click',()=>button.dataset.page==='add'?startEntry():request(button.dataset.page));
 refresh.addEventListener('click',()=>request(view.page,true));
-if(privateChat&&widget.chatData){try{view=JSON.parse(widget.chatData);selected=view.page;visited.set(view.page,view);}catch{}}
+if(privateChat&&widget.chatData){try{view=JSON.parse(widget.chatData);selected=view.page;visited.set(view.page,view);if(view.brand)document.querySelector('h3 img').src=view.brand;}catch{}}
 render();
 widget?.ready();
 </script>`.replace(/^ +/gm,'');
 
-function widgetData(data,page){
+function widgetData(data,page,brand){
  const today=todayMoscow(data.settings.timeZone);
  const clip=(value,length)=>Array.from(String(value||'').replace(/[\u0000-\u001f]/g,' ')).slice(0,length).join('');
  const cats=categoryCatalog(data.customCats);
@@ -237,15 +240,18 @@ function widgetData(data,page){
  const source=history?filterActivity(activityEntries(data),data,cats,{includeCompanyLunch:false}).filter(item=>item.date<=today):scheduledEvents(data,today,moveDate(today,6),today);
  const rows=source.slice(0,page==='home'?2:4).map(item=>{
   const transfer=item.type==='transfer';
-  const category=history?cats.find(cat=>cat.id===item.cat)?.name:calendarEventCategory(data,item)?.name;
+  const appearance=history?cats.find(cat=>cat.id===item.cat):calendarEventCategory(data,item);
+  const category=appearance?.name;
   const label=history?item.note||(transfer?transferDetails(data,item).route:category||(item.type==='income'?'Доход':'Расход')):item.name;
   const amount=item.amount===null?'Уточнить':(transfer?'↔ ':item.type==='income'?'+':'−')+money(item.amount,item.currency);
   const detail=transfer?transferDetails(data,item).route:account(item.accountId);
-  return [paymentDate(item.date),clip(label,44),amount,clip(category,22),item.type,clip(detail,32)];
+  const icon=transfer?'transfer':appearance?.icon;
+  return [paymentDate(item.date),clip(label,44),amount,clip(category,22),item.type,clip(detail,32),isIcon(icon)?iconShape(icon):'',appearanceColors([appearance?.color])[0]];
  });
- const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows};
+ const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand};
  if(page==='home')view.balance=money(dashboard(data,today).balance);
  const encoder=new TextEncoder();
+ for(let i=rows.length-1;i>=0&&encoder.encode(JSON.stringify(view)).length>1024;i--)rows[i].length=6;
  while(encoder.encode(JSON.stringify(view)).length>1024)rows.pop();
  return JSON.stringify(view);
 }
@@ -337,7 +343,7 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  try{
   await telegram(env,'sendWidget',{
    chat_id:chatId,html,caption:'Меню Бюрджета · /menu  |  Клавиатура · /widget off',
-   chat_data:widgetData(data,command?'calendar':'home'),
+   chat_data:widgetData(data,command?'calendar':'home',widgetBrand),
    allow_queries:true,is_shared:false,protect_content:true,
    ...(replaceKeyboard?{reply_markup:{remove_keyboard:true}}:{})
   });

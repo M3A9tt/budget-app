@@ -7,14 +7,19 @@ import {categoryCatalog} from '../src/categories.js';
 import {iconShape} from '../src/mini-icon-shapes.js';
 import {paymentDate} from '../src/payment-copy.js';
 import {attentionItems} from '../src/attention.js';
+import {widgetGlass} from './widget-glass.js';
+import {widgetBrand} from './widget-brand.js';
 
 const icon=name=>'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+iconShape(name)+'</svg>';
 
 const html=`<style>
+${widgetGlass}
 body{margin:0;color:#e8eff4;font:15px system-ui}
-section{padding:14px 15px;border:1px solid #ffffff23;border-radius:17px;background:linear-gradient(130deg,#2b3746,#17242d 77%)}
+section{padding:14px 15px}
 h3,p{margin:0}
 header{display:flex;align-items:center;gap:9px}
+.brand{display:block;width:110px;margin-left:auto;flex:none}
+@media(max-width:280px){header{flex-wrap:wrap}.brand{margin-left:0}}
 .mark{width:34px;height:34px;display:grid;place-items:center;flex:none;border:1px solid #d6e0f332;border-radius:10px;color:#c6bbef;background:#c6bbef14}
 h3{font-size:18px;line-height:1.2}
 time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
@@ -31,7 +36,7 @@ time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
 #count{display:block;margin-top:6px}
 #foot{color:#c6d1dd;font-size:13px;margin-top:8px}
 @media(max-width:240px){.row{flex-wrap:wrap}}
-</style><section hidden id="card"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div></header>
+</style><section hidden id="card" class="widget-glass"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div><img class="brand" src="${widgetBrand}" alt="Бюрджет"></header>
 <div class="total"><span id="label"></span><strong id="sum"></strong></div><div id="rows"></div><small id="count"></small><p id="foot"></p></section>
 <script>
 const w=window.TelegramWidget;
@@ -48,7 +53,7 @@ if(w?.chatType==='private'&&!w.isForward&&!w.isPreview&&w.chatData){
   }
   document.getElementById('rows').appendChild(row);
  }
- const card=get('card');card.className=d.expense?'expense':d.mark||'';card.hidden=false;
+ const card=get('card');card.classList.add(d.expense?'expense':d.mark||'chart');card.hidden=false;
 }
 w?.ready();
 </script>`;
