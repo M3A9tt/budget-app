@@ -90,6 +90,15 @@ test('Widget menu receives authenticated private queries and opens the existing 
  await query('budget-entry:s:'+income.token);
  assert.equal(f.snapshot().accounts[0].balance,10019.5);
  assert.equal(f.snapshot().transactions.length,2);
+ for(const [command,page] of [['/budget','home'],['/calendar','calendar'],['/history','history']]){
+  await f.update(command);
+  const sent=f.sent.at(-1);
+  assert.equal(sent.method,'sendWidget');
+  assert.equal(JSON.parse(sent.body.chat_data).page,page);
+ }
+ await f.update('/widget off');
+ await f.update('/history');
+ assert.notEqual(f.sent.at(-1).method,'sendWidget');
 }));
 test('Bot history includes transfers, filters both account endpoints and opens neutral movement details',()=>run(async f=>{
  const {transferMoney}=await import('../src/ledger.js');

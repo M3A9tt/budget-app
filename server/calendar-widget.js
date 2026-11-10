@@ -2,7 +2,7 @@ import {moveDate,scheduledEvents} from '../src/finance-events.js';
 import {dashboard,money,todayMoscow} from '../src/mini-model.js';
 import {activityEntries,filterActivity,transferDetails} from '../src/activity-history.js';
 import {categoryCatalog} from '../src/categories.js';
-import {botKeyboard,miniAppButton} from './bot-navigation.js';
+import {botKeyboard,miniAppButton,navigationCommand} from './bot-navigation.js';
 import {parseMoney} from '../src/ledger.js';
 import {applyBotAction} from './bot-catalog.js';
 import {create,load} from './bot-drafts.js';
@@ -319,9 +319,11 @@ async function widgetEntry(env,id,query,readState,state){
 }
 
 // Both entry points run after authentication of the Telegram webhook.
+const widgetPages=new Map([['/menu','home'],['/budget','home'],['/calendar','calendar'],['/history','history']]);
 export async function calendarWidget(message,{env,readState,mutateState,telegram,access=hasAccess}){
  const text=message?.text?.trim(),command=/^\/widget(?: (on|off))?$/.exec(text);
- if(!command&&text!=='/menu')return false;
+ const page=widgetPages.get(navigationCommand(text));
+ if(!command&&!page)return false;
  if(!privateChat(message.chat,message.from)||!await access(env,message.from.id))return Boolean(command);
  const chatId=message.chat.id,id=String(chatId);
  if(command?.[1]){
@@ -343,12 +345,13 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  try{
   await telegram(env,'sendWidget',{
    chat_id:chatId,html,caption:'Меню Бюрджета · /menu  |  Клавиатура · /widget off',
-   chat_data:widgetData(data,command?'calendar':'home',widgetBrand),
+   chat_data:widgetData(data,command?'calendar':page,widgetBrand),
    allow_queries:true,is_shared:false,protect_content:true,
    ...(replaceKeyboard?{reply_markup:{remove_keyboard:true}}:{})
   });
  }catch(error){
   if(![400,404].includes(error.telegramCode))throw error;
+  if(page&&text!=='/menu')return false;
   const app=miniAppButton(env.MINI_APP_URL,'Открыть Бюрджет');
   await telegram(env,'sendMessage',{chat_id:chatId,text:'Виджет недоступен. Можно открыть обычное меню или миниаппу.',reply_markup:{inline_keyboard:[[{text:'Обычное меню',callback_data:'b:v:home'},...(app?[app]:[])]]}});
  }

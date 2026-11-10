@@ -127,8 +127,12 @@ async function handleTelegram(update,env) {
   const formApi={...botApi,openForm:(op,args)=>startBotForm(env,userId,botApi,op,args),openLunch:async(day,type,prefill={},review=false)=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{...lunchEntryArgs(day,type,prefill),review});}};
   const recognizedApi={...lunchChatApi,openRecognized:async(sourceId,payload)=>{await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{type:'lunch',prefill:payload.tx,review:!!payload.tx.amount,recognizedLunch:{sourceId,parsed:payload.parsed},returnTo:{name:'lunch',args:{month:payload.tx.date.slice(0,7)}}});}};
   try {
-    if(await calendarWidget(update.message,{env,readState,mutateState,telegram}))return;
-    if(userSwitchedDialog(update)&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim()))){await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);}
+    const switched=userSwitchedDialog(update);
+    if(switched&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim()))){await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);}
+    if(await calendarWidget(update.message,{env,readState,mutateState,telegram})){
+      if(switched)await pauseBotForm(env,userId,botApi);
+      return;
+    }
     // One dispatcher arbitrates typed messages before individual dialog handlers.
     // Explicit meal replies and forwarded orders own their messages; the previous
     // bot form is suspended instead of silently consuming another form's answer.

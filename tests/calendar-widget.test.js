@@ -23,9 +23,10 @@ test('calendar widget is private, access-controlled and reversible',async()=>{
  const owner={chat:{id:1,type:'private'},from:{id:1}};
  const command=text=>calendarWidget({...owner,text},deps);
  assert.equal(await command('/calendar'),false);
+ assert.equal(reads,1);
  await calendarWidget({chat:{id:2,type:'private'},from:{id:2},text:'/widget'},deps);
  await calendarWidget({...owner,chat:{id:1,type:'group'},text:'/widget off'},deps);
- assert.equal(reads,0);
+ assert.equal(reads,1);
  assert.equal(calls.length,0);
 
  await command('/widget');
@@ -52,7 +53,12 @@ test('calendar widget is private, access-controlled and reversible',async()=>{
  assert.deepEqual(calls.at(-1).payload.reply_markup,{remove_keyboard:true});
  await command('/menu');
  assert.equal(JSON.parse(calls.at(-1).payload.chat_data).page,'home');
+ for(const [text,page] of [['/budget','home'],['/calendar','calendar'],['/history','history']]){
+  assert.equal(await command(text),true);
+  assert.equal(JSON.parse(calls.at(-1).payload.chat_data).page,page);
+ }
  rejectWidget=true;
+ assert.equal(await command('/history'),false);
  await command('/widget');
  assert.equal(calls.at(-1).method,'sendMessage');
  assert.equal(calls.at(-1).payload.reply_markup.inline_keyboard[0][1].web_app.url,'https://example.com/');
