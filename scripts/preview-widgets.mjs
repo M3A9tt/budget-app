@@ -11,7 +11,7 @@ const notifications=[
 
 function shell(){
  const links=[['menu','Меню бота'],...notifications].map(([id,label])=>
-  `<a href="/card/${id}" target="widget">${label}</a>`).join('');
+  `<a href="/card/${id}?original=1" target="widget">${label}</a>`).join('');
  return `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
  <title>Виджеты Бюрджета</title><style>
  body{margin:0;padding:20px;background:#111823;color:#e8eff4;font:16px system-ui}
@@ -19,8 +19,8 @@ function shell(){
  nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
  a{padding:8px 11px;border:1px solid #405160;border-radius:9px;color:#c5e4d4;text-decoration:none}
  iframe{display:block;width:min(100%,420px);height:660px;border:0;margin:auto}
- </style><main><h1>Виджеты Бюрджета</h1><p>Вымышленный бюджет · выбор и навигация работают, запись отключена</p>
- <nav>${links}</nav><iframe name="widget" title="Виджет" src="/card/menu"></iframe></main>
+ </style><main><h1>Виджеты Бюрджета</h1><p>Вымышленный бюджет · оригинальный логотип мини-аппы · запись отключена</p>
+ <nav>${links}</nav><iframe name="widget" title="Виджет" src="/card/menu?original=1"></iframe></main>
  <script type="module" src="/@vite/client"></script></html>`;
 }
 
@@ -30,7 +30,7 @@ const server=await createServer({
  server:{host:'127.0.0.1',port,strictPort:true},
  plugins:[{name:'widget-preview',configureServer(vite){
   vite.watcher.on('change',file=>{
-   if(/[\\/]server[\\/](?:calendar-widget|notification-widget|widget-glass)\.js$/.test(file)){
+   if(/[\\/]server[\\/](?:calendar-widget|notification-widget|widget-(?:glass|brand))\.js$/.test(file)){
     vite.ws.send({type:'full-reload',path:'*'});
    }
   });
@@ -71,9 +71,11 @@ const server=await createServer({
     }
     if(!payload?.html){res.statusCode=404;res.end('Виджет недоступен');return;}
     const chatData=JSON.stringify(payload.chat_data).replaceAll('<','\\u003c');
+    const originalBrand=url.searchParams.has('original')?
+     '<script>document.querySelector(\'img[alt="Бюрджет"]\').src="/brand/lockup-refined-b.webp";</script>':'';
     res.end(`<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>
      window.TelegramWidget={chatType:'private',chatData:${chatData},ready(){},request(data){return fetch('/query?data='+encodeURIComponent(data)).then(r=>r.json());}};
-     </script>${payload.html}</html>`);
+     </script>${payload.html}${originalBrand}</html>`);
    }catch(error){vite.config.logger.error(error.stack);res.statusCode=500;res.end('Ошибка предпросмотра');}
   });
  }}],
