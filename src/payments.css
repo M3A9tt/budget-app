@@ -3,11 +3,22 @@
 .planned-form .planned-fields>label{margin:0}.planned-form .payment-settings label{margin:14px 0 0}.planned-form .payment-form-actions{align-items:stretch}.planned-form .payment-form-actions .mini-primary{margin:0;width:auto}
 
 .payment-table.desktop-transactions{min-width:0;table-layout:auto}
-.payment-table th,.payment-table td{padding:8px clamp(6px,2vw,15px)}
+.payment-table th,.payment-table td{padding:9px clamp(8px,2vw,15px)}
 .payment-table th:first-child,.payment-table time{white-space:nowrap}
 .payment-table-event{cursor:pointer}
-.payment-table .upcoming-payment{justify-content:space-between;min-height:44px;gap:4px;padding:0;border:0;text-align:left}
-.payment-table .upcoming-payment strong,.payment-table small{overflow-wrap:anywhere}
-.payment-table .upcoming-payment svg{flex:none}
-.payment-table small{display:block;padding-bottom:4px;color:var(--mini-muted);line-height:1.4}
+.payment-table-event:focus-within,.payment-table-event:has([aria-expanded=true]){background:#b9d1d711}
+.payment-table .payment-table-date{width:1%;padding-right:0}
+.payment-table-date time{display:grid;align-content:center;gap:3px;min-width:38px;padding-right:8px;border-right:1px solid var(--mini-line);line-height:1.15}
+.payment-table-date b{font-size:18px;font-variant-numeric:tabular-nums;color:var(--mini-text)}
+.payment-table-date span{color:var(--mini-muted)}
+.payment-table .payment-table-name{width:100%}
+.payment-table .upcoming-payment{display:grid;align-content:center;min-height:44px;gap:4px;padding:0;border:0;text-align:left}
+.payment-table .upcoming-payment strong{color:var(--mini-text);font-size:var(--type-body);font-weight:600;overflow-wrap:anywhere}
+.payment-table .upcoming-payment small{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;color:var(--mini-muted);line-height:1.35;overflow-wrap:anywhere}
+.payment-table small span+span::before{content:'·';margin-right:6px;color:var(--mini-muted)}
+.payment-table-amount>span{display:flex;align-items:center;justify-content:flex-end;gap:clamp(5px,1.3vw,10px)}
+.payment-table-amount b{font-size:var(--type-label);font-weight:650}
+.payment-table-amount svg{flex:none;color:var(--mini-muted)}
 .payment-table .payment-table-details .payment-event-actions{margin:0}
+
+@media(max-width:480px){.payment-table .upcoming-payment small{display:grid;gap:2px}.payment-table small span+span::before{content:none}}

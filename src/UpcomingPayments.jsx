@@ -52,11 +52,11 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
      </div>;
     if(personal){
      const period=periodLabel(e.billingPeriod),moved=e.originalDate&&e.originalDate!==e.date;
+     const dateText=paymentDate(e.date),meta=[period?'За '+period:e.kind,moved?'Перенос с '+paymentDate(e.originalDate):'',e.date<today?'Без отметки':''].filter(Boolean);
      return <tbody className="payment-event-record" key={e.id} data-payment-event={e.id}><tr className="payment-table-event" onClick={click=>{if(!click.target.closest('button'))toggle();}}>
-      <td><time dateTime={e.date}>{paymentDate(e.date)}</time></td>
-      <td><button type="button" className="upcoming-payment" ref={button=>{if(button)rowButtons.current.set(e.id,button);else rowButtons.current.delete(e.id);}} disabled={busy} aria-expanded={expanded} aria-controls={expanded?controls:undefined} onClick={toggle}><strong>{e.name}</strong><Icon name={expanded?'up':'down'} size={15}/></button>
-       <small>{[period?'За '+period:e.kind,moved?'Перенесён с '+paymentDate(e.originalDate):'',e.date<today?'Без отметки':''].filter(Boolean).join(' · ')}</small></td>
-      <td className="desktop-number"><b className={e.type==='income'?'mini-income':undefined}>{amount}</b></td>
+      <td className="payment-table-date"><time dateTime={e.date} aria-label={dateText}><b>{Number(e.date.slice(-2))}</b><span>{dateText.replace(/^\d+\s+/,'')}</span></time></td>
+      <td className="payment-table-name"><button type="button" className="upcoming-payment" ref={button=>{if(button)rowButtons.current.set(e.id,button);else rowButtons.current.delete(e.id);}} disabled={busy} aria-label={e.name} aria-describedby={controls+'-meta'} aria-expanded={expanded} aria-controls={expanded?controls:undefined} onClick={toggle}><strong>{e.name}</strong><small id={controls+'-meta'}>{meta.map((label,i)=><span key={i}>{label}</span>)}</small></button></td>
+      <td className="desktop-number payment-table-amount"><span><b className={e.type==='income'?'mini-income':undefined}>{amount}</b><Icon name={expanded?'up':'down'} size={14}/></span></td>
      </tr>{expanded&&<tr><td className="payment-table-details" colSpan={3}>{actions}</td></tr>}</tbody>;
     }
     return <article className="payment-event" key={e.id} data-payment-event={e.id}>
