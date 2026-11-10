@@ -1627,3 +1627,5 @@
 .mini-shell.personal-ui .more-menu .more-tile-grid{gap:18px;margin-top:20px}
 .mini-shell.personal-ui .more-menu .settings-group-tile{margin:0}
 .mini-shell.personal-ui .more-menu .settings-group-tile>div>button{border-radius:10px}
+
+.mini-shell.personal-ui .account-detail-heading .history-heading h1{font-size:clamp(25px,6vw,42px);overflow-wrap:anywhere}
