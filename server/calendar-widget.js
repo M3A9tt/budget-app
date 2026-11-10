@@ -10,48 +10,57 @@ import {commitBotAction} from './bot-commit.js';
 import {readReceipt} from './state-persistence.js';
 import {paymentDate} from '../src/payment-copy.js';
 import {calendarEventCategory} from '../src/calendar-model.js';
+import {appearanceColors} from '../src/appearance.js';
 
 const html=String.raw`<style>
 body{margin:0;color:#e8eff4;font:15px system-ui,sans-serif}
 [hidden]{display:none!important}
-.panel{padding:12px;border:1px solid #40505d;border-radius:16px;background:#192430;background:linear-gradient(130deg,#26313e,#18252e 75%)}
-h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;text-align:center;font-size:18px;line-height:1.25}
+.panel{padding:12px;border-radius:16px;background:linear-gradient(130deg,#26313e,#18252e)}
+h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:18px}
 h3:before,h3:after{content:'';flex:1;height:1px;background:#596970}
-h4{margin:8px 0}
-ol{margin:0;padding:0;list-style:none;border-radius:10px;overflow:hidden}
+h4{margin:8px 0;text-align:center}
+ol{margin:0;padding:0;list-style:none}
 li{display:flex;align-items:center;gap:8px;padding:9px 7px;background:#ffffff06}
 li+li{border-top:1px solid #ffffff22}
-.income{background:linear-gradient(90deg,#ffffff06 45%,#94c9b52c)}
-.expense{background:linear-gradient(90deg,#ffffff06 45%,#df99952c)}
+.income{background:linear-gradient(90deg,transparent,#94c9b52c)}
+.expense{background:linear-gradient(90deg,transparent,#df99952c)}
 .event{flex:1;min-width:0;overflow-wrap:anywhere}
 .event b,.event small{display:block}
 time,small{color:#b6c5d3;font-size:13px}
 time{padding-right:8px;border-right:1px solid #ffffff2a}
-time,strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+time,strong{white-space:nowrap}
 .income strong{color:#bde3cb}.expense strong{color:#f1bfbb}
-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px}
-button{min-height:44px;padding:0 9px;border:1px solid #657c7b;border-radius:10px;background:#b7d5ca14;color:#c8e2d8;font:inherit;transition:background-color .18s ease,transform .18s ease}
-button:active{transform:scale(.96);background-color:#b7d5ca38}
-button:focus-visible{outline:2px solid #c8e2d8;outline-offset:1px}
+footer,.picker-nav{display:flex;align-items:center;justify-content:space-between}
+button{min-height:44px;padding:0 8px;border:1px solid #657c7b;border-radius:10px;background:#b7d5ca14;color:#c8e2d8;font:inherit}
+button:active{background:#b7d5ca38}
 nav{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
 nav button{flex:1;padding:0 6px;font-size:13px}
 nav button[aria-pressed=true]{background:#b7d5ca30;color:#eff8f3}
 .balance{display:block;text-align:center;font-size:30px;margin:12px 0}
 .transfer strong{color:#b9d5ef}
-.event button{border:0;background:transparent;padding:0;color:inherit;text-align:left;min-height:30px;font-weight:700;overflow-wrap:anywhere}
+.event button{border:0;background:none;padding:0;color:inherit;text-align:left;font-weight:bold}
 .entry{display:grid;gap:8px}
 .entry-tools,.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
 .entry-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
 .entry>button,.entry-tools button{overflow-wrap:anywhere}
-.keypad button{font-variant-numeric:tabular-nums}
+.picker{gap:1px;border-radius:12px;overflow:hidden;background:#526570}
+.picker button{border:0;border-radius:0;text-align:left;background:#26343e}
+.picker button:active{background:#3a5356}
+.picker-nav button{border:0;background:none}
+.keypad button{text-align:center;font-size:18px}
+.entry .balance{margin:2px 0 6px}
+.review:not(:disabled){background:#b9d9cb;color:#182b28}
+.choice svg{width:16px;vertical-align:middle;margin-right:5px}
+.out{color:#f1bfbb}.in{color:#bde3cb}
+.out[aria-pressed=true]{background:#ed999533}
+.in[aria-pressed=true]{background:#92c9ac33}
 @media(max-width:245px){li{flex-wrap:wrap}strong{margin-left:auto}}
-@media(prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}}
 </style>
 <section class="panel"><h3>Бюрджет</h3>
 <nav id="nav" aria-label="Разделы Бюрджета" hidden>
 <button type="button" data-page="home">Главная</button><button type="button" data-page="calendar">Календарь</button><button type="button" data-page="history">Операции</button><button type="button" data-page="add" aria-label="Записать">＋</button>
 </nav><h4 id="title"></h4><strong id="balance" class="balance" hidden></strong><ol id="payments"></ol><div id="entry" class="entry" hidden></div>
-<footer><small id="status" aria-live="polite">Открой меню командой /menu.</small>
+<footer><small id="status" aria-live="polite">/menu</small>
 <button type="button" id="refresh" hidden>Обновить</button></footer></section>
 <script>
 const widget=window.TelegramWidget;
@@ -77,29 +86,22 @@ function render(){
  for(const [date,label,amount,category,direction,detail] of view.rows){
   const row=document.createElement('li');
   row.className=direction==='income'?'income':direction==='transfer'?'transfer':'expense';
-  const day=document.createElement('time'),event=document.createElement('span'),name=document.createElement(detail?'button':'b'),sum=document.createElement('strong');
-  day.textContent=date;
-  event.className='event';
-  name.textContent=label;
-  event.appendChild(name);
-  if(category&&category!==label){const kind=document.createElement('small');kind.textContent=category;event.appendChild(kind);}
+  node(row,'time',date);
+  const event=node(row,'span','','event');
+  const name=node(event,detail?'button':'b',label);
+  if(category&&category!==label)node(event,'small',category);
   if(detail){
-   const info=document.createElement('small');
+   const info=node(event,'small',detail);
    info.hidden=true;
-   info.textContent=detail;
    name.type='button';
    name.setAttribute('aria-expanded','false');
    name.addEventListener('click',()=>{info.hidden=!info.hidden;name.setAttribute('aria-expanded',String(!info.hidden));});
-   event.appendChild(info);
   }
-  sum.textContent=amount;
-  row.appendChild(day);
-  row.appendChild(event);
-  row.appendChild(sum);
+  node(row,'strong',amount);
   payments.appendChild(row);
  }
 }
-async function request(page,force=false){
+function request(page,force=false){
  if(!privateChat||saving)return;
  if(!force&&visited.has(page)){
   selected=page;
@@ -108,41 +110,45 @@ async function request(page,force=false){
   return;
  }
  if(pending)return;
- pending=true;
  selected=page;
- status.textContent='Загрузка…';
- try{
-  const result=JSON.parse((await widget.request('budget-menu:'+page)).result);
-  if(result.error){if(selected===page)status.textContent=result.error;return;}
-  if(page==='add'){if(selected===page)status.textContent='Форма открыта в чате';return;}
+ query('budget-menu:'+page,result=>{
   visited.set(page,result);
   if(selected===page){view=result;render();}
- }catch{if(selected===page)status.textContent='Не удалось обновить. Попробуй ещё раз или открой /menu.';}
- finally{pending=false;}
+ });
 }
-function control(parent,label,action){
- const button=document.createElement('button');
- button.type='button';button.textContent=label;
+function node(parent,tag,text='',className=''){
+ const el=document.createElement(tag);
+ el.className=className;el.textContent=text;parent.appendChild(el);return el;
+}
+function control(parent,label,action,icon='',colors=[]){
+ const button=node(parent,'button',label);
+ button.type='button';
+ if(icon){
+  button.className='choice';
+  button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="'+icon+'"/></svg>';
+  node(button,'span',label);
+  if(colors.length)button.firstChild.style.color=colors[0];
+ }
+ if(colors.length>1)button.style.backgroundImage='linear-gradient(120deg,'+colors.map(c=>c+'38').join(',')+')';
  button.addEventListener('click',action);
- parent.appendChild(button);
  return button;
 }
 function group(className){
- const node=document.createElement('div');
- node.className=className;
- entry.appendChild(node);
- return node;
+ return node(entry,'div','',className);
 }
-async function ask(command,then){
- if(!privateChat||pending)return;
- pending=true;saving=command.startsWith('s:');selected='add';status.textContent='Загрузка…';
+async function query(command,then){
+ const page=selected;
+ pending=true;saving=command.startsWith('budget-entry:s:');status.textContent='Загрузка…';
  try{
-  const result=JSON.parse((await widget.request('budget-entry:'+command)).result);
-  if(selected!=='add')return;
-  if(result.error){status.textContent=result.error;return;}
-  then(result);
- }catch{if(selected==='add')status.textContent='Ответ не получен. Повтори действие.';}
+  const result=JSON.parse((await widget.request(command)).result);
+  if(result.error){if(selected===page)status.textContent=result.error;}
+  else if(page!=='add'||selected===page)then(result);
+ }catch{if(selected===page)status.textContent='Повтори запрос.';}
  finally{pending=saving=false;}
+}
+function ask(command,then){
+ if(!privateChat||pending)return;
+ selected='add';query('budget-entry:'+command,then);
 }
 function startEntry(){
  if(pending)return;
@@ -161,20 +167,21 @@ function entryPanel(label){
 function entryForm(){
  entryPanel('Новая запись');
  const types=group('entry-tools');
- for(const [type,label] of [['e','Расход'],['i','Доход']]){
-  control(types,label,()=>{draft.type=type;entryForm();}).setAttribute('aria-pressed',String(draft.type===type));
+ for(const [type,label,icon,tone] of [['e','Расход','M12 4v16m-6-6 6 6 6-6','out'],['i','Доход','M12 20V4m-6 6 6-6 6 6','in']]){
+  const button=control(types,label,()=>{draft.type=type;entryForm();},icon);
+  button.classList.add(tone);button.setAttribute('aria-pressed',String(draft.type===type));
  }
- control(entry,draft.account?.[1]||'Выбрать счёт',()=>pick('a',0));
- if(draft.type==='e')control(entry,draft.category?.[1]||'Выбрать категорию',()=>pick('c',0));
- const amount=document.createElement('strong');
- amount.className='balance';
- entry.appendChild(amount);
- const keypad=group('keypad');
+ const amount=node(entry,'strong','','balance');
+ const fields=group(draft.type==='e'?'entry-tools picker':'picker');
+ control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick('a',0));
+ if(draft.type==='e')control(fields,draft.category?.[1]||'Выбрать категорию',()=>pick('c',0));
+ const keypad=group('picker keypad');
  for(const key of ['1','2','3','4','5','6','7','8','9',',','0','⌫'])control(keypad,key,()=>{
   const value=key==='⌫'?draft.amount.slice(0,-1):draft.amount+(key===','?'.':key);
   if(/^\d{0,10}(?:\.\d{0,2})?$/.test(value)){draft.amount=value.startsWith('.')?'0'+value:value;updateAmount();}
  });
  const review=control(entry,'Проверить запись',()=>ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview));
+ review.className='review';
  function updateAmount(){
   amount.textContent=(draft.amount||'0').replace('.',',')+' '+(draft.account?.[2]||'');
   review.disabled=!(Number(draft.amount)>0&&draft.account&&(draft.type==='i'||draft.category));
@@ -183,24 +190,23 @@ function entryForm(){
 }
 function pick(kind,offset){
  ask(kind+':'+offset,result=>{
-  if(result.revision!==draft.revision){draft=null;entryPanel('Данные изменились');control(entry,'Начать заново',startEntry);return;}
+  if(result.revision!==draft.revision){draft=null;entryPanel('Данные изменились');control(entry,'К записи',startEntry);return;}
   entryPanel(kind==='a'?'Счёт':'Категория');
-  for(const option of result.options)control(entry,option[1]+(option[2]?' · '+option[2]:''),()=>{
+  const choices=group('entry-tools picker'),icon=kind==='a'?'M3 6h18v13H3zM3 10h18':'M4 4h8l8 8-8 8-8-8zM8 8h1';
+  for(const option of result.options)control(choices,option[1]+(option[2]?' · '+option[2]:''),()=>{
    draft[kind==='a'?'account':'category']=option;entryForm();
-  });
-  const links=group('entry-tools'),total=kind==='a'?draft.accounts:draft.categories;
-  if(offset)control(links,'Назад',()=>pick(kind,offset-5));
-  if(offset+5<total)control(links,'Дальше',()=>pick(kind,offset+5));
-  control(entry,'К записи',entryForm);
+  },icon,option[3]);
+  const links=group('picker-nav'),total=kind==='a'?draft.accounts:draft.categories;
+  control(links,'К записи',entryForm);
+  if(offset)control(links,'← Назад',()=>pick(kind,offset-6));
+  if(offset+6<total)control(links,'Дальше →',()=>pick(kind,offset+6));
  });
 }
 function showPreview(preview){
  draft.preview=preview;
  entryPanel('Проверь запись');
- const total=document.createElement('strong'),context=document.createElement('small');
- total.className='balance';total.textContent=preview.amount;
- context.textContent=[preview.account,preview.category,preview.date].filter(Boolean).join(' · ');
- entry.appendChild(total);entry.appendChild(context);
+ node(entry,'strong',preview.amount,'balance');
+ node(entry,'small',[preview.account,preview.category,preview.date].join(' · '));
  const save=control(entry,draft.confirming?'Проверить сохранение':'Записать',()=>{
   draft.confirming=true;save.textContent='Проверить сохранение';edit.disabled=true;
   ask('s:'+preview.token,()=>{
@@ -215,7 +221,7 @@ refresh.addEventListener('click',()=>request(view.page,true));
 if(privateChat&&widget.chatData){try{view=JSON.parse(widget.chatData);selected=view.page;visited.set(view.page,view);}catch{}}
 render();
 widget?.ready();
-</script>`;
+</script>`.replace(/^ +/gm,'');
 
 function widgetData(data,page){
  const today=todayMoscow(data.settings.timeZone);
@@ -256,7 +262,10 @@ async function widgetEntry(env,id,query,readState,state){
  const choices=/^budget-entry:(a|c):(\d{1,6})$/.exec(text);
  if(choices){
   const rows=choices[1]==='a'?entryAccounts(data):entryCategories(data),offset=Number(choices[2]);
-  return {revision,options:rows.slice(offset,offset+5).map((item,i)=>[offset+i,Array.from(item.name).slice(0,36).join(''),item.currency||''])};
+  return {revision,options:rows.slice(offset,offset+6).map((item,i)=>{
+   const colors=appearanceColors(choices[1]==='a'?item.colors:[item.color]);
+   return [offset+i,Array.from(item.name).slice(0,24).join(''),item.currency||'',colors.length||choices[1]==='c'?colors:['#648fa2','#8e7aab']];
+  })};
  }
  const preview=/^budget-entry:p:([ei]):(\d{1,16}):(\d{1,6}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
  if(preview){

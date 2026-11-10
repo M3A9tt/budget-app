@@ -54,6 +54,10 @@ test('Widget menu receives authenticated private queries and opens the existing 
  assert.deepEqual(f.snapshot(),before);
  await query('budget-entry:form');
  const form=JSON.parse(f.sent.at(-1).body.data);
+ await query('budget-entry:a:0');
+ assert.deepEqual(JSON.parse(f.sent.at(-1).body.data).options[0][3],['#648fa2','#8e7aab']);
+ await query('budget-entry:c:0');
+ assert.match(JSON.parse(f.sent.at(-1).body.data).options[0][3][0],/^#[0-9a-f]{6}$/i);
  await query('budget-entry:p:e:'+form.revision+':0:0:180.50');
  const {token}=JSON.parse(f.sent.at(-1).body.data);
  assert.match(token,/^bw_[a-f0-9]{32}$/);
