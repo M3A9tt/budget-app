@@ -8,6 +8,7 @@ import {createPlanned,preparePlanned,skipPlanned,restorePlanned,updatePlanned,de
 import {SmoothDetails} from './Motion.jsx';
 import OccurrenceDateForm from './OccurrenceDateForm.jsx';
 import PlannedForm from './PlannedForm.jsx';
+import Icon from './mini-icons.jsx';
 import {paymentDate,paymentStatus,paymentPeriod} from './payment-copy.js';
 function SkippedPeriods({rule,mutate,busy}){
  const [limit,setLimit]=useState(5),periods=[...(rule.skippedPeriods||[])].sort().reverse();
@@ -29,15 +30,16 @@ export default function PlannedOperations({data,mutate,busy,cats,onPrepare,onEdi
  {r.frequency==='manual'&&mutate&&<ManualDate rule={r} today={today} mutate={mutate} busy={busy||!r.active}/>}
  {item&&mutate&&<><button type="button" className="mini-text-button income-move" disabled={busy} onClick={()=>setMoving(moving===r.id?null:r.id)}>Перенести дату</button>{moving===r.id&&<OccurrenceDateForm event={{sourceId:r.id,period:item.period,date:item.date}} today={today} mutate={mutate} busy={busy} onCancel={()=>setMoving(null)} onDone={()=>setMoving(null)}/>}</>}
  {item&&r.active&&<RecordedPayment data={data} id={r.id} period={item.period} mutate={mutate} busy={busy}/>}
- </div><details className="payment-settings planned-actions"><summary>Настроить и посмотреть историю</summary>
+ </div><SmoothDetails className="payment-settings planned-actions"><summary><Icon name="settings" size={17}/><span>{payments.length?'Настройки и история':'Настройки плана'}</span><Icon name="arrow" size={15}/></summary>
+ <div className="planned-action-list">
  <button className="mini-text-button" disabled={busy} onClick={()=>{setAsking(null);setEditing(r.id);}}>Изменить план</button>
  {r.frequency==='monthly'&&<p className="mini-small mini-muted">Период учёта: {item?billingPeriod(r,item.period):'месяц'}. Планируемая оплата: {item?.date||'по графику'}. Перенос меняет только этот платёж. В коротком месяце — последний день.</p>}
  {item&&r.active&&<button className="mini-text-button" disabled={busy} onClick={()=>{if(window.confirm('Пропустить событие за '+paymentDate(item.date)+'? Записи и списания денег не будет.'))mutate(d=>skipPlanned(d,r.id,item.period),'Платёж пропущен');}}>{income?'Пропустить это поступление':'Пропустить этот платёж'}</button>}
  <button className="mini-text-button" disabled={busy} onClick={()=>mutate(d=>({...d,recurring:d.recurring.map(x=>x.id===r.id?{...x,active:!x.active}:x)}),r.active?'План на паузе':'План возобновлён')}>{r.active?'Приостановить':'Возобновить'}</button>
  <SkippedPeriods rule={r} mutate={mutate} busy={busy}/>
  {payments.length>0&&<details className="payment-history"><summary>{income?'Записанные поступления':'Записанные оплаты'} · {payments.length}</summary>{payments.map(t=><button type="button" className="payment-linked-row" key={t.id} disabled={busy||!onEdit} onClick={()=>onEdit(t)}>{paymentDate(t.date)} · {money(t.amount,t.currency)} · открыть запись ↗</button>)}</details>}
- <button className="mini-text-button" disabled={busy} onClick={()=>{if(window.confirm('Удалить план? Записанные оплаты останутся в истории.'))mutate(d=>deletePlanned(d,r.id),'План удалён, оплаты сохранены');}}>Удалить план</button>
- </details></>}
+ <button className="mini-text-button planned-action-danger" disabled={busy} onClick={()=>{if(window.confirm('Удалить план? Записанные оплаты останутся в истории.'))mutate(d=>deletePlanned(d,r.id),'План удалён, оплаты сохранены');}}>Удалить план</button>
+ </div></SmoothDetails></>}
  </article>;};
  const active=data.recurring.filter(r=>!archived(r)).sort((a,b)=>(due.find(x=>x.rule.id===a.id)?.date||'9999').localeCompare(due.find(x=>x.rule.id===b.id)?.date||'9999')),closed=data.recurring.filter(archived);
  return <><p className="payment-hint">{incomeOnly?'Здесь деньги, которые ещё должны прийти. Остаток увеличится только после записи поступления.':defaultFrequency==='manual'?'Один раз сохрани расход или доход. Каждую дату назначай сам, когда она станет известна.':'Здесь будущие расходы и доходы. Подтверждай запись, когда деньги уже списались или поступили.'}</p>

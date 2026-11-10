@@ -1526,9 +1526,10 @@
 .mini-shell.personal-ui .report-income-row>button,.mini-shell.personal-ui .report-income-row>div{border:1px solid var(--glass-line);border-radius:16px;background:#ffffff06;padding:14px;min-width:0}
 .mini-shell.personal-ui .report-income-row>button strong{color:#b3d9be}
 .mini-shell.personal-ui .report-income-row strong{font-size:22px;overflow-wrap:anywhere}
-.mini-shell.personal-ui .report-section-heading{display:flex;align-items:center;gap:14px;margin:24px 0 14px}
-.mini-shell.personal-ui .report-section-heading h2{font-size:clamp(21px,4vw,27px);line-height:1.2}
-.mini-shell.personal-ui .report-section-heading:after{content:'';flex:1;height:1px;background:var(--mini-line)}
+.mini-shell.personal-ui .report-section-heading{display:flex;align-items:center;gap:clamp(8px,2vw,14px);margin:24px 0 14px}
+.mini-shell.personal-ui .report-section-heading h2{min-width:0;font-size:clamp(21px,4vw,27px);line-height:1.2}
+.mini-shell.personal-ui .report-section-heading:after{content:'';order:1;flex:1;min-width:12px;height:1px;background:var(--mini-line)}
+.mini-shell.personal-ui .report-section-heading>span{order:2;white-space:nowrap;color:#aebdcc}
 .mini-shell.personal-ui .report-category-list{border:1px solid var(--glass-line);border-radius:20px;background:var(--glass-surface);padding:0 16px}
 .mini-shell.personal-ui .report-category{padding:18px 0;align-items:center;gap:13px}
 .mini-shell.personal-ui .report-category-symbol{width:44px;height:44px;border:1px solid currentColor;border-radius:14px;flex-shrink:0}

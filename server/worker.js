@@ -1,5 +1,5 @@
 import {scheduledEvents,moveDate} from '../src/finance-events.js';
-import {calendarWidget} from './calendar-widget.js';
+import {answerCalendarWidget,calendarWidget} from './calendar-widget.js';
 import {fetchExchangeRates} from './exchange-rates.js';
 import {financialCommand} from './financial-command.js';
 import {recordOperation,operationsReport,pruneOperations} from './operations.js';
@@ -98,6 +98,10 @@ async function mutateState(env,userId,change){
 const habitApi={readState,mutateState,telegram};
 const lunchChatApi={readState,telegram};
 async function handleTelegram(update,env) {
+  if(update.widget_query){
+    const query=update.widget_query;
+    return answerCalendarWidget(query,{env,readState,telegram,openAdd:()=>handleTelegram({message:{from:query.from,chat:query.chat,text:'/add'}},env)});
+  }
   const source=update.callback_query?.from||update.message?.from;
   const chat=update.callback_query?.message?.chat||update.message?.chat;
   if(!source||!Number.isSafeInteger(source.id)||source.id<=0||source.is_bot||chat?.type!=='private'||String(chat.id)!==String(source.id))return;
