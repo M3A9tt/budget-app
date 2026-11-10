@@ -1629,3 +1629,11 @@
 .mini-shell.personal-ui .more-menu .settings-group-tile>div>button{border-radius:10px}
 
 .mini-shell.personal-ui .account-detail-heading .history-heading h1{font-size:clamp(25px,6vw,42px);overflow-wrap:anywhere}
+
+@media(max-width:380px){
+ .mini-shell.personal-ui .mini-nav{grid-template-columns:repeat(2,minmax(0,1fr)) 48px repeat(2,minmax(0,1fr));gap:3px;padding-inline:5px}
+ .mini-shell.personal-ui .mini-nav>button:not(.personal-nav-add){padding-inline:0}
+ .mini-shell.personal-ui .mini-nav>button:not(.personal-nav-add)>span{font-size:12px;letter-spacing:-.15px}
+ .mini-shell.personal-ui .mini-header .mini-brand{flex-basis:104px}
+ .header-summary span{white-space:normal;font-size:12px;overflow-wrap:anywhere}
+}

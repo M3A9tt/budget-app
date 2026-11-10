@@ -73,3 +73,9 @@
 .home-money-links{display:flex;flex-wrap:wrap;gap:6px 14px;border-block-end:1px solid var(--glass-line);padding-bottom:5px}
 .home-money-links button,.analytics-calendar-link{display:inline-flex;align-items:center;gap:7px;min-height:44px;color:var(--mini-text)}
 .home-money-links button{font:inherit;background:none;border:0;padding:0 6px;cursor:pointer}
+
+@media(max-width:380px){
+ .home-money-links{gap:4px 6px}
+ .home-money-links button{padding-inline:4px;gap:5px;font-size:14px}
+ .home-money-links svg{width:16px;height:16px;flex:none}
+}
