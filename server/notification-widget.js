@@ -6,21 +6,25 @@ import {reminderText} from '../src/reminder-settings.js';
 import {categoryCatalog} from '../src/categories.js';
 import {iconShape} from '../src/mini-icon-shapes.js';
 import {paymentDate} from '../src/payment-copy.js';
+import {attentionItems} from '../src/attention.js';
 
 const icon=name=>'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+iconShape(name)+'</svg>';
 
 const html=`<style>
 body{margin:0;color:#e8eff4;font:15px system-ui}
-section{padding:13px 14px;border:1px solid #ffffff23;border-radius:17px;background:linear-gradient(130deg,#263441,#17242d 77%)}
+section{padding:14px 15px;border:1px solid #ffffff23;border-radius:17px;background:linear-gradient(130deg,#2b3746,#17242d 77%)}
 h3,p{margin:0}
 header{display:flex;align-items:center;gap:9px}
 .mark{width:34px;height:34px;display:grid;place-items:center;flex:none;border:1px solid #d6e0f332;border-radius:10px;color:#c6bbef;background:#c6bbef14}
 h3{font-size:18px;line-height:1.2}
 time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
-.total{margin:12px 0 3px;padding:12px 0;border-top:1px solid #bde3cb38}
+.total{margin:12px 0 8px;padding:11px 12px;border:1px solid #bde3cb29;border-radius:11px;background:linear-gradient(110deg,#a6d8c21c,transparent)}
+.expense .total,.calendar .total{background:linear-gradient(110deg,#df99951c,transparent)}
+.lunch .total,.bell .total{background:linear-gradient(110deg,#c6bbef21,transparent)}
 .total span,#count{font-size:13px;color:#b8c9d6}
 .total strong{display:block;font-size:clamp(26px,8vw,36px);color:#c5e4d4;font-variant-numeric:tabular-nums}
 .expense .total strong,.row.expense b,.row.short b{color:#edbdb7}
+.lunch .total strong,.bell .total strong{color:#d7ccf7}
 .row.income b{color:#bde3cb}
 .row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid #ffffff24}
 .row span{overflow-wrap:anywhere}.row b{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -35,7 +39,8 @@ if(w?.chatType==='private'&&!w.isForward&&!w.isPreview&&w.chatData){
  const d=JSON.parse(w.chatData);
  const get=id=>document.getElementById(id),put=(id,value)=>get(id).textContent=value;
  put('heading',d.title);put('date',d.dateLabel);put('label',d.label);put('sum',d.sum);put('foot',d.foot);put('count',d.count);
- get('mark').innerHTML=d.expense?${JSON.stringify(icon('check'))}:${JSON.stringify(icon('chart'))};
+ const marks=${JSON.stringify(Object.fromEntries(['check','chart','calendar','lunch','bell'].map(name=>[name,icon(name)])))};
+ get('mark').innerHTML=marks[d.mark]||marks.chart;
  for(const [label,value,tone] of d.rows){
   const row=document.createElement('div');row.className='row '+(tone||'');
   for(const [tag,text] of [['span',label],['b',value]]){
@@ -43,7 +48,7 @@ if(w?.chatType==='private'&&!w.isForward&&!w.isPreview&&w.chatData){
   }
   document.getElementById('rows').appendChild(row);
  }
- const card=get('card');card.className=d.expense?'expense':'';card.hidden=false;
+ const card=get('card');card.className=d.expense?'expense':d.mark||'';card.hidden=false;
 }
 w?.ready();
 </script>`;
@@ -53,16 +58,36 @@ export function expenseWidget(data,date,attempt){
  const cats=categoryCatalog(data.customCats);
  const rows=entries.map(t=>[Array.from(t.note||cats.find(cat=>cat.id===t.cat)?.name||'Расход').slice(0,38).join(''),money(t.amount,t.currency),'expense']);
  const countText=count?`Операций · ${count}`:'Расходов за этот день пока нет.';
- return {title:'Проверим расходы',date,dateLabel:paymentDate(date),expense:true,label:'Записано за день',sum:money(total),rows,count:countText,foot:reminderText(data.settings,date,Math.max(0,attempt))};
+ return {title:'Проверим расходы',date,dateLabel:paymentDate(date),mark:'check',expense:true,label:'Записано за день',sum:money(total),rows,count:countText,foot:reminderText(data.settings,date,Math.max(0,attempt))};
 }
 
-export function dailyWidget(data,report){
+export function summaryWidget(data,report){
  const r=periodSummaryData(data,report.from,report.to,report.title);
- const rows=[['Расходы за день',money(r.expense),'expense'],[budgetState({free:r.free,balance:r.actual,unknown:r.unknown}).heading,money(Math.abs(r.free)),r.free<0?'short':'']];
+ const daily=report.from===report.to;
+ const rows=[daily?['Расходы за день',money(r.expense),'expense']:['На обычных счетах сейчас',money(r.actual)],[budgetState({free:r.free,balance:r.actual,unknown:r.unknown}).heading,money(Math.abs(r.free)),r.free<0?'short':'']];
  if(r.savings)rows.push(['В копилках',money(r.savings)]);
  if(r.income)rows.push(['Доходы',money(r.income),'income']);
  if(r.lunch)rows.push(['Обеды компании',money(r.lunch)]);
- return {title:report.title,date:report.to,dateLabel:paymentDate(report.to),label:'На обычных счетах',sum:money(r.actual),rows,count:`Операций · ${r.count}`,foot:''};
+ const dateLabel=daily?paymentDate(report.to):paymentDate(report.from)+' — '+paymentDate(report.to);
+ return {title:report.title,date:report.to,dateLabel,expense:!daily,label:daily?'На обычных счетах':'Расходы за период',sum:money(daily?r.actual:r.expense),rows,count:`Операций · ${r.count}`,foot:''};
+}
+
+const shortName=value=>Array.from(value||'').slice(0,48).join('');
+const dateCard=(title,date,mark,label,sum,rows,foot='')=>({title,date,dateLabel:paymentDate(date),mark,label,sum,rows,count:'',foot});
+export function paymentsWidget(items,date){
+ const rows=items.slice(0,5).map(item=>{
+  const income=item.income||item.type==='income';
+  return [shortName(item.name),item.amount==null?'Уточнить сумму':(income?'+':'−')+money(item.amount,item.currency),income?'income':'expense'];
+ });
+ return dateCard('Напоминание о платежах',date,'calendar','Событий к проверке',String(items.length),rows,'Подтверди, когда деньги действительно переданы.');
+}
+export function lunchWidget(body,date){
+ return dateCard('Обед сегодня?',date,'lunch','Рабочий день','Отметь обед',[],body.text.split('\n').slice(1).join('\n'));
+}
+export function digestWidget(data,date,responses){
+ const items=attentionItems(data,date,{responses});
+ const rows=items.slice(0,5).map(item=>[shortName(item.name),item.amount==null?paymentDate(item.date):money(item.amount,item.currency)]);
+ return dateCard('Что требует внимания',date,'bell','Дел в сводке',String(items.length),rows);
 }
 
 export async function sendNotificationWidget(env,send,body,card){

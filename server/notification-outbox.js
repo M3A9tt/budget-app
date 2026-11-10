@@ -1,4 +1,4 @@
-import {dailyWidget,expenseWidget,sendNotificationWidget} from './notification-widget.js';
+import {digestWidget,expenseWidget,lunchWidget,paymentsWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
 import {failedDelivery,telegramFailureCode} from './delivery-state.js';
 import {recordOperation} from './operations.js';
 import {lunchDayStatus} from '../src/lunch-day-state.js';
@@ -29,12 +29,20 @@ export async function deliverNotifications(env,userId,day,data,reports,responses
   try{if(payload.kind==='digest')payload.body={chat_id:userId,...attentionMessage(data,day,responses)};
    payload.delivery={phase:'sending',startedAt:Date.now()};await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();
    if(payload.kind==='expense')payload.body={chat_id:userId,...expenseReminder(data,row.day,payload.attempt||0)};
-   if(row.id.startsWith('planned:'))payload.body={chat_id:userId,...paymentReminder(duePayments(data,day))};
+   const planned=row.id.startsWith('planned:')?duePayments(data,day):null;
+   if(planned)payload.body={chat_id:userId,...paymentReminder(planned)};
    if(['expense','lunch'].includes(payload.kind)&&!response)await setCheck(env,userId,row.day,payload.kind,'open');
    const useWidget=widgets&&data.settings.calendarWidgetEnabled!==false;
    if(payload.report&&!payload.progress?.photoSent)payload.body.text=summary(data,payload.report.from,payload.report.to,payload.report.title);
-   if(useWidget&&(payload.kind==='expense'||row.id.startsWith('day:')&&payload.report&&!payload.progress?.photoSent)){
-    const card=payload.kind==='expense'?expenseWidget(data,row.day,payload.attempt||0):dailyWidget(data,payload.report);
+   let card;
+   if(useWidget){
+    if(payload.report&&!payload.progress?.photoSent)card=summaryWidget(data,payload.report);
+    else if(payload.kind==='expense')card=expenseWidget(data,row.day,payload.attempt||0);
+    else if(payload.kind==='lunch')card=lunchWidget(payload.body,row.day);
+    else if(payload.kind==='digest')card=digestWidget(data,day,responses);
+    else if(currentOnce||planned)card=paymentsWidget(currentOnce?[currentOnce]:planned,currentOnce?.date||day);
+   }
+   if(card){
     const sent=await sendNotificationWidget(env,send,payload.body,card);
     payload.delivery.messageId=sent?.message_id;
    }else if(payload.report){

@@ -18,10 +18,10 @@ import {hasAccess} from './users.js';
 const html=String.raw`<style>
 body{margin:0;color:#e8eff4;font:15px system-ui,sans-serif}
 [hidden]{display:none!important}
-.panel{padding:12px;border-radius:16px;background:linear-gradient(130deg,#26313e,#18252e)}
-h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:18px}
-h3:before,h3:after{content:'';flex:1;height:1px;background:#596970}
-h4{margin:8px 0;text-align:center}
+.panel{padding:13px;border-radius:16px;background:linear-gradient(130deg,#293544,#16232d)}
+h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:20px}
+h3:before,h3:after{content:'';flex:1;height:1px;background:#ffffff25}
+h4{margin:9px 0;text-align:center}
 ol{margin:0;padding:0;list-style:none}
 li{display:flex;align-items:center;gap:8px;padding:9px 7px;background:#ffffff06}
 li+li{border-top:1px solid #ffffff22}
@@ -34,31 +34,32 @@ time{padding-right:8px;border-right:1px solid #ffffff2a}
 time,strong{white-space:nowrap}
 .income strong{color:#bde3cb}.expense strong{color:#f1bfbb}
 footer,.picker-nav{display:flex;align-items:center;justify-content:space-between}
-button{min-height:44px;padding:0 8px;border:1px solid #657c7b;border-radius:10px;background:#b7d5ca14;color:#c8e2d8;font:inherit}
+button{min-height:44px;padding:0 8px;border:1px solid #ffffff24;border-radius:10px;background:#ffffff09;color:#d6e4e8;font:inherit}
 button:active{background:#b7d5ca38}
-nav{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
-nav button{flex:1;padding:0 6px;font-size:13px}
-nav button[aria-pressed=true]{background:#b7d5ca30;color:#eff8f3}
+nav{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:12px;border-bottom:1px solid #ffffff24}
+nav button{flex:1;border:0;padding:0 6px;font-size:13px;background:none}
+nav button[aria-pressed=true]{background:#b7d5ca22;color:#eff8f3}
+nav button:last-child{flex:none;width:44px;color:#bde3cb;font-size:21px}
 .balance{display:block;text-align:center;font-size:30px;margin:12px 0}
 .transfer strong{color:#b9d5ef}
-.event button{border:0;background:none;padding:0;color:inherit;text-align:left;font-weight:bold}
+.event button,.picker-nav button{border:0;background:none}
+.event button{padding:0;color:inherit;text-align:left;font-weight:bold}
 .entry{display:grid;gap:8px}
 .entry-tools,.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
 .entry-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
 .entry>button,.entry-tools button{overflow-wrap:anywhere}
-.picker{gap:1px;border-radius:12px;overflow:hidden;background:#526570}
+.picker{gap:1px;border-radius:12px;overflow:hidden;background:#455766}
 .picker button{border:0;border-radius:0;text-align:left;background:#26343e}
 .entry-tools.picker button:last-child:nth-child(odd){grid-column:span 2}
 .picker button:active{background:#3a5356}
-.picker-nav button{border:0;background:none}
-.keypad button{text-align:center;font-size:18px}
+.keypad button{text-align:center;font-size:19px;background:#24313d}
 .entry .balance{margin:2px 0 6px}
-.review:not(:disabled){background:#b9d9cb;color:#182b28}
+.review:enabled{background:#b9d9cb;color:#182b28}
 .choice svg{width:16px;vertical-align:middle;margin-right:5px}
 .out{color:#f1bfbb}.in{color:#bde3cb}
 .out[aria-pressed=true]{background:#ed999533}
 .in[aria-pressed=true]{background:#92c9ac33}
-@media(max-width:245px){li{flex-wrap:wrap}strong{margin-left:auto}}
+@media(max-width:245px){li{flex-wrap:wrap}}
 </style>
 <section class="panel"><h3>Бюрджет</h3>
 <nav id="nav" aria-label="Разделы Бюрджета" hidden>
@@ -85,7 +86,7 @@ function render(){
  title.textContent=view.title;
  balance.textContent=view.balance||'';
  balance.hidden=!view.balance;
- status.textContent=view.rows.length?'На момент запроса':view.empty;
+ status.textContent=view.rows.length?'':view.empty;
  for(const button of buttons)button.setAttribute('aria-pressed',String(button.dataset.page===view.page));
  for(const [date,label,amount,category,direction,detail] of view.rows){
   const row=document.createElement('li');
