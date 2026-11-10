@@ -28,12 +28,20 @@ export const CALENDAR_MARKS=[
 export function calendarDayMarks(day){const rows=[...(day.events||[]),...(day.transactions||[])];return CALENDAR_MARKS.filter(mark=>rows.some(row=>row.type===mark.type));}
 
 // Use category/source metadata, never guess a purpose from the event name.
+function calendarEventSource(data,row){
+ return row.source==='plan'?(data.recurring||[]).find(rule=>rule.id===row.sourceId):row.source==='installment'?(data.installments||[]).find(plan=>plan.id===row.sourceId):null;
+}
+export function calendarEventCategory(data,row,source=calendarEventSource(data,row)){
+ const id=source?.cat||row.cat;
+ const categories=categoryCatalog(data.customCats);
+ return categories.find(cat=>cat.id===id)||(id==='home'?categories.find(cat=>cat.id==='housing'):undefined);
+}
 export function calendarEventMark(data,row){
  const direction=CALENDAR_MARKS.find(mark=>mark.type===row.type)||CALENDAR_MARKS[0];
  if(row.type==='income')return {...direction,icon:'wallet'};
  if(row.type==='transfer'||row.type==='lunch')return direction;
- const source=row.source==='plan'?(data.recurring||[]).find(rule=>rule.id===row.sourceId):row.source==='installment'?(data.installments||[]).find(plan=>plan.id===row.sourceId):null;
- const category=categoryCatalog(data.customCats).find(cat=>cat.id===(source?.cat||row.cat));
+ const source=calendarEventSource(data,row);
+ const category=calendarEventCategory(data,row,source);
  const icon=category?.id==='subs'?'subscription':isIcon(category?.icon)&&category.icon!=='other'?category.icon:(source?.cat||row.cat)==='home'?'home':source&&['daily','weekly','monthly'].includes(source.frequency)?'refresh':null;
  return {...direction,icon};
 }

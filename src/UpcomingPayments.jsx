@@ -1,3 +1,5 @@
+import {calendarEventCategory,calendarEventMark} from './calendar-model.js';
+import Symbol from './Symbol.jsx';
 import {counted} from './analytics-report.js';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {scheduledEvents,moveDate} from './finance-events.js';
@@ -20,7 +22,7 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
  const accounts=useMemo(()=>new Map(data.accounts.map(a=>[a.id,a.name])),[data.accounts]);
  const week=moveDate(today,6),matchesScope=(e,id)=>id==='unmarked'?e.date<today:id==='week'?e.date>=today&&e.date<=week:true;
  const terms=query.trim().toLocaleLowerCase('ru').split(/\s+/).filter(Boolean);
- const filtered=events.filter(e=>matchesScope(e,scope)&&terms.every(q=>`${e.name} ${e.date} ${e.kind} ${e.billingPeriod||''} ${accounts.get(e.accountId)||''} ${e.amount??''} ${e.amount===null?'':money(e.amount,e.currency)}`.toLocaleLowerCase('ru').includes(q)));
+ const filtered=events.filter(e=>matchesScope(e,scope)&&terms.every(q=>`${e.name} ${e.date} ${e.kind} ${calendarEventCategory(data,e)?.name||''} ${e.billingPeriod||''} ${accounts.get(e.accountId)||''} ${e.amount??''} ${e.amount===null?'':money(e.amount,e.currency)}`.toLocaleLowerCase('ru').includes(q)));
  const groups=[['past','Без отметки о выполнении',e=>e.date<today],['today','Сегодня',e=>e.date===today],['later','Предстоит',e=>e.date>today]];
  const open=event=>{try{setError('');onPrepare(prepareEvent(data,event,today));}catch(e){setError(e.message);}};
  const searchField=useRef(null),rowButtons=useRef(new Map());
@@ -52,10 +54,11 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
      </div>;
     if(personal){
      const period=periodLabel(e.billingPeriod),moved=e.originalDate&&e.originalDate!==e.date;
-     const dateText=paymentDate(e.date),meta=[period?'За '+period:e.kind,moved?'Перенос с '+paymentDate(e.originalDate):'',e.date<today?'Без отметки':''].filter(Boolean);
-     return <tbody className="payment-event-record" key={e.id} data-payment-event={e.id}><tr className="payment-table-event" onClick={click=>{if(!click.target.closest('button'))toggle();}}>
+     const category=calendarEventCategory(data,e),mark=calendarEventMark(data,e);
+     const dateText=paymentDate(e.date),meta=[category?.name,period?'За '+period:e.kind,moved?'Перенос с '+paymentDate(e.originalDate):'',e.date<today?'Без отметки':''].filter(Boolean);
+     return <tbody className="payment-event-record" key={e.id} data-payment-event={e.id}><tr className="payment-table-event" data-operation-type={e.type} onClick={click=>{if(!click.target.closest('button'))toggle();}}>
       <td className="payment-table-date"><time dateTime={e.date} aria-label={dateText}><b>{Number(e.date.slice(-2))}</b><span>{dateText.replace(/^\d+\s+/,'')}</span></time></td>
-      <td className="payment-table-name"><button type="button" className="upcoming-payment" ref={button=>{if(button)rowButtons.current.set(e.id,button);else rowButtons.current.delete(e.id);}} disabled={busy} aria-label={e.name} aria-describedby={controls+'-meta'} aria-expanded={expanded} aria-controls={expanded?controls:undefined} onClick={toggle}><strong>{e.name}</strong><small id={controls+'-meta'}>{meta.map((label,i)=><span key={i}>{label}</span>)}</small></button></td>
+      <td className="payment-table-name"><button type="button" className="upcoming-payment" ref={button=>{if(button)rowButtons.current.set(e.id,button);else rowButtons.current.delete(e.id);}} disabled={busy} aria-label={e.name} aria-describedby={controls+'-meta'} aria-expanded={expanded} aria-controls={expanded?controls:undefined} onClick={toggle}><span className="payment-table-title"><span className="payment-table-symbol" style={{color:category?.color}}><Symbol value={{emoji:category?.emoji}} fallback={mark.icon||'calendar'} size={16}/></span><strong>{e.name}</strong></span><small id={controls+'-meta'}>{meta.map((label,i)=><span key={i} style={i===0&&category?{color:category.color}:undefined}>{label}</span>)}</small></button></td>
       <td className="desktop-number payment-table-amount"><span><b className={e.type==='income'?'mini-income':undefined}>{amount}</b><Icon name={expanded?'up':'down'} size={14}/></span></td>
      </tr>{expanded&&<tr><td className="payment-table-details" colSpan={3}>{actions}</td></tr>}</tbody>;
     }
