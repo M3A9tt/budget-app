@@ -36,10 +36,19 @@ try{for(const version of [1,2]){
   await page.locator('.account-detail-heading').getByRole('heading',{name:'Основная карта'}).waitFor();
   assert.equal(await page.locator('.account-action-panel').count(),0);
   await page.getByRole('button',{name:'Все операции',exact:true}).click();
+  await page.getByRole('button',{name:'Сбросить ×',exact:true}).click();
   await page.getByRole('button',{name:'К счёту',exact:true}).click();
   await page.locator('.account-detail-heading').getByRole('button',{name:'Назад'}).click();
   await page.locator('.ins-home').waitFor();
   assert.equal(revision,beforeRevision);
+  await nav('Аналитика').click();
+  await page.getByRole('button',{name:'7 дней',exact:true}).click();
+  await page.locator('.report-category').filter({hasText:'Еда'}).click();
+  await page.locator('.ins-filter-chip').getByText(/Еда/).waitFor();
+  await page.getByRole('button',{name:'Сбросить ×',exact:true}).click();
+  await page.getByRole('button',{name:'К аналитике',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'7 дней',exact:true}).getAttribute('aria-pressed'),'true');
+  await nav('Главная').click();
   assert.deepEqual(data,before);
  }
  await page.setViewportSize({width:390,height:844});await add().click();await page.locator('#amount').fill('250');await page.getByLabel('Комментарий',{exact:true}).fill('Кофе');await shot('entry-390');
