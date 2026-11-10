@@ -43,6 +43,7 @@ try{for(const version of [1,2]){
  }
  if(version===2){
   const beforeBack=revision;
+  data.recurring=[{...seed.recurring[0],accountId:data.accounts[0].id}];
   await page.goto(origin+'/?calendar=1#tgWebAppVersion=10.4');
   await page.locator('.mini-shell').waitFor();
   await page.evaluate(()=>{
@@ -60,6 +61,18 @@ try{for(const version of [1,2]){
    await page.evaluate(()=>[...window.testBack.callbacks][0]());
   };
   await page.locator('.money-calendar').waitFor();
+  await telegramBack();
+  await page.locator('.ins-home').waitFor();
+  const event=page.getByRole('dialog',{name:'Подтверждение: Интернет'});
+  await page.locator('.personal-next-event').filter({hasText:'Интернет'}).click();
+  await event.getByRole('button',{name:'Открыть план',exact:true}).click();
+  await page.getByRole('button',{name:'К событию',exact:true}).waitFor();
+  await telegramBack();
+  await event.waitFor();
+  await telegramBack();
+  await event.waitFor({state:'hidden'});
+  assert.equal(await page.getByLabel('Перейти к дате',{exact:true}).inputValue(),future);
+  assert.equal(await page.locator('[data-calendar-event="plan:r:once"]').evaluate(node=>node===document.activeElement),true);
   await telegramBack();
   await page.locator('.ins-home').waitFor();
   await page.locator('.home-money-links').getByRole('button',{name:'Долги',exact:true}).click();
