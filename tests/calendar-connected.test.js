@@ -56,3 +56,32 @@ test('Duplicate debt command cannot create two sources; invalid calendar moves d
  const d=fixture(),before=structuredClone(d),event=scheduledEvents(d,today,day(4))[0];assert.throws(()=>createDebt(d,{id:'rent-debt',person:'Друг',amount:500,type:'my'}),/уже создан/);
  for(const date of ['bad','2026-02-30',day(-1)])assert.throws(()=>rescheduleEvent(d,event,date,today));assert.deepEqual(d,before);
 });
+
+test('A stale bot calendar action cannot pay a moved installment',()=>{
+ const d=fixture(),event=scheduledEvents(d,today,day(4)).find(e=>e.source==='installment');
+ const payAction=e=>botView(d,'calendarEvent',{eventId:e.id,date:e.date}).actions.find(a=>a.op==='payInstallment');
+ const stale=payAction(event),moved=rescheduleEvent(d,event,day(7),today),before=structuredClone(moved);
+ const payment={amount:400,accountId:'card',date:today};
+ assert.throws(()=>applyBotAction(moved,stale.op,stale.args,payment),/перенесено/);
+ assert.deepEqual(moved,before);
+ const fresh=botView(moved,'calendarEvent',{eventId:event.id,date:day(7)}).actions.find(a=>a.op==='payInstallment');
+ const paid=applyBotAction(moved,fresh.op,fresh.args,payment);
+ assert.equal(paid.accounts[0].balance,9600);
+ assert.equal(paid.transactions.length,1);
+ assert.equal(installmentRemaining(paid,paid.installments[0].payments[0]),600);
+});
+
+test('Moving the 29th to the 17th replaces its occurrence and preserves a different billing period',()=>{
+ const date='2026-11-10';
+ const d=createPlanned(base(),{id:'transit',name:'Проезд',type:'expense',frequency:'monthly',startDate:'2026-10-29',dueDay:29,amount:900,accountId:'card'});
+ const events=data=>scheduledEvents(data,date,'2026-11-30');
+ for(const [period,expected] of [
+  ['2026-11',[['2026-11-17','2026-11','2026-11-29']]],
+  ['2026-10',[['2026-11-17','2026-10','2026-10-29'],['2026-11-29','2026-11','2026-11-29']]]
+ ]){
+  const moved=rescheduleEvent(d,events(d).find(e=>e.period===period),'2026-11-17',date);
+  assert.deepEqual(events(moved).filter(e=>e.date>date).map(e=>[e.date,e.billingPeriod,e.originalDate]),expected);
+  assert.deepEqual(moved.accounts,d.accounts);
+  assert.deepEqual(moved.transactions,d.transactions);
+ }
+});

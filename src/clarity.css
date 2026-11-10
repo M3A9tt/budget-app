@@ -9,3 +9,11 @@
 .analytics-clear .report-spending-hero>.report-eyebrow{overflow-wrap:anywhere}
 
 .home-recent{min-width:0}@media(min-width:1080px){.ins-home{align-items:start}.ins-home>.home-budget{grid-column:1;grid-row:2/span 3;min-width:0;max-width:none;margin-bottom:0}.ins-home>.home-accounts{grid-column:2;grid-row:2;min-width:0}.ins-home>.home-recent{grid-column:1/-1;min-width:0}.ins-home>.ins-actions{align-self:start}.ins-home>.ins-actions button{align-self:start}.ins-home>.ins-grid{align-items:start;min-width:0}}
+
+.home-budget-status{padding:12px 0;margin:8px 0 12px;border-block-start:1px solid #dcece62b}
+.home-budget-status-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;font-size:var(--type-label)}
+.home-budget-status-row strong{font-variant-numeric:tabular-nums;white-space:nowrap}
+.home-budget-status small{display:block;margin-top:4px;color:#b2c9c8;font-size:var(--type-caption)}
+
+.account-detail-balance{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px 12px;margin:14px 0;padding:16px}
+.account-detail-balance strong{grid-column:2;font-size:clamp(24px,5vw,36px);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}

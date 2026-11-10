@@ -15,9 +15,10 @@ export function transferDetails(data,entry){
  return {route,description};
 }
 
-export function filterActivity(entries,data,cats,{type='all',date='',search='',chartFilter=null,includeCompanyLunch}={}){
+export function filterActivity(entries,data,cats,{type='all',date='',search='',chartFilter=null,includeCompanyLunch,accountId=''}={}){
  const normalize=value=>value.replace(/\s+/gu,' ').trim().toLocaleLowerCase('ru'),query=normalize(search);
  return entries.filter(t=>{
+  if(accountId&&(t.type==='transfer'?![t.from,t.to,t.externalAccountId].includes(accountId):t.accountId!==accountId))return false;
   const lunch=companyLunch(t);
   if(lunch&&includeCompanyLunch===false)return false;
   const matchesType=type==='all'||t.type===type||(type==='expense'&&lunch&&includeCompanyLunch===true);

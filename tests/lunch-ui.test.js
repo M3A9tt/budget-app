@@ -18,7 +18,7 @@ test('Settings initially show only the category menu, with no long import or rem
 });
 test('Lunch deep link renders the separate monthly budget and More navigation context',async()=>{
  const {MiniApp}=components('?lunch=1&demo=1');const {renderToPipeableStream}=await import('react-dom/server');const {Writable}=await import('node:stream');const chunks=[];await new Promise((resolve,reject)=>{const sink=new Writable({write(chunk,encoding,done){chunks.push(Buffer.from(chunk));done();}});sink.on('finish',resolve);const stream=renderToPipeableStream(React.createElement(MiniApp),{onAllReady(){stream.pipe(sink);},onError:reject});});const html=Buffer.concat(chunks).toString('utf8');
- assert.ok(html.includes('data-page="lunch"'));assert.ok(html.includes('Профицит'));assert.ok(html.includes('aria-label="Импорт обедов из JSON"'));assert.ok(html.includes('По прайсу'));assert.ok(html.includes('<table'));for(const label of ['Доступно','Потрачено','± день','Баланс'])assert.ok(html.includes(label));assert.ok(!html.includes('<textarea'));assert.ok(!html.includes('<form'));assert.match(html,/<button[^>]*aria-current="page"[^>]*><svg[^>]*data-icon="other"/);
+ assert.ok(html.includes('data-page="lunch"'));assert.ok(html.includes('Профицит'));assert.ok(html.includes('aria-label="Импорт обедов из JSON"'));assert.ok(html.includes('По прайсу'));assert.ok(html.includes('<table'));for(const label of ['Доступно','Потрачено','± день','Баланс'])assert.ok(html.includes(label));assert.ok(!html.includes('<textarea'));assert.ok(!html.includes('<form'));assert.match(html,/<button[^>]*aria-current="page"[^>]*><svg[^>]*data-icon="history"/);
  assert.ok(!html.includes('<details open'));assert.ok(!html.includes('lunch-json-example'));
 });
 
