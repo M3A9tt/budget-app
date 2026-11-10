@@ -97,10 +97,10 @@ async function mutateState(env,userId,change){
 }
 const habitApi={readState,mutateState,telegram};
 const lunchChatApi={readState,telegram};
-async function handleTelegram(update,env) {
+async function handleTelegram(update,env,{preferWidget=true}={}) {
   if(update.widget_query){
     const query=update.widget_query;
-    return answerCalendarWidget(query,{env,readState,telegram,openAdd:()=>handleTelegram({message:{from:query.from,chat:query.chat,text:'/add'}},env)});
+    return answerCalendarWidget(query,{env,readState,telegram,openAdd:()=>handleTelegram({message:{from:query.from,chat:query.chat,text:'/add'}},env,{preferWidget:false})});
   }
   const source=update.callback_query?.from||update.message?.from;
   const chat=update.callback_query?.message?.chat||update.message?.chat;
@@ -129,7 +129,7 @@ async function handleTelegram(update,env) {
   try {
     const switched=userSwitchedDialog(update);
     if(switched&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim()))){await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);}
-    if(await calendarWidget(update.message,{env,readState,mutateState,telegram})){
+    if(preferWidget&&await calendarWidget(update.message,{env,readState,mutateState,telegram})){
       if(switched)await pauseBotForm(env,userId,botApi);
       return;
     }

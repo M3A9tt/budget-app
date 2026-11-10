@@ -96,6 +96,10 @@ test('Widget menu receives authenticated private queries and opens the existing 
   assert.equal(sent.method,'sendWidget');
   assert.equal(JSON.parse(sent.body.chat_data).page,page);
  }
+ await f.update('/add');
+ const entry=f.sent.at(-1);
+ assert.equal(entry.method,'sendWidget');
+ assert.equal(JSON.parse(entry.body.chat_data).draft.revision,fresh.revision+1);
  await f.update('/widget off');
  await f.update('/history');
  assert.notEqual(f.sent.at(-1).method,'sendWidget');
