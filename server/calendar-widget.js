@@ -10,26 +10,27 @@ import {commitBotAction} from './bot-commit.js';
 import {readReceipt} from './state-persistence.js';
 import {paymentDate} from '../src/payment-copy.js';
 import {calendarEventCategory} from '../src/calendar-model.js';
+import {appearanceColors} from '../src/appearance.js';
 
 const html=String.raw`<style>
 body{margin:0;color:#e8eff4;font:15px system-ui,sans-serif}
 [hidden]{display:none!important}
 .panel{padding:12px;border-radius:16px;background:linear-gradient(130deg,#26313e,#18252e)}
-h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;text-align:center;font-size:18px;line-height:1.25}
+h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:18px}
 h3:before,h3:after{content:'';flex:1;height:1px;background:#596970}
 h4{margin:8px 0;text-align:center}
 ol{margin:0;padding:0;list-style:none}
 li{display:flex;align-items:center;gap:8px;padding:9px 7px;background:#ffffff06}
 li+li{border-top:1px solid #ffffff22}
-.income{background:linear-gradient(90deg,#ffffff06 45%,#94c9b52c)}
-.expense{background:linear-gradient(90deg,#ffffff06 45%,#df99952c)}
+.income{background:linear-gradient(90deg,transparent,#94c9b52c)}
+.expense{background:linear-gradient(90deg,transparent,#df99952c)}
 .event{flex:1;min-width:0;overflow-wrap:anywhere}
 .event b,.event small{display:block}
 time,small{color:#b6c5d3;font-size:13px}
 time{padding-right:8px;border-right:1px solid #ffffff2a}
 time,strong{white-space:nowrap}
 .income strong{color:#bde3cb}.expense strong{color:#f1bfbb}
-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px}
+footer,.picker-nav{display:flex;align-items:center;justify-content:space-between}
 button{min-height:44px;padding:0 8px;border:1px solid #657c7b;border-radius:10px;background:#b7d5ca14;color:#c8e2d8;font:inherit}
 button:active{background:#b7d5ca38}
 nav{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
@@ -45,7 +46,6 @@ nav button[aria-pressed=true]{background:#b7d5ca30;color:#eff8f3}
 .picker{gap:1px;border-radius:12px;overflow:hidden;background:#526570}
 .picker button{border:0;border-radius:0;text-align:left;background:#26343e}
 .picker button:active{background:#3a5356}
-.picker-nav{display:flex;justify-content:space-between}
 .picker-nav button{border:0;background:none}
 .keypad button{text-align:center;font-size:18px}
 .entry .balance{margin:2px 0 6px}
@@ -120,14 +120,16 @@ function node(parent,tag,text='',className=''){
  const el=document.createElement(tag);
  el.className=className;el.textContent=text;parent.appendChild(el);return el;
 }
-function control(parent,label,action,icon=''){
+function control(parent,label,action,icon='',colors=[]){
  const button=node(parent,'button',label);
  button.type='button';
  if(icon){
   button.className='choice';
   button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="'+icon+'"/></svg>';
   node(button,'span',label);
+  if(colors.length)button.firstChild.style.color=colors[0];
  }
+ if(colors.length>1)button.style.backgroundImage='linear-gradient(120deg,'+colors.map(c=>c+'38').join(',')+')';
  button.addEventListener('click',action);
  return button;
 }
@@ -141,7 +143,7 @@ async function query(command,then){
   const result=JSON.parse((await widget.request(command)).result);
   if(result.error){if(selected===page)status.textContent=result.error;}
   else if(page!=='add'||selected===page)then(result);
- }catch{if(selected===page)status.textContent='Нет ответа. Повтори.';}
+ }catch{if(selected===page)status.textContent='Повтори запрос.';}
  finally{pending=saving=false;}
 }
 function ask(command,then){
@@ -188,12 +190,12 @@ function entryForm(){
 }
 function pick(kind,offset){
  ask(kind+':'+offset,result=>{
-  if(result.revision!==draft.revision){draft=null;entryPanel('Данные изменились');control(entry,'Начать заново',startEntry);return;}
+  if(result.revision!==draft.revision){draft=null;entryPanel('Данные изменились');control(entry,'К записи',startEntry);return;}
   entryPanel(kind==='a'?'Счёт':'Категория');
   const choices=group('entry-tools picker'),icon=kind==='a'?'M3 6h18v13H3zM3 10h18':'M4 4h8l8 8-8 8-8-8zM8 8h1';
   for(const option of result.options)control(choices,option[1]+(option[2]?' · '+option[2]:''),()=>{
    draft[kind==='a'?'account':'category']=option;entryForm();
-  },icon);
+  },icon,option[3]);
   const links=group('picker-nav'),total=kind==='a'?draft.accounts:draft.categories;
   control(links,'К записи',entryForm);
   if(offset)control(links,'← Назад',()=>pick(kind,offset-6));
@@ -260,7 +262,10 @@ async function widgetEntry(env,id,query,readState,state){
  const choices=/^budget-entry:(a|c):(\d{1,6})$/.exec(text);
  if(choices){
   const rows=choices[1]==='a'?entryAccounts(data):entryCategories(data),offset=Number(choices[2]);
-  return {revision,options:rows.slice(offset,offset+6).map((item,i)=>[offset+i,Array.from(item.name).slice(0,28).join(''),item.currency||''])};
+  return {revision,options:rows.slice(offset,offset+6).map((item,i)=>{
+   const colors=appearanceColors(choices[1]==='a'?item.colors:[item.color]);
+   return [offset+i,Array.from(item.name).slice(0,24).join(''),item.currency||'',colors.length||choices[1]==='c'?colors:['#648fa2','#8e7aab']];
+  })};
  }
  const preview=/^budget-entry:p:([ei]):(\d{1,16}):(\d{1,6}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
  if(preview){
