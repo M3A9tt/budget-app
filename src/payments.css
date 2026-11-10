@@ -49,8 +49,21 @@
 .payment-table-event:has([aria-expanded=true]) .payment-table-amount svg{transform:rotate(180deg)}
 @media(prefers-reduced-motion:reduce){.payment-table-disclosure,.payment-table-amount svg{transition:none}}
 
-.payment-table-disclosure .payment-table-actions{display:flex;align-items:flex-start;gap:4px 12px;flex-wrap:wrap;padding:10px 12px}
-.payment-table-actions>:is(p,form),.payment-table-actions>.recorded-payment:has(.recorded-payment-panel){flex-basis:100%}
-.payment-table-actions>.payment-event-account{margin:0 0 4px}
-.payment-table-actions>.payment-table-record{display:inline-flex;align-items:center;justify-content:center;gap:7px;width:auto;min-height:44px;padding:8px 12px;background:var(--glass-selected);border-color:#b8dec44d;color:#e2eee6}
-.payment-table-actions>.mini-text-button,.payment-table-actions .recorded-payment>.mini-text-button{min-height:44px}
+.payment-table-disclosure .payment-table-actions{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:7px;
+ padding:12px;background:linear-gradient(125deg,#9dafd011,transparent 70%),var(--glass-field);
+}
+.payment-table-actions>:is(p,form),.payment-table-actions>.recorded-payment:has(.recorded-payment-panel){grid-column:1/-1}
+.payment-table-actions>.payment-event-account{margin:0 0 3px}
+.payment-table-actions>:is(.payment-table-record,.mini-text-button),.payment-table-actions .recorded-payment>.mini-text-button{
+ display:flex;align-items:center;justify-content:flex-start;gap:7px;width:100%;min-height:44px;padding:7px 9px;
+ text-align:left;line-height:1.3;border:1px solid #becbe329;border-radius:10px;background:var(--glass-surface);color:var(--mini-text);
+}
+.payment-table-actions>.payment-table-record{background:linear-gradient(120deg,#a2c6ae32,#a2c6ae0e);border-color:#b8dec455;color:#e0f2e7}
+.payment-table-actions .recorded-payment>.mini-text-button svg{color:#b6b5dc}
+.payment-table-actions>.mini-text-button svg{color:#a9becf}
+.payment-table-actions :is(.mini-text-button,.payment-table-record)>svg{flex:none}
+@media(hover:hover){.payment-table-actions :is(.mini-text-button,.payment-table-record):hover{border-color:#c5dfd282}}
+@media(min-width:768px){.payment-table-disclosure .payment-table-actions{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+.payment-table-actions>.recorded-payment:not(:has(.recorded-payment-panel))>button{height:100%}

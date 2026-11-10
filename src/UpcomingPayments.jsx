@@ -47,9 +47,9 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
       {e.date<today&&<p className="payment-hint">В приложении нет отметки. Если деньги уже учтены, не записывай их повторно.</p>}
       <button type="button" className={personal?'mini-secondary payment-table-record':'mini-primary'} disabled={busy} onClick={()=>open(e)}><Icon name={e.type==='income'?'down':'check'} size={17}/>{e.type==='income'?'Записать поступление':'Записать оплату'}</button>
       {!personal&&<p className="payment-hint">Перед сохранением проверишь сумму, счёт и фактическую дату.</p>}
-      {e.source==='plan'&&mutate&&<RecordedPayment data={data} id={e.sourceId} period={e.period} mutate={async(fn,message)=>{const ok=await mutate(fn,message);if(ok)restoreRowFocus(e.id);return ok;}} busy={busy}/>}
-      {mutate&&<><button type="button" className="mini-text-button" disabled={busy} aria-expanded={moving===e.id} onClick={()=>setMoving(moving===e.id?'':e.id)}>Перенести дату</button>{moving===e.id&&<OccurrenceDateForm key={e.id} event={e} today={today} mutate={mutate} busy={busy} quickDates={personal} onDone={()=>{setMoving('');restoreRowFocus(e.id);}} onCancel={()=>{setMoving('');restoreRowFocus(e.id);}}/>}</>}
-      {(personal||e.source!=='plan')&&<button type="button" className="mini-text-button" disabled={busy} onClick={()=>onSource(e)}>{e.source==='plan'?'Открыть план':e.source==='installment'?'Открыть график':'Открыть долг'}</button>}
+      {e.source==='plan'&&mutate&&<RecordedPayment data={data} id={e.sourceId} period={e.period} showIcon={personal} mutate={async(fn,message)=>{const ok=await mutate(fn,message);if(ok)restoreRowFocus(e.id);return ok;}} busy={busy}/>}
+      {mutate&&<><button type="button" className="mini-text-button" disabled={busy} aria-expanded={moving===e.id} onClick={()=>setMoving(moving===e.id?'':e.id)}>{personal&&<Icon name="calendar" size={17}/>}Перенести дату</button>{moving===e.id&&<OccurrenceDateForm key={e.id} event={e} today={today} mutate={mutate} busy={busy} quickDates={personal} onDone={()=>{setMoving('');restoreRowFocus(e.id);}} onCancel={()=>{setMoving('');restoreRowFocus(e.id);}}/>}</>}
+      {(personal||e.source!=='plan')&&<button type="button" className="mini-text-button" disabled={busy} onClick={()=>onSource(e)}>{personal&&<Icon name="arrow" size={16}/>} {e.source==='plan'?'Открыть план':e.source==='installment'?'Открыть график':'Открыть долг'}</button>}
 
      </div>;
     if(personal){
