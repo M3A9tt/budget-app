@@ -1,3 +1,5 @@
+import {calendarEventCategory,calendarEventMark} from './calendar-model.js';
+import Symbol from './Symbol.jsx';
 import {counted} from './analytics-report.js';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {scheduledEvents,moveDate} from './finance-events.js';
@@ -12,7 +14,7 @@ const periodLabel=period=>/^\d{4}-\d{2}$/.test(period||'')?new Intl.DateTimeForm
 
 export default function UpcomingPayments({personal=false,data,busy,onPrepare,mutate,onSource=()=>{},listState,onListChange}){
  const today=todayMoscow(data.settings.timeZone),[error,setError]=useState('');
- const [localList,setLocalList]=useState({}),[moving,setMoving]=useState('');
+ const [localList,setLocalList]=useState({}),[moving,setMoving]=useState(''),[closing,setClosing]=useState('');
  const {query='',scope='all',limit=6,selected=''}=listState||localList;
  const updateList=onListChange||setLocalList;
  const change=patch=>updateList(previous=>({...previous,...patch}));
@@ -20,7 +22,7 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
  const accounts=useMemo(()=>new Map(data.accounts.map(a=>[a.id,a.name])),[data.accounts]);
  const week=moveDate(today,6),matchesScope=(e,id)=>id==='unmarked'?e.date<today:id==='week'?e.date>=today&&e.date<=week:true;
  const terms=query.trim().toLocaleLowerCase('ru').split(/\s+/).filter(Boolean);
- const filtered=events.filter(e=>matchesScope(e,scope)&&terms.every(q=>`${e.name} ${e.date} ${e.kind} ${e.billingPeriod||''} ${accounts.get(e.accountId)||''} ${e.amount??''} ${e.amount===null?'':money(e.amount,e.currency)}`.toLocaleLowerCase('ru').includes(q)));
+ const filtered=events.filter(e=>matchesScope(e,scope)&&terms.every(q=>`${e.name} ${e.date} ${e.kind} ${calendarEventCategory(data,e)?.name||''} ${e.billingPeriod||''} ${accounts.get(e.accountId)||''} ${e.amount??''} ${e.amount===null?'':money(e.amount,e.currency)}`.toLocaleLowerCase('ru').includes(q)));
  const groups=[['past','Без отметки о выполнении',e=>e.date<today],['today','Сегодня',e=>e.date===today],['later','Предстоит',e=>e.date>today]];
  const open=event=>{try{setError('');onPrepare(prepareEvent(data,event,today));}catch(e){setError(e.message);}};
  const searchField=useRef(null),rowButtons=useRef(new Map());
@@ -38,26 +40,27 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
    const rows=filtered.slice(0,limit).filter(test);if(!rows.length)return null;
    const renderEvent=e=>{
     const expanded=selected===e.id,controls='payment-actions-'+e.id;
-    const toggle=()=>{if(busy)return;change({selected:expanded?'':e.id});setMoving('');setError('');};
+    const toggle=()=>{if(busy)return;if(personal)setClosing(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'':selected);change({selected:expanded?'':e.id});setMoving('');setError('');};
     const amount=e.amount===null?'Уточнить':(e.type==='income'?'+':personal?'−':'')+money(e.amount,e.currency);
-    const actions=expanded&&<div className="payment-event-actions" id={'payment-actions-'+e.id}>
-      <p className="payment-event-account">{accounts.has(e.accountId)?'Счёт: '+accounts.get(e.accountId):'Счёт выберешь перед записью'}{periodLabel(e.billingPeriod)?' · За '+periodLabel(e.billingPeriod):''}</p>
+    const actions=(expanded||personal&&closing===e.id)&&<div className={'payment-event-actions'+(personal?' payment-table-actions':'')} id={'payment-actions-'+e.id}>
+      <p className="payment-event-account">{accounts.has(e.accountId)?'Счёт: '+accounts.get(e.accountId):'Счёт выберешь перед записью'}{!personal&&periodLabel(e.billingPeriod)?' · За '+periodLabel(e.billingPeriod):''}</p>
       {e.date<today&&<p className="payment-hint">В приложении нет отметки. Если деньги уже учтены, не записывай их повторно.</p>}
-      <button type="button" className="mini-primary" disabled={busy} onClick={()=>open(e)}><Icon name={e.type==='income'?'down':'check'} size={17}/>{e.type==='income'?'Записать поступление':'Записать оплату'}</button>
-      <p className="payment-hint">Перед сохранением проверишь сумму, счёт и фактическую дату.</p>
-      {e.source==='plan'&&mutate&&<RecordedPayment data={data} id={e.sourceId} period={e.period} mutate={async(fn,message)=>{const ok=await mutate(fn,message);if(ok)restoreRowFocus(e.id);return ok;}} busy={busy}/>}
-      {mutate&&<><button type="button" className="mini-text-button" disabled={busy} aria-expanded={moving===e.id} onClick={()=>setMoving(moving===e.id?'':e.id)}>Перенести дату</button>{moving===e.id&&<OccurrenceDateForm key={e.id} event={e} today={today} mutate={mutate} busy={busy} quickDates={personal} onDone={()=>{setMoving('');restoreRowFocus(e.id);}} onCancel={()=>{setMoving('');restoreRowFocus(e.id);}}/>}</>}
-      {(personal||e.source!=='plan')&&<button type="button" className="mini-text-button" disabled={busy} onClick={()=>onSource(e)}>{e.source==='plan'?'Открыть план':e.source==='installment'?'Открыть график':'Открыть долг'}</button>}
+      <button type="button" className={personal?'mini-secondary payment-table-record':'mini-primary'} disabled={busy} onClick={()=>open(e)}><Icon name={e.type==='income'?'down':'check'} size={17}/>{e.type==='income'?'Записать поступление':'Записать оплату'}</button>
+      {!personal&&<p className="payment-hint">Перед сохранением проверишь сумму, счёт и фактическую дату.</p>}
+      {e.source==='plan'&&mutate&&<RecordedPayment data={data} id={e.sourceId} period={e.period} showIcon={personal} mutate={async(fn,message)=>{const ok=await mutate(fn,message);if(ok)restoreRowFocus(e.id);return ok;}} busy={busy}/>}
+      {mutate&&<><button type="button" className="mini-text-button" disabled={busy} aria-expanded={moving===e.id} onClick={()=>setMoving(moving===e.id?'':e.id)}>{personal&&<Icon name="calendar" size={17}/>}Перенести дату</button>{moving===e.id&&<OccurrenceDateForm key={e.id} event={e} today={today} mutate={mutate} busy={busy} quickDates={personal} onDone={()=>{setMoving('');restoreRowFocus(e.id);}} onCancel={()=>{setMoving('');restoreRowFocus(e.id);}}/>}</>}
+      {(personal||e.source!=='plan')&&<button type="button" className="mini-text-button" disabled={busy} onClick={()=>onSource(e)}>{personal&&<Icon name="arrow" size={16}/>} {e.source==='plan'?'Открыть план':e.source==='installment'?'Открыть график':'Открыть долг'}</button>}
 
      </div>;
     if(personal){
      const period=periodLabel(e.billingPeriod),moved=e.originalDate&&e.originalDate!==e.date;
-     return <tbody className="payment-event-record" key={e.id} data-payment-event={e.id}><tr className="payment-table-event" onClick={click=>{if(!click.target.closest('button'))toggle();}}>
-      <td><time dateTime={e.date}>{paymentDate(e.date)}</time></td>
-      <td><button type="button" className="upcoming-payment" ref={button=>{if(button)rowButtons.current.set(e.id,button);else rowButtons.current.delete(e.id);}} disabled={busy} aria-expanded={expanded} aria-controls={expanded?controls:undefined} onClick={toggle}><strong>{e.name}</strong><Icon name={expanded?'up':'down'} size={15}/></button>
-       <small>{[period?'За '+period:e.kind,moved?'Перенесён с '+paymentDate(e.originalDate):'',e.date<today?'Без отметки':''].filter(Boolean).join(' · ')}</small></td>
-      <td className="desktop-number"><b className={e.type==='income'?'mini-income':undefined}>{amount}</b></td>
-     </tr>{expanded&&<tr><td className="payment-table-details" colSpan={3}>{actions}</td></tr>}</tbody>;
+     const category=calendarEventCategory(data,e),mark=calendarEventMark(data,e);
+     const dateText=paymentDate(e.date),meta=[category?.name,period?'За '+period:e.kind,moved?'Перенос с '+paymentDate(e.originalDate):'',e.date<today?'Без отметки':''].filter(Boolean);
+     return <tbody className="payment-event-record" key={e.id} data-payment-event={e.id}><tr className="payment-table-event" data-operation-type={e.type} onClick={click=>{if(!click.target.closest('button'))toggle();}}>
+      <td className="payment-table-date"><time dateTime={e.date} aria-label={dateText}><b>{Number(e.date.slice(-2))}</b><span>{dateText.replace(/^\d+\s+/,'')}</span></time></td>
+      <td className="payment-table-name"><button type="button" className="upcoming-payment" ref={button=>{if(button)rowButtons.current.set(e.id,button);else rowButtons.current.delete(e.id);}} disabled={busy} aria-label={e.name} aria-describedby={controls+'-meta'} aria-expanded={expanded} aria-controls={expanded?controls:undefined} onClick={toggle}><span className="payment-table-title"><span className="payment-table-symbol" style={{color:category?.color}}><Symbol value={{emoji:category?.emoji}} fallback={mark.icon||'calendar'} size={16}/></span><strong>{e.name}</strong></span><small id={controls+'-meta'}>{meta.map((label,i)=><span key={i} style={i===0&&category?{color:category.color}:undefined}>{label}</span>)}</small></button></td>
+      <td className="desktop-number payment-table-amount"><span><b className={e.type==='income'?'mini-income':undefined}>{amount}</b><Icon name="down" size={14}/></span></td>
+     </tr><tr className="payment-table-details-row" aria-hidden={!expanded}><td className="payment-table-details" colSpan={3}><div className="payment-table-disclosure" data-open={expanded} inert={expanded?undefined:''} onTransitionEnd={event=>{if(event.target===event.currentTarget&&event.propertyName==='grid-template-rows'&&!expanded&&closing===e.id)setClosing('');}}><div className="payment-table-disclosure-inner">{actions}</div></div></td></tr></tbody>;
     }
     return <article className="payment-event" key={e.id} data-payment-event={e.id}>
      <button type="button" className="upcoming-payment" ref={button=>{if(button)rowButtons.current.set(e.id,button);else rowButtons.current.delete(e.id);}} disabled={busy} aria-expanded={expanded} aria-controls={expanded?controls:undefined} onClick={toggle}>

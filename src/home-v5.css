@@ -70,12 +70,39 @@
 @media(hover:hover) and (prefers-reduced-motion:no-preference){.mini-shell.personal-home .ins-account-strip>button:hover,.mini-shell.personal-home .personal-next-event:hover{transform:translateY(-2px);border-color:#d7ede170;box-shadow:0 12px 30px #0208143d,inset 0 1px #ffffff12}}
 @media(prefers-reduced-motion:reduce){.mini-shell.personal-home *,.mini-shell.personal-home *::details-content{animation:none!important;transition:none!important}}
 
-.home-money-links{display:flex;flex-wrap:wrap;gap:6px 14px;border-block-end:1px solid var(--glass-line);padding-bottom:5px}
-.home-money-links button,.analytics-calendar-link{display:inline-flex;align-items:center;gap:7px;min-height:44px;color:var(--mini-text)}
-.home-money-links button{font:inherit;background:none;border:0;padding:0 6px;cursor:pointer}
+.personal-home .ins-home{container:home-content / inline-size}
 
-@media(max-width:380px){
- .home-money-links{gap:4px 6px}
- .home-money-links button{padding-inline:4px;gap:5px;font-size:14px}
- .home-money-links svg{width:16px;height:16px;flex:none}
+.home-money-links{
+ display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:0;
+ overflow:hidden;border:1px solid var(--glass-line);border-radius:14px;
+ background:linear-gradient(115deg,#d0deea0a,transparent 70%);
+}
+.home-money-links button,.analytics-calendar-link{display:inline-flex;align-items:center;gap:7px;min-height:44px;color:var(--mini-text)}
+.home-money-links button{
+ justify-content:center;min-width:0;padding:6px 7px;font:inherit;line-height:1.25;
+ background:transparent;border:0;cursor:pointer;
+ transition:background-color .18s ease,color .18s ease,transform .16s cubic-bezier(.2,.75,.25,1);
+}
+.home-money-links button+button{border-inline-start:1px solid var(--glass-line)}
+.home-money-links button svg{flex:none;width:16px;height:16px;color:#adc9c6}
+.home-money-links button:active{transform:scale(.95);background:#bcd9cb26;color:#e7f3ec}
+.home-money-links button:focus-visible{outline:2px solid #c3ddd0;outline-offset:-3px}
+@media(hover:hover){.home-money-links button:hover{background-color:#bcd9cb12}}
+@container home-content (max-width: 549px){
+ .home-money-links{grid-auto-flow:row;grid-template-columns:repeat(6,minmax(0,1fr))}
+ .home-money-links button{grid-column:span 2;min-height:46px;font-size:14px}
+ .home-money-links:has(>button:nth-child(4):last-child) button{grid-column:span 3}
+ .home-money-links:has(>button:nth-child(4):last-child) button:nth-child(n+3),
+ .home-money-links:has(>button:nth-child(5)) button:nth-child(n+4){border-block-start:1px solid var(--glass-line)}
+ .home-money-links:has(>button:nth-child(4):last-child) button:nth-child(3),
+ .home-money-links:has(>button:nth-child(5)) button:nth-child(4){border-inline-start:0}
+ .home-money-links:has(>button:nth-child(5)) button:nth-child(n+4){grid-column:span 3}
+}
+@container home-content (max-width: 320px){.home-money-links button{flex-direction:column;gap:3px;padding-inline:3px;min-height:50px}}
+@media(prefers-reduced-motion:reduce){.home-money-links button{transition:none}.home-money-links button:active{transform:none}}
+
+@media(min-width:1080px){
+ .mini-shell.personal-ui .ins-home:has(>.home-money-links)>.home-money-links{grid-column:1/-1;grid-row:2}
+ .mini-shell.personal-ui .ins-home:has(>.home-money-links)>.home-budget{grid-row:3/5}
+ .mini-shell.personal-ui .ins-home:has(>.home-money-links)>.personal-next{grid-row:3}
 }

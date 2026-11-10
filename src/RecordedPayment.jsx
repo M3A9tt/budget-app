@@ -3,12 +3,12 @@ import React,{useState} from 'react';
 import Icon from './mini-icons.jsx';
 import {plannedLinkCandidates,linkPlannedTransaction,skipPlanned} from './planned-operations.js';
 import {money} from './mini-model.js';
-export default function RecordedPayment({data,id,period,mutate,busy,sheet=false}){
+export default function RecordedPayment({data,id,period,mutate,busy,sheet=false,showIcon=false}){
  const [open,setOpen]=useState(false),[mode,setMode]=useState('link'),[selected,setSelected]=useState(''),[error,setError]=useState(''),[query,setQuery]=useState('');
  const rule=data.recurring.find(r=>r.id===id),rows=plannedLinkCandidates(data,id,period),tx=rows.find(t=>t.id===selected);
  const visible=rows.filter(t=>query.trim().toLocaleLowerCase('ru').split(/\s+/).every(q=>`${t.date} ${t.amount} ${String(t.amount).replace('.',',')} ${t.note||''}`.toLocaleLowerCase('ru').includes(q)));
  if(!rule)return null;
- return <div className="recorded-payment"><button type="button" className="mini-text-button" disabled={busy} aria-expanded={open} onClick={()=>{setOpen(!open);setError('');}}>{sheet&&<Icon name="history" size={18}/>}<span>Уже учтено</span>{sheet&&<Icon name="arrow" size={15}/>}</button>{open&&<div className="recorded-payment-panel">
+ return <div className="recorded-payment"><button type="button" className="mini-text-button" disabled={busy} aria-expanded={open} onClick={()=>{setOpen(!open);setError('');}}>{(sheet||showIcon)&&<Icon name="history" size={18}/>}<span>Уже учтено</span>{sheet&&<Icon name="arrow" size={15}/>}</button>{open&&<div className="recorded-payment-panel">
   <strong>{rule.type==='income'?'Поступление уже учтено?':'Платёж уже учтён?'}</strong>
   <p className="mini-small">Счёт: {data.accounts.find(a=>a.id===rule.accountId)?.name||'Не найден'}. Период: {period==='once'?rule.startDate:period}.</p>
   <div className="recorded-payment-modes" role="group" aria-label="Как учтена сумма">{[['link','Есть запись в истории'],['skip','Учтено в остатке / не нужно']].map(([id,label])=><button type="button" key={id} aria-pressed={mode===id} disabled={busy} onClick={()=>{setMode(id);setError('');}}>{label}</button>)}</div>
