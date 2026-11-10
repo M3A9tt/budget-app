@@ -26,8 +26,6 @@
 .payment-table-title{display:flex;align-items:center;gap:7px;min-width:0}
 .payment-table-symbol{display:grid;place-items:center;flex:none;width:22px;height:22px;border-radius:6px;background:color-mix(in srgb,currentColor 12%,transparent)}
 
-.mini-shell.personal-ui .personal-calendar-views.has-debts{grid-template-columns:repeat(3,minmax(0,1fr))}
-@media(max-width:360px){.mini-shell.personal-ui .personal-calendar-views.has-debts{gap:5px}.mini-shell.personal-ui .personal-calendar-views.has-debts button{gap:4px;padding-inline:5px}}
 @property --payment-row-intensity{syntax:'<percentage>';inherits:false;initial-value:0%}
 .payment-table-event[data-operation-type=expense]{--payment-row-tint:#e17a80;--payment-row-intensity:31%}
 .payment-table-event[data-operation-type=income]{--payment-row-tint:#95cfaa;--payment-row-intensity:22%}

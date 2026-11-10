@@ -6,7 +6,7 @@ import {SmoothDetails} from './Motion.jsx';
 import {money,todayMoscow} from './mini-model.js';
 import {repayDebt,setDebtDueDate} from './debt-actions.js';
 import {debtRemaining,debtPayments,canLinkDebtTransaction} from './debt-state.js';
-export default function DebtTools({data,mutate,busy,onEdit}){
+export default function DebtTools({data,mutate,busy,onEdit,showHeading=true}){
  const paymentForm=useRef(null);
  const [selected,setSelected]=useState(''),[mode,setMode]=useState('new'),[creating,setCreating]=useState(false);
  useEffect(()=>{if(selected)paymentForm.current?.scrollIntoView({behavior:'smooth',block:'center'});},[selected]);
@@ -15,7 +15,7 @@ export default function DebtTools({data,mutate,busy,onEdit}){
  const label=d=>d.type==='tome'?'Мне должны':d.type==='transit'?'Передать дальше':'Я должен';
  const cards=data.debts.map(d=>({...d,remaining:debtRemaining(d,data)}));
  return <>
- <div className="mini-card"><h3>Долги</h3>{cards.filter(d=>d.remaining>0).map(d=><div className="debt-linked-card" key={d.id} data-payment-source={d.id} tabIndex={-1}>
+ <div className="mini-card">{showHeading&&<h3>Долги</h3>}{cards.filter(d=>d.remaining>0).map(d=><div className="debt-linked-card" key={d.id} data-payment-source={d.id} tabIndex={-1}>
  <div className="mini-between"><div><strong>{d.person}</strong><small className="mini-muted">{label(d)}{d.dueDate?' · до '+d.dueDate:''}</small></div><b>{money(d.remaining,d.currency)}</b></div>
  {d.note&&<p className="mini-small mini-muted">{d.note}</p>}
  <button className="mini-secondary" disabled={busy} onClick={()=>{setSelected(d.id);setMode('new');}}>{d.type==='tome'?'Получил возврат':'Отметить возврат'}</button>
