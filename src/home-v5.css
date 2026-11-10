@@ -69,3 +69,7 @@
 }
 @media(hover:hover) and (prefers-reduced-motion:no-preference){.mini-shell.personal-home .ins-account-strip>button:hover,.mini-shell.personal-home .personal-next-event:hover{transform:translateY(-2px);border-color:#d7ede170;box-shadow:0 12px 30px #0208143d,inset 0 1px #ffffff12}}
 @media(prefers-reduced-motion:reduce){.mini-shell.personal-home *,.mini-shell.personal-home *::details-content{animation:none!important;transition:none!important}}
+
+.home-money-links{display:flex;flex-wrap:wrap;gap:6px 14px;border-block-end:1px solid var(--glass-line);padding-bottom:5px}
+.home-money-links button,.analytics-calendar-link{display:inline-flex;align-items:center;gap:7px;min-height:44px;color:var(--mini-text)}
+.home-money-links button{font:inherit;background:none;border:0;padding:0 6px;cursor:pointer}
