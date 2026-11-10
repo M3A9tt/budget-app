@@ -16,7 +16,10 @@ export function appearanceColors(values){
 export function accountBackground(values){
  const colors=appearanceColors(values);
  if(!colors.length)return undefined;
- const stops=colors.map(color=>"color-mix(in srgb,"+color+" 40%, #192431)");
+ const base=[25,36,49];
+ const stops=colors.map(color=>'#'+base.map((channel,i)=>
+  Math.round(channel*.6+parseInt(color.slice(1+i*2,3+i*2),16)*.4).toString(16).padStart(2,'0')
+ ).join(''));
  return {background:stops.length===1?stops[0]:"linear-gradient(120deg,"+stops.join(",")+")"};
 }
 export function setAccountAppearance(data,id,values){
