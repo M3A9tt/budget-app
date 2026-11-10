@@ -1,20 +1,34 @@
 import {moveDate,scheduledEvents} from '../src/finance-events.js';
 import {money,todayMoscow} from '../src/mini-model.js';
 import {paymentDate} from '../src/payment-copy.js';
+import {calendarEventCategory} from '../src/calendar-model.js';
 
 const html=`<style>
-body{margin:0;padding:12px;color:var(--tg-theme-text-color,#e6eef1);font:15px system-ui,sans-serif}
-h3{margin:0 0 8px;font-size:18px}
-ol{margin:0;padding:0;list-style:none}
-li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--tg-theme-hint-color,#8496a4)}
-li span{flex:1;min-width:0;overflow-wrap:anywhere}
-time,small{color:var(--tg-theme-hint-color,#8496a4)}
+body{margin:0;color:#e8eff4;font:15px system-ui,sans-serif}
+.panel{padding:12px;border:1px solid #40505d;border-radius:16px;background:#192430;background:linear-gradient(130deg,#26313e,#18252e 75%)}
+h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;text-align:center;font-size:18px;line-height:1.25}
+h3:before,h3:after{content:'';flex:1;height:1px;background:#596970}
+ol{margin:0;padding:0;list-style:none;border-radius:10px;overflow:hidden}
+li{display:flex;align-items:center;gap:8px;padding:9px 7px;background:#ffffff06}
+li+li{border-top:1px solid #ffffff22}
+.income{background:linear-gradient(90deg,#ffffff06 45%,#94c9b52c)}
+.expense{background:linear-gradient(90deg,#ffffff06 45%,#df99952c)}
+.event{flex:1;min-width:0;overflow-wrap:anywhere}
+.event b,.event small{display:block}
+time,small{color:#b6c5d3;font-size:13px}
+time{padding-right:8px;border-right:1px solid #ffffff2a}
 time,strong{white-space:nowrap;font-variant-numeric:tabular-nums}
-button{min-height:44px;border:0;background:transparent;color:var(--tg-theme-link-color,#bce0ce);font:inherit}
+.income strong{color:#bde3cb}.expense strong{color:#f1bfbb}
+footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px}
+button{min-height:44px;padding:0 9px;border:1px solid #657c7b;border-radius:10px;background:#b7d5ca14;color:#c8e2d8;font:inherit;transition:background-color .18s ease,transform .18s ease}
+button:active{transform:scale(.96);background-color:#b7d5ca38}
+button:focus-visible{outline:2px solid #c8e2d8;outline-offset:1px}
+@media(max-width:245px){li{flex-wrap:wrap}strong{margin-left:auto}}
+@media(prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}}
 </style>
-<h3>Ближайшие платежи</h3><ol id="payments"></ol>
-<small id="status">Актуальные события доступны в календаре.</small>
-<button type="button" id="more" aria-controls="payments" aria-expanded="false" hidden>Ещё событие</button>
+<section class="panel"><h3>Ближайшие платежи</h3><ol id="payments"></ol>
+<footer><small id="status">Актуальные события доступны в календаре.</small>
+<button type="button" id="more" aria-controls="payments" aria-expanded="false" hidden>Ещё событие</button></footer></section>
 <script>
 const widget=window.TelegramWidget;
 const payments=document.getElementById('payments');
@@ -30,13 +44,19 @@ function render(){
  try{rows=JSON.parse(widget.chatData)}catch{return}
  if(!Array.isArray(rows))return;
  status.textContent=rows.length?'На момент отправки':'На ближайшие 7 дней событий нет.';
- for(const [date,label,amount] of rows.slice(0,expanded?3:2)){
+ for(const [date,label,amount,category,direction] of rows.slice(0,expanded?3:2)){
   const row=document.createElement('li');
-  for(const [tag,value] of [['time',date],['span',label],['strong',amount]]){
-   const cell=document.createElement(tag);
-   cell.textContent=value;
-   row.appendChild(cell);
-  }
+  row.className=direction==='income'?'income':'expense';
+  const day=document.createElement('time'),event=document.createElement('span'),name=document.createElement('b'),sum=document.createElement('strong');
+  day.textContent=date;
+  event.className='event';
+  name.textContent=label;
+  event.appendChild(name);
+  if(category&&category!==label){const kind=document.createElement('small');kind.textContent=category;event.appendChild(kind);}
+  sum.textContent=amount;
+  row.appendChild(day);
+  row.appendChild(event);
+  row.appendChild(sum);
   payments.appendChild(row);
  }
  more.hidden=rows.length<=2;
@@ -77,11 +97,12 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  calendar.searchParams.set('calendar','1');
 
  const today=todayMoscow(data.settings.timeZone);
- const rows=scheduledEvents(data,today,moveDate(today,7),today).slice(0,3);
+ const rows=scheduledEvents(data,today,moveDate(today,6),today).slice(0,3);
  const events=rows.map(event=>{
   const label=Array.from(event.name.replace(/[\u0000-\u001f]/g,' ')).slice(0,48).join('');
   const amount=event.amount===null?'Уточнить':(event.type==='income'?'+':'−')+money(event.amount,event.currency);
-  return [paymentDate(event.date),label,amount];
+  const category=Array.from(calendarEventCategory(data,event)?.name||event.kind||'').slice(0,24).join('');
+  return [paymentDate(event.date),label,amount,category,event.type];
  });
  const encoder=new TextEncoder();
  while(encoder.encode(JSON.stringify(events)).length>1024)events.pop();

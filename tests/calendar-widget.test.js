@@ -7,7 +7,7 @@ import {EMPTY,todayMoscow} from '../src/mini-model.js';
 test('calendar widget is an owner-only, private and reversible pilot',async()=>{
  const data=structuredClone(EMPTY);
  const name='Проверка <b>ЖКХ</b>';
- data.recurring=[{id:'example',name,type:'expense',amount:850,currency:'RUB',frequency:'once',startDate:todayMoscow(),active:true}];
+ data.recurring=[{id:'example',name,cat:'transport',type:'expense',amount:850,currency:'RUB',frequency:'once',startDate:todayMoscow(),active:true}];
  const calls=[];
  let reads=0,rejectWidget=false;
  const deps={
@@ -31,6 +31,7 @@ test('calendar widget is an owner-only, private and reversible pilot',async()=>{
  const {method,payload}=calls.at(-1);
  assert.equal(method,'sendWidget');
  assert.match(payload.chat_data,/Проверка/);
+ assert.deepEqual(JSON.parse(payload.chat_data)[0].slice(3),['Транспорт','expense']);
  assert(!payload.html.includes(name)&&!payload.caption.includes(name));
  assert.equal(payload.public_data,undefined);
  assert.equal(payload.allow_queries,false);
