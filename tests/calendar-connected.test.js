@@ -70,3 +70,18 @@ test('A stale bot calendar action cannot pay a moved installment',()=>{
  assert.equal(paid.transactions.length,1);
  assert.equal(installmentRemaining(paid,paid.installments[0].payments[0]),600);
 });
+
+test('Moving the 29th to the 17th replaces its occurrence and preserves a different billing period',()=>{
+ const date='2026-11-10';
+ const d=createPlanned(base(),{id:'transit',name:'Проезд',type:'expense',frequency:'monthly',startDate:'2026-10-29',dueDay:29,amount:900,accountId:'card'});
+ const events=data=>scheduledEvents(data,date,'2026-11-30');
+ for(const [period,expected] of [
+  ['2026-11',[['2026-11-17','2026-11','2026-11-29']]],
+  ['2026-10',[['2026-11-17','2026-10','2026-10-29'],['2026-11-29','2026-11','2026-11-29']]]
+ ]){
+  const moved=rescheduleEvent(d,events(d).find(e=>e.period===period),'2026-11-17',date);
+  assert.deepEqual(events(moved).filter(e=>e.date>date).map(e=>[e.date,e.billingPeriod,e.originalDate]),expected);
+  assert.deepEqual(moved.accounts,d.accounts);
+  assert.deepEqual(moved.transactions,d.transactions);
+ }
+});

@@ -1,5 +1,5 @@
 import {counted} from './analytics-report.js';
-import React,{useMemo,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {scheduledEvents,moveDate} from './finance-events.js';
 import {prepareEvent} from './event-actions.js';
 import {paymentDate,paymentStatus} from './payment-copy.js';
@@ -24,7 +24,9 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
  const groups=[['past','Без отметки о выполнении',e=>e.date<today],['today','Сегодня',e=>e.date===today],['later','Предстоит',e=>e.date>today]];
  const open=event=>{try{setError('');onPrepare(prepareEvent(data,event,today));}catch(e){setError(e.message);}};
  const searchField=useRef(null),rowButtons=useRef(new Map());
- const restoreRowFocus=id=>requestAnimationFrame(()=>{(rowButtons.current.get(id)||searchField.current)?.focus({preventScroll:true});});
+ const restoreRowFocus=id=>globalThis.requestAnimationFrame?.(()=>{(rowButtons.current.get(id)||searchField.current)?.focus({preventScroll:true});});
+ const restoredSelection=useRef(selected);
+ useEffect(()=>{const id=restoredSelection.current;restoredSelection.current='';if(id)restoreRowFocus(id);},[]);
  const reset=()=>{change({query:'',scope:'all',limit:6,selected:''});setMoving('');searchField.current?.focus();};
  return <section className="payments-upcoming" aria-label="Ближайшие платежи">
   <div className="mini-between"><h3>{personal?'Ближайшие события':'На 30 дней и ранее без отметки'}</h3><span className="mini-small mini-muted">{counted(events.length,'событие','события','событий')}</span></div>
@@ -39,11 +41,12 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
     const toggle=()=>{if(busy)return;change({selected:expanded?'':e.id});setMoving('');setError('');};
     const amount=e.amount===null?'Уточнить':(e.type==='income'?'+':personal?'−':'')+money(e.amount,e.currency);
     const actions=expanded&&<div className="payment-event-actions" id={'payment-actions-'+e.id}>
-      <p className="payment-event-account">{accounts.has(e.accountId)?'Счёт: '+accounts.get(e.accountId):'Счёт выберешь перед записью'}{e.billingPeriod&&e.billingPeriod!=='once'?' · За '+e.billingPeriod:''}</p>
+      <p className="payment-event-account">{accounts.has(e.accountId)?'Счёт: '+accounts.get(e.accountId):'Счёт выберешь перед записью'}{periodLabel(e.billingPeriod)?' · За '+periodLabel(e.billingPeriod):''}</p>
       {e.date<today&&<p className="payment-hint">В приложении нет отметки. Если деньги уже учтены, не записывай их повторно.</p>}
       <button type="button" className="mini-primary" disabled={busy} onClick={()=>open(e)}><Icon name={e.type==='income'?'down':'check'} size={17}/>{e.type==='income'?'Записать поступление':'Записать оплату'}</button>
       <p className="payment-hint">Перед сохранением проверишь сумму, счёт и фактическую дату.</p>
-      {e.source==='plan'&&mutate&&<><RecordedPayment data={data} id={e.sourceId} period={e.period} mutate={mutate} busy={busy}/><button type="button" className="mini-text-button" disabled={busy} aria-expanded={moving===e.id} onClick={()=>setMoving(moving===e.id?'':e.id)}>Перенести дату</button>{moving===e.id&&<OccurrenceDateForm key={e.id} event={e} today={today} mutate={mutate} busy={busy} onDone={()=>{setMoving('');restoreRowFocus(e.id);}} onCancel={()=>{setMoving('');restoreRowFocus(e.id);}}/>}</>}
+      {e.source==='plan'&&mutate&&<RecordedPayment data={data} id={e.sourceId} period={e.period} mutate={async(fn,message)=>{const ok=await mutate(fn,message);if(ok)restoreRowFocus(e.id);return ok;}} busy={busy}/>}
+      {mutate&&<><button type="button" className="mini-text-button" disabled={busy} aria-expanded={moving===e.id} onClick={()=>setMoving(moving===e.id?'':e.id)}>Перенести дату</button>{moving===e.id&&<OccurrenceDateForm key={e.id} event={e} today={today} mutate={mutate} busy={busy} quickDates={personal} onDone={()=>{setMoving('');restoreRowFocus(e.id);}} onCancel={()=>{setMoving('');restoreRowFocus(e.id);}}/>}</>}
       {e.source!=='plan'&&<button type="button" className="mini-text-button" disabled={busy} onClick={()=>onSource(e)}>{e.source==='installment'?'Все сплиты и кредиты':'Мои долги'}</button>}
 
      </div>;
