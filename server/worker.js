@@ -228,6 +228,12 @@ export default {
       if(url.pathname==='/api/v1/admin/lunch-learning'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);if(request.method==='GET')return json(await learningQueue(env));if(request.method==='POST')return json(await moderateLearning(env,await readJsonObject(request)));}
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/operations'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await operationsReport(env));}
       if(request.method==='GET'&&url.pathname==='/api/v1/admin/telemetry'){if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);return json(await telemetryReport(env));}
+      if(request.method==='POST'&&url.pathname==='/api/v1/admin/telemetry/send'){
+       if(userId!==String(env.TELEGRAM_OWNER_ID))return json({error:'Только для владельца'},403);
+       const report=await telemetryReport(env);
+       await sendBotFile(env,userId,report,'byurdzhet-telemetry-'+report.to+'.json');
+       return json({sent:true});
+      }
       if(request.method==='POST'&&url.pathname==='/api/v1/telemetry'){const current=await readState(env,userId),text=await readRequestText(request,16000);return json(await collectTelemetry(env,userId,parseJsonObject(text),current.data.settings.telemetryEnabled!==false));}
       if(request.method==='POST'&&url.pathname==='/api/v1/notifications/test'){const current=await readState(env,userId);return json(await sendTestMessage(env,userId,current.data,await readJsonObject(request),telegram,periodSummary));}
       if(request.method==='POST'&&url.pathname==='/api/v1/commands')return json(await financialCommand(env,userId,await readJsonObject(request),request.headers.get('Idempotency-Key'),readState));
