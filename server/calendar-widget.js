@@ -24,6 +24,7 @@ let expanded=false;
 function render(){
  payments.textContent='';
  more.hidden=true;
+ status.textContent='Актуальные события доступны в календаре.';
  if(!widget||widget.chatType!=='private'||widget.isForward||widget.isPreview||!widget.chatData)return;
  let rows;
  try{rows=JSON.parse(widget.chatData)}catch{return}
@@ -48,16 +49,33 @@ render();
 widget?.ready();
 </script>`;
 
-// Isolated Bot API 10.4 experiment. Call only after verifying the Telegram webhook.
-export async function calendarWidget(message,{env,readState,telegram}){
+// Call only after authenticating the Telegram webhook and checking chat access.
+export async function calendarWidget(message,{env,readState,mutateState,telegram}){
+ const command=/^\/widget(?: (on|off))?$/.exec(message?.text?.trim());
+ if(!command)return false;
  const chatId=message?.chat?.id;
- if(message?.chat?.type!=='private'||!Number.isSafeInteger(chatId)||chatId<=0||message.from?.id!==chatId)return null;
+ if(message.chat?.type!=='private'||!Number.isSafeInteger(chatId)||chatId<=0||message.from?.id!==chatId||String(chatId)!==String(env.TELEGRAM_OWNER_ID))return true;
+ const send=text=>telegram(env,'sendMessage',{chat_id:chatId,text});
+ if(command[1]){
+  const enabled=command[1]==='on';
+  await mutateState(env,String(chatId),data=>{
+   data.settings.calendarWidgetEnabled=enabled;
+   return data;
+  });
+  await send(enabled?'Виджет включён. Открыть: /widget':'Виджет отключён. Включить: /widget on');
+  return true;
+ }
+
+ const {data}=await readState(env,String(chatId));
+ if(data.settings.calendarWidgetEnabled===false){
+  await send('Виджет отключён. Включить: /widget on');
+  return true;
+ }
 
  const calendar=new URL(env.MINI_APP_URL);
  if(calendar.protocol!=='https:')throw new Error('The Mini App URL must use HTTPS');
  calendar.searchParams.set('calendar','1');
 
- const {data}=await readState(env,String(chatId));
  const today=todayMoscow(data.settings.timeZone);
  const rows=scheduledEvents(data,today,moveDate(today,7),today).slice(0,3);
  const events=rows.map(event=>{
@@ -67,10 +85,16 @@ export async function calendarWidget(message,{env,readState,telegram}){
  });
  const encoder=new TextEncoder();
  while(encoder.encode(JSON.stringify(events)).length>1024)events.pop();
- return telegram(env,'sendWidget',{
+ const reply_markup={inline_keyboard:[[{text:'Открыть календарь',web_app:{url:calendar.href}}]]};
+ try{
+  await telegram(env,'sendWidget',{
   chat_id:chatId,html,caption:'Ближайшие события Бюрджета · данные на момент отправки',
   chat_data:JSON.stringify(events),
-  allow_queries:false,is_shared:false,protect_content:true,
-  reply_markup:{inline_keyboard:[[{text:'Открыть календарь',web_app:{url:calendar.href}}]]}
- });
+  allow_queries:false,is_shared:false,protect_content:true,reply_markup
+  });
+ }catch(error){
+  if(![400,404].includes(error.telegramCode))throw error;
+  await telegram(env,'sendMessage',{chat_id:chatId,text:'Telegram не открыл виджет. Ближайшие события доступны в календаре.',reply_markup});
+ }
+ return true;
 }

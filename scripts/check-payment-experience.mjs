@@ -47,7 +47,7 @@ try{
     await row('ЖКХ').getByRole('button',{name:'Уже учтено',exact:true}).click();
     await row('ЖКХ').getByLabel('Найти запись',{exact:true}).fill('ЖКХ внесено');await shot('link-panel-before-selection-390');await row('ЖКХ').getByLabel('Уже записанная операция',{exact:true}).and(page.locator('select')).selectOption('manual');
     await shot('recorded-payment-390');const balances=structuredClone(data.accounts),future=structuredClone(data.recurring.find(r=>r.id==='travel'));
-    await row('ЖКХ').getByRole('button',{name:'Связать без списания',exact:true}).click();await page.getByText('Ничего не найдено',{exact:true}).waitFor();
+    await row('ЖКХ').getByRole('button',{name:'Связать без списания',exact:true}).click();await row('ЖКХ').waitFor({state:'detached'});assert.equal(await query.inputValue(),'ЖКХ');
     assert.deepEqual(data.accounts,balances);assert.equal(data.transactions.length,1);assert.equal(data.transactions[0].recurringId,'housing');assert.deepEqual(data.recurring.find(r=>r.id==='travel'),future);
     steps.push({action:'link-existing',balance:data.accounts[0].balance,transactions:data.transactions.length});
     await query.fill('Старый платёж');await row('Старый платёж').locator('.upcoming-payment').click();await row('Старый платёж').getByRole('button',{name:'Уже учтено',exact:true}).click();
