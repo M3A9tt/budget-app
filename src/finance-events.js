@@ -14,6 +14,9 @@ export function scheduledEvents(data,today,end=today,from=''){
  for(const d of data.debts||[]){const amount=debtRemaining(d,data);if(d.dueDate&&amount>0)add({id:'debt:'+d.id,source:'debt',sourceId:d.id,date:d.dueDate,name:d.person,type:d.type==='tome'?'income':'expense',amount,currency:d.currency,kind:d.type==='tome'?'Возврат тебе':'Возврат долга'});}
  return events.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='expense'?-1:1)-(b.type==='expense'?-1:1)||String(a.name||'').localeCompare(String(b.name||''))||a.id.localeCompare(b.id));
 }
+export function scheduledEvent(data,today,{id,date}){
+ return scheduledEvents(data,today,date).find(event=>event.id===id&&event.date===date);
+}
 export function budgetWindow(data,today){
  const planned=plannedOccurrences({...data,recurring:data.recurring.filter(r=>planType(r)==='income')},today,moveDate(today,366),today).find(p=>planType(p.rule)==='income'&&(p.rule.budgetAnchor===true||data.settings?.budgetIncomeId===p.rule.id)&&p.date>today&&!p.rule.variable&&p.rule.amount>0&&!isSavingAccount(data.accounts.find(a=>a.id===p.rule.accountId))),payday=planned?.date||data.settings?.nextIncomeDate,hasPayday=/^\d{4}-\d{2}-\d{2}$/.test(payday||'')&&payday>today;
  return {until:hasPayday?payday:moveDate(today,30),days:hasPayday?Math.round((Date.parse(payday+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000):null,exclusive:hasPayday,horizon:hasPayday?'payday':'30-days',incomeSource:planned?'plan':hasPayday?'manual':null,incomeName:planned?.rule.name||''};

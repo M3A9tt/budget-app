@@ -56,3 +56,17 @@ test('Duplicate debt command cannot create two sources; invalid calendar moves d
  const d=fixture(),before=structuredClone(d),event=scheduledEvents(d,today,day(4))[0];assert.throws(()=>createDebt(d,{id:'rent-debt',person:'Друг',amount:500,type:'my'}),/уже создан/);
  for(const date of ['bad','2026-02-30',day(-1)])assert.throws(()=>rescheduleEvent(d,event,date,today));assert.deepEqual(d,before);
 });
+
+test('A stale bot calendar action cannot pay a moved installment',()=>{
+ const d=fixture(),event=scheduledEvents(d,today,day(4)).find(e=>e.source==='installment');
+ const payAction=e=>botView(d,'calendarEvent',{eventId:e.id,date:e.date}).actions.find(a=>a.op==='payInstallment');
+ const stale=payAction(event),moved=rescheduleEvent(d,event,day(7),today),before=structuredClone(moved);
+ const payment={amount:400,accountId:'card',date:today};
+ assert.throws(()=>applyBotAction(moved,stale.op,stale.args,payment),/перенесено/);
+ assert.deepEqual(moved,before);
+ const fresh=botView(moved,'calendarEvent',{eventId:event.id,date:day(7)}).actions.find(a=>a.op==='payInstallment');
+ const paid=applyBotAction(moved,fresh.op,fresh.args,payment);
+ assert.equal(paid.accounts[0].balance,9600);
+ assert.equal(paid.transactions.length,1);
+ assert.equal(installmentRemaining(paid,paid.installments[0].payments[0]),600);
+});

@@ -1,6 +1,7 @@
 import {personalInterface} from '../src/interface-settings.js';
 import {submitEntry,isPlannedEntry} from '../src/entry-submit.js';
 import {rescheduleEvent} from '../src/event-actions.js';
+import {scheduledEvent} from '../src/finance-events.js';
 import {categoryCatalog} from '../src/categories.js';
 import {CATEGORY_EMOJIS,saveCustomCategory} from '../src/category-customization.js';
 import {plannedLinkCandidates,linkPlannedTransaction} from '../src/planned-operations.js';
@@ -97,6 +98,7 @@ export function parseField(field,value){
 }
 export function applyBotAction(d,op,args={},v={}){
  const today=todayMoscow(d.settings.timeZone);
+ if(args.calendarEvent&&!scheduledEvent(d,today,args.calendarEvent))throw Error('Событие уже выполнено или перенесено. Обнови календарь.');
  if(op==='tx'){validateLunchEntry(d,args,v);if(args.checkDay&&isPlannedEntry(v,today))throw Error('В проверке дня запиши фактический расход. Будущий расход добавь обычным вводом.');const old=args.id?source(d,args,'id',d.transactions):null,type=old?.type||args.type||'expense',a=d.accounts.find(a=>a.id===v.accountId);return submitEntry(d,{...old,...v,id:old?.id||args.newId||v.id,...(args.lunchCheckDay?{_lunchCheckDay:args.lunchCheckDay}:{}),type,cat:type==='lunch'?'lunch':type==='income'?'income':v.cat||'other',currency:type==='lunch'?'RUB':v.currency||old?.currency||a?.currency||'RUB',tags:old?.tags||v.tags||(args.ownLunch?['обед-за-свои']:[]),accountId:type==='lunch'?undefined:v.accountId},today);}
  if(op==='installmentChange')return changeInstallmentPayment(d,args.id,v.paymentId,v);
  if(op==='installmentReturn')return installmentReturnStatus(d,args.id,v.status);
