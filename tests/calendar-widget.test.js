@@ -4,7 +4,7 @@ import {deflateSync} from 'node:zlib';
 import {answerCalendarWidget,calendarWidget} from '../server/calendar-widget.js';
 import {EMPTY,todayMoscow} from '../src/mini-model.js';
 
-test('calendar widget is an owner-only, private and reversible pilot',async()=>{
+test('calendar widget is private, access-controlled and reversible',async()=>{
  const data=structuredClone(EMPTY);
  const name='Проверка <b>ЖКХ</b>';
  data.recurring=[{id:'example',name,cat:'transport',type:'expense',amount:850,currency:'RUB',frequency:'once',startDate:todayMoscow(),active:true}];
@@ -12,6 +12,7 @@ test('calendar widget is an owner-only, private and reversible pilot',async()=>{
  let reads=0,rejectWidget=false;
  const deps={
   env:{MINI_APP_URL:'https://example.com/',TELEGRAM_OWNER_ID:'1'},
+  access:async(_env,id)=>id===1,
   readState:async()=>{reads++;return {data};},
   mutateState:async(_env,id,change)=>{assert.equal(id,'1');Object.assign(data,change(data));},
   telegram:async(_env,method,payload)=>{

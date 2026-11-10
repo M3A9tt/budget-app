@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {EMPTY,todayMoscow} from '../src/mini-model.js';
 import {putTransaction} from '../src/ledger.js';
 import {moveDate} from '../src/finance-events.js';
+import {customizeHome} from '../src/home-layout.js';
 const out=process.env.PERSONAL_SCREENSHOT_DIR||path.resolve('docs/personal-interface'),today=todayMoscow(),future=moveDate(today,2);
 await mkdir(out,{recursive:true});
 let seed={...structuredClone(EMPTY),accounts:[{id:'a',name:'Основная карта',balance:48600,currency:'RUB'},{id:'b',name:'Наличные',balance:3500,currency:'RUB'},{id:'s',name:'На отпуск',balance:42000,currency:'RUB',accType:'savings'}],settings:{...EMPTY.settings,nextIncomeDate:moveDate(today,12),notificationMode:'manual',modules:{plans:true,lunch:true}},recurring:[{id:'r',name:'Интернет',type:'expense',amount:800,currency:'RUB',accountId:'a',cat:'home',frequency:'once',startDate:future,active:true}]};
@@ -28,6 +29,19 @@ try{for(const version of [1,2]){
  const nav=name=>page.locator('.mini-nav').getByRole('button',{name,exact:true});
  const add=()=>nav('Записать');
  for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:844});await shot('home-'+width);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'home overflow '+width);}
+ if(version===2){
+  const before=structuredClone(data),beforeRevision=revision;
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('.ins-account-strip button').filter({hasText:'Основная карта'}).click();
+  await page.locator('.account-detail-heading').getByRole('heading',{name:'Основная карта'}).waitFor();
+  assert.equal(await page.locator('.account-action-panel').count(),0);
+  await page.getByRole('button',{name:'Все операции',exact:true}).click();
+  await page.getByRole('button',{name:'К счёту',exact:true}).click();
+  await page.locator('.account-detail-heading').getByRole('button',{name:'Назад'}).click();
+  await page.locator('.ins-home').waitFor();
+  assert.equal(revision,beforeRevision);
+  assert.deepEqual(data,before);
+ }
  await page.setViewportSize({width:390,height:844});await add().click();await page.locator('#amount').fill('250');await page.getByLabel('Комментарий',{exact:true}).fill('Кофе');await shot('entry-390');
  if(version===2){assert(await page.getByLabel('Дата',{exact:true}).isVisible());await page.getByRole('button',{name:'Категория',exact:false}).filter({has:page.locator('strong')}).click();await page.getByRole('dialog',{name:'Категория'}).waitFor();await page.getByRole('dialog').getByRole('searchbox').fill('Другое');await page.getByRole('dialog').getByRole('button',{name:'Другое',exact:true}).click();assert.equal(await page.locator('dialog[open]').count(),0);const accountPicker=page.locator('.entry-picker-trigger').filter({hasText:'Счёт'});await accountPicker.click();await page.keyboard.press('Escape');assert.equal(await page.locator('dialog[open]').count(),0);assert(await accountPicker.evaluate(e=>e===document.activeElement));
  for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'entry overflow '+width);await shot('entry-'+width);}
@@ -80,6 +94,14 @@ try{for(const version of [1,2]){
   await telegramBack();
   await page.locator('.ins-home').waitFor();
   await page.waitForFunction(()=>!window.testBack.visible);
+  data=customizeHome(data,{key:'accounts',visible:false});
+  await page.goto(origin);
+  await page.locator('.home-money-links').waitFor();
+  assert.equal(await page.locator('.ins-account-strip').count(),0);
+  await page.locator('.home-money-links').getByRole('button',{name:'Счета',exact:true}).click();
+  await page.locator('.account-grid').getByRole('button',{name:/Первая карта/}).click();
+  await page.locator('.account-detail-heading').getByRole('button',{name:'Назад'}).click();
+  await page.locator('.account-grid').waitFor();
   assert.equal(revision,beforeBack);
  }
  assert.deepEqual(errors,[]);evidence.push({version,revision,...(financialResult||{balance:data.accounts[0]?.balance??null,transactions:data.transactions.length,plans:data.recurring.length}),profileSwitchCleared:version===2,pageErrors:errors});

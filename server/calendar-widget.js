@@ -13,6 +13,7 @@ import {calendarEventCategory} from '../src/calendar-model.js';
 import {accountBackground,appearanceColors} from '../src/appearance.js';
 import {iconShape} from '../src/mini-icon-shapes.js';
 import {isIcon} from '../src/icon-catalog.js';
+import {hasAccess} from './users.js';
 
 const html=String.raw`<style>
 body{margin:0;color:#e8eff4;font:15px system-ui,sans-serif}
@@ -248,8 +249,8 @@ function widgetData(data,page){
  return JSON.stringify(view);
 }
 
-function ownerChat(env,chat,from){
- return chat?.type==='private'&&Number.isSafeInteger(chat.id)&&chat.id>0&&from?.id===chat.id&&!from.is_bot&&String(chat.id)===String(env.TELEGRAM_OWNER_ID);
+function privateChat(chat,from){
+ return chat?.type==='private'&&Number.isSafeInteger(chat.id)&&chat.id>0&&from?.id===chat.id&&!from.is_bot;
 }
 
 const entryAccounts=data=>data.accounts.filter(account=>!account.archived);
@@ -311,15 +312,15 @@ async function widgetEntry(env,id,query,readState,state){
 }
 
 // Both entry points run after authentication of the Telegram webhook.
-export async function calendarWidget(message,{env,readState,mutateState,telegram}){
+export async function calendarWidget(message,{env,readState,mutateState,telegram,access=hasAccess}){
  const text=message?.text?.trim(),command=/^\/widget(?: (on|off))?$/.exec(text);
  if(!command&&text!=='/menu')return false;
- if(!ownerChat(env,message.chat,message.from))return Boolean(command);
+ if(!privateChat(message.chat,message.from)||!await access(env,message.from.id))return Boolean(command);
  const chatId=message.chat.id,id=String(chatId);
  if(command?.[1]){
   const enabled=command[1]==='on';
   await mutateState(env,id,data=>({...data,settings:{...data.settings,calendarWidgetEnabled:enabled,calendarWidgetMenuEnabled:enabled}}));
-  if(enabled)return calendarWidget({...message,text:'/menu'},{env,readState,mutateState,telegram});
+  if(enabled)return calendarWidget({...message,text:'/menu'},{env,readState,mutateState,telegram,access});
   const {data}=await readState(env,id);
   await telegram(env,'sendMessage',{chat_id:chatId,text:'Виджет отключён. Включить: /widget on',reply_markup:botKeyboard(env.MINI_APP_URL,data)});
   return true;
@@ -347,11 +348,11 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  return true;
 }
 
-export async function answerCalendarWidget(query,{env,readState,telegram,openAdd}){
- if(typeof query.id!=='string'||!ownerChat(env,query.chat,query.from)||query.inline_message_id||query.widget_id||
+export async function answerCalendarWidget(query,{env,readState,telegram,openAdd,access=hasAccess}){
+ if(typeof query.id!=='string'||!privateChat(query.chat,query.from)||query.inline_message_id||query.widget_id||
   !Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data')return;
  const match=/^budget-menu:(home|calendar|history|add)$/.exec(query.data),entry=typeof query.data==='string'&&query.data.startsWith('budget-entry:');
- if(!match&&!entry)return;
+ if((!match&&!entry)||!await access(env,query.from.id))return;
  const id=String(query.from.id),state=await readState(env,id),{data}=state,page=match?.[1];
  let result;
  if(data.settings.calendarWidgetEnabled===false)result=JSON.stringify({error:'Виджет отключён. Включить: /widget on'});
