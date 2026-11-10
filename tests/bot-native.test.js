@@ -41,7 +41,7 @@ test('Widget menu receives authenticated private queries and opens the existing 
  const before=f.snapshot();
  const query=async(data,secret='test-hook',who=111)=>worker.fetch(new Request('https://budget.test/telegram/webhook',{
   method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':secret,'Content-Type':'application/json'},
-  body:JSON.stringify({widget_query:{id:data,from:{id:who},chat:{id:who,type:'private'},message_id:101,type:{type:'data'},data:'budget-menu:'+data}})
+  body:JSON.stringify({widget_query:{id:data,from:{id:who},chat:{id:who,type:'private'},message_id:101,type:{type:'data'},data:data.startsWith('budget-entry:')?data:'budget-menu:'+data}})
  }),f.env);
  assert.equal((await query('home','wrong')).status,401);
  assert.equal((await query('home','test-hook',222)).status,200);
@@ -52,6 +52,29 @@ test('Widget menu receives authenticated private queries and opens the existing 
  assert.equal((await query('add')).status,200);
  assert(f.last().reply_markup.inline_keyboard.flat().some(button=>/Расход/.test(button.text)));
  assert.deepEqual(f.snapshot(),before);
+ await query('budget-entry:form');
+ const form=JSON.parse(f.sent.at(-1).body.data);
+ await query('budget-entry:p:e:'+form.revision+':0:0:180.50');
+ const {token}=JSON.parse(f.sent.at(-1).body.data);
+ assert.match(token,/^bw_[a-f0-9]{32}$/);
+ assert.deepEqual(f.snapshot(),before);
+ await query('budget-entry:s:'+token);
+ assert.deepEqual(JSON.parse(f.sent.at(-1).body.data),{saved:true});
+ const saved=f.snapshot();
+ assert.equal(saved.accounts[0].balance,9819.5);
+ assert.equal(saved.transactions.length,1);
+ await query('budget-entry:s:'+token);
+ assert.deepEqual(f.snapshot(),saved);
+ await query('budget-entry:p:i:'+form.revision+':0:0:200');
+ assert(JSON.parse(f.sent.at(-1).body.data).error);
+ await query('budget-entry:form');
+ const fresh=JSON.parse(f.sent.at(-1).body.data);
+ await query('budget-entry:p:i:'+fresh.revision+':0:0:200');
+ const income=JSON.parse(f.sent.at(-1).body.data);
+ assert.match(income.amount,/^\+/);
+ await query('budget-entry:s:'+income.token);
+ assert.equal(f.snapshot().accounts[0].balance,10019.5);
+ assert.equal(f.snapshot().transactions.length,2);
 }));
 test('Bot history includes transfers, filters both account endpoints and opens neutral movement details',()=>run(async f=>{
  const {transferMoney}=await import('../src/ledger.js');
