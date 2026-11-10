@@ -10,7 +10,9 @@ import {commitBotAction} from './bot-commit.js';
 import {readReceipt} from './state-persistence.js';
 import {paymentDate} from '../src/payment-copy.js';
 import {calendarEventCategory} from '../src/calendar-model.js';
-import {appearanceColors} from '../src/appearance.js';
+import {accountBackground,appearanceColors} from '../src/appearance.js';
+import {iconShape} from '../src/mini-icon-shapes.js';
+import {isIcon} from '../src/icon-catalog.js';
 
 const html=String.raw`<style>
 body{margin:0;color:#e8eff4;font:15px system-ui,sans-serif}
@@ -45,6 +47,7 @@ nav button[aria-pressed=true]{background:#b7d5ca30;color:#eff8f3}
 .entry>button,.entry-tools button{overflow-wrap:anywhere}
 .picker{gap:1px;border-radius:12px;overflow:hidden;background:#526570}
 .picker button{border:0;border-radius:0;text-align:left;background:#26343e}
+.entry-tools.picker button:last-child:nth-child(odd){grid-column:span 2}
 .picker button:active{background:#3a5356}
 .picker-nav button{border:0;background:none}
 .keypad button{text-align:center;font-size:18px}
@@ -120,16 +123,16 @@ function node(parent,tag,text='',className=''){
  const el=document.createElement(tag);
  el.className=className;el.textContent=text;parent.appendChild(el);return el;
 }
-function control(parent,label,action,icon='',colors=[]){
+function control(parent,label,action,icon='',colors=[],background=''){
  const button=node(parent,'button',label);
  button.type='button';
  if(icon){
   button.className='choice';
-  button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="'+icon+'"/></svg>';
+  button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+icon+'</svg>';
   node(button,'span',label);
-  if(colors.length)button.firstChild.style.color=colors[0];
+  if(colors.length){button.firstChild.style.color=colors[0];button.firstChild.style.background=colors[0]+'15';}
  }
- if(colors.length>1)button.style.backgroundImage='linear-gradient(120deg,'+colors.map(c=>c+'38').join(',')+')';
+ if(background)button.style.background=background;
  button.addEventListener('click',action);
  return button;
 }
@@ -167,14 +170,14 @@ function entryPanel(label){
 function entryForm(){
  entryPanel('Новая запись');
  const types=group('entry-tools');
- for(const [type,label,icon,tone] of [['e','Расход','M12 4v16m-6-6 6 6 6-6','out'],['i','Доход','M12 20V4m-6 6 6-6 6 6','in']]){
+ for(const [type,label,icon,tone] of [['e','Расход','<path d="M12 4v16m-6-6 6 6 6-6"/>','out'],['i','Доход','<path d="M12 20V4m-6 6 6-6 6 6"/>','in']]){
   const button=control(types,label,()=>{draft.type=type;entryForm();},icon);
   button.classList.add(tone);button.setAttribute('aria-pressed',String(draft.type===type));
  }
  const amount=node(entry,'strong','','balance');
- const fields=group(draft.type==='e'?'entry-tools picker':'picker');
- control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick('a',0));
- if(draft.type==='e')control(fields,draft.category?.[1]||'Выбрать категорию',()=>pick('c',0));
+ const fields=group('entry-tools picker');
+ control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick('A',0),draft.account?.[4],draft.account?.[3],draft.account?.[5]);
+ if(draft.type==='e')control(fields,draft.category?.[1]||'Выбрать категорию',()=>pick('C',0),draft.category?.[4],draft.category?.[3]);
  const keypad=group('picker keypad');
  for(const key of ['1','2','3','4','5','6','7','8','9',',','0','⌫'])control(keypad,key,()=>{
   const value=key==='⌫'?draft.amount.slice(0,-1):draft.amount+(key===','?'.':key);
@@ -191,15 +194,15 @@ function entryForm(){
 function pick(kind,offset){
  ask(kind+':'+offset,result=>{
   if(result.revision!==draft.revision){draft=null;entryPanel('Данные изменились');control(entry,'К записи',startEntry);return;}
-  entryPanel(kind==='a'?'Счёт':'Категория');
-  const choices=group('entry-tools picker'),icon=kind==='a'?'M3 6h18v13H3zM3 10h18':'M4 4h8l8 8-8 8-8-8zM8 8h1';
+  entryPanel(kind==='A'?'Счёт':'Категория');
+  const choices=group('entry-tools picker');
   for(const option of result.options)control(choices,option[1]+(option[2]?' · '+option[2]:''),()=>{
-   draft[kind==='a'?'account':'category']=option;entryForm();
-  },icon,option[3]);
-  const links=group('picker-nav'),total=kind==='a'?draft.accounts:draft.categories;
+   draft[kind==='A'?'account':'category']=option;entryForm();
+  },option[4],option[3],option[5]);
+  const links=group('picker-nav');
   control(links,'К записи',entryForm);
-  if(offset)control(links,'← Назад',()=>pick(kind,offset-6));
-  if(offset+6<total)control(links,'Дальше →',()=>pick(kind,offset+6));
+  if(offset)control(links,'← Назад',()=>pick(kind,offset-1));
+  if(result.more)control(links,'Дальше →',()=>pick(kind,offset+1));
  });
 }
 function showPreview(preview){
@@ -256,16 +259,31 @@ async function widgetEntry(env,id,query,readState,state){
  const {data,revision}=state;
  const text=query.data;
  if(text==='budget-entry:form'){
-  const account=entryAccounts(data),category=entryCategories(data);
-  return {revision,accounts:account.length,categories:category.length};
+  return {revision,accounts:entryAccounts(data).length,categories:entryCategories(data).length};
  }
- const choices=/^budget-entry:(a|c):(\d{1,6})$/.exec(text);
+ const choices=/^budget-entry:([aAcC]):(\d{1,6})$/.exec(text);
  if(choices){
-  const rows=choices[1]==='a'?entryAccounts(data):entryCategories(data),offset=Number(choices[2]);
-  return {revision,options:rows.slice(offset,offset+6).map((item,i)=>{
-   const colors=appearanceColors(choices[1]==='a'?item.colors:[item.color]);
-   return [offset+i,Array.from(item.name).slice(0,24).join(''),item.currency||'',colors.length||choices[1]==='c'?colors:['#648fa2','#8e7aab']];
-  })};
+  const kind=choices[1],accounts=kind.toLowerCase()==='a',rows=accounts?entryAccounts(data):entryCategories(data),target=Number(choices[2]);
+  const rowFor=(item,i)=>{
+   const saved=appearanceColors(accounts?item.colors:[item.color]);
+   const colors=accounts&&!saved.length?['#648fa2','#8e7aab']:saved;
+   return [i,Array.from(item.name).slice(0,24).join(''),item.currency||'',colors];
+  };
+  if(kind===kind.toLowerCase())return {revision,options:rows.slice(target,target+6).map((item,i)=>rowFor(item,target+i))};
+  const encoder=new TextEncoder(),page={revision,options:[],more:true};
+  let index=0;
+  for(const [i,item] of rows.entries()){
+   const row=rowFor(item,i);
+   const icon=iconShape(isIcon(item.icon)?item.icon:accounts?'wallet':'other');
+   row.push(icon,accounts?accountBackground(row[3])?.background:'');
+   page.options.push(row);
+   if(page.options.length>6||encoder.encode(JSON.stringify(page)).length>1023){
+    page.options.pop();
+    if(index===target)return page;
+    page.options=[row];index++;
+   }
+  }
+  return {...page,options:index===target?page.options:[],more:false};
  }
  const preview=/^budget-entry:p:([ei]):(\d{1,16}):(\d{1,6}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
  if(preview){
