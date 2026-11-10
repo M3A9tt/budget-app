@@ -6,7 +6,7 @@
 .payment-table th,.payment-table td{padding:9px clamp(8px,2vw,15px)}
 .payment-table th:first-child,.payment-table time{white-space:nowrap}
 .payment-table-event{cursor:pointer}
-.payment-table-event:focus-within,.payment-table-event:has([aria-expanded=true]){background:#b9d1d711}
+.payment-table-event:focus-within,.payment-table-event:has([aria-expanded=true]){background-color:#b9d1d711}
 .payment-table .payment-table-date{width:1%;padding-right:0}
 .payment-table-date time{display:grid;align-content:center;gap:3px;min-width:38px;padding-right:8px;border-right:1px solid var(--mini-line);line-height:1.15}
 .payment-table-date b{font-size:18px;font-variant-numeric:tabular-nums;color:var(--mini-text)}
@@ -19,7 +19,7 @@
 .payment-table-amount>span{display:flex;align-items:center;justify-content:flex-end;gap:clamp(5px,1.3vw,10px)}
 .payment-table-amount b{font-size:var(--type-label);font-weight:650}
 .payment-table-amount svg{flex:none;color:var(--mini-muted)}
-.payment-table .payment-table-details .payment-event-actions{margin:0}
+
 
 @media(max-width:480px){.payment-table .upcoming-payment small{display:grid;gap:2px}.payment-table small span+span::before{content:none}}
 
@@ -29,12 +29,22 @@
 .mini-shell.personal-ui .personal-calendar-views.has-debts{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:360px){.mini-shell.personal-ui .personal-calendar-views.has-debts{gap:5px}.mini-shell.personal-ui .personal-calendar-views.has-debts button{gap:4px;padding-inline:5px}}
 @property --payment-row-intensity{syntax:'<percentage>';inherits:false;initial-value:0%}
-.payment-table-event[data-operation-type=expense]{--payment-row-tint:#e78686;--payment-row-intensity:21%}
-.payment-table-event[data-operation-type=income]{--payment-row-tint:#95cfaa;--payment-row-intensity:15%}
+.payment-table-event[data-operation-type=expense]{--payment-row-tint:#e17a80;--payment-row-intensity:31%}
+.payment-table-event[data-operation-type=income]{--payment-row-tint:#95cfaa;--payment-row-intensity:22%}
 .mini-shell.personal-ui .payment-table tbody .payment-table-event{
- background-image:linear-gradient(to left,color-mix(in srgb,var(--payment-row-tint,transparent) var(--payment-row-intensity,0%),transparent),transparent 62%);
+ background-image:linear-gradient(to left,color-mix(in srgb,var(--payment-row-tint,transparent) var(--payment-row-intensity,0%),transparent),transparent 72%);
  transition:--payment-row-intensity .24s ease;
 }
-.payment-table-event[data-operation-type=expense]:is(:hover,:has(:focus-visible)){--payment-row-intensity:36%}
-.payment-table-event[data-operation-type=income]:is(:hover,:has(:focus-visible)){--payment-row-intensity:28%}
+.payment-table-event[data-operation-type=expense]:is(:hover,:has(:focus-visible)){--payment-row-intensity:58%}
+.payment-table-event[data-operation-type=income]:is(:hover,:has(:focus-visible)){--payment-row-intensity:44%}
 @media(prefers-reduced-motion:reduce){.mini-shell.personal-ui .payment-table tbody .payment-table-event{transition:none}}
+
+.mini-shell .payment-table .payment-table-details{padding:0;border:0}
+.payment-table .payment-table-details-row{background:none}
+.payment-table-disclosure{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .32s cubic-bezier(.2,.75,.25,1),opacity .2s ease}
+.payment-table-disclosure[data-open=true]{grid-template-rows:1fr;opacity:1}
+.payment-table-disclosure-inner{min-height:0;overflow:hidden}
+.payment-table-disclosure .payment-event-actions{margin:0 8px 8px}
+.payment-table-amount svg{transition:transform .32s cubic-bezier(.2,.75,.25,1)}
+.payment-table-event:has([aria-expanded=true]) .payment-table-amount svg{transform:rotate(180deg)}
+@media(prefers-reduced-motion:reduce){.payment-table-disclosure,.payment-table-amount svg{transition:none}}

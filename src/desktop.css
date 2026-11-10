@@ -4,7 +4,7 @@
 .desktop-transactions{width:100%;border-collapse:collapse;font-size:var(--type-caption);text-align:left;min-width:760px}
 .desktop-transactions th{font-size:var(--type-caption);font-weight:600;letter-spacing:.04em;color:#9da9c2;background:#202638;padding:17px 15px;white-space:nowrap}
 .desktop-transactions td{padding:17px 15px;border-top:1px solid #30364a;color:#bcc5d9;vertical-align:middle}
-.desktop-transactions tbody tr:hover{background:#252c3e}
+.desktop-transactions tbody tr:hover{background-color:#252c3e}
 .desktop-transactions .desktop-number{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:#edf1fa;font-weight:600}
 .desktop-entry-link{border:0;background:none;color:#f1f4fb;font-size:var(--type-label);font-weight:600;text-align:left;padding:3px 0;overflow-wrap:anywhere;max-width:320px}
 .desktop-entry-link:hover{text-decoration:underline;text-underline-offset:4px}
