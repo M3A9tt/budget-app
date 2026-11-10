@@ -28,6 +28,13 @@
 
 .mini-shell.personal-ui .personal-calendar-views.has-debts{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:360px){.mini-shell.personal-ui .personal-calendar-views.has-debts{gap:5px}.mini-shell.personal-ui .personal-calendar-views.has-debts button{gap:4px;padding-inline:5px}}
-.payment-table-event[data-operation-type=expense]{--payment-row-tint:#d888801c}
-.payment-table-event[data-operation-type=income]{--payment-row-tint:#95cfaa26}
-.mini-shell.personal-ui .payment-table tbody .payment-table-event{background-image:linear-gradient(to left,var(--payment-row-tint,transparent),transparent 62%)}
+@property --payment-row-intensity{syntax:'<percentage>';inherits:false;initial-value:0%}
+.payment-table-event[data-operation-type=expense]{--payment-row-tint:#e78686;--payment-row-intensity:21%}
+.payment-table-event[data-operation-type=income]{--payment-row-tint:#95cfaa;--payment-row-intensity:15%}
+.mini-shell.personal-ui .payment-table tbody .payment-table-event{
+ background-image:linear-gradient(to left,color-mix(in srgb,var(--payment-row-tint,transparent) var(--payment-row-intensity,0%),transparent),transparent 62%);
+ transition:--payment-row-intensity .24s ease;
+}
+.payment-table-event[data-operation-type=expense]:is(:hover,:has(:focus-visible)){--payment-row-intensity:36%}
+.payment-table-event[data-operation-type=income]:is(:hover,:has(:focus-visible)){--payment-row-intensity:28%}
+@media(prefers-reduced-motion:reduce){.mini-shell.personal-ui .payment-table tbody .payment-table-event{transition:none}}
