@@ -42,11 +42,11 @@ export default function UpcomingPayments({personal=false,data,busy,onPrepare,mut
     const expanded=selected===e.id,controls='payment-actions-'+e.id;
     const toggle=()=>{if(busy)return;if(personal)setClosing(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'':selected);change({selected:expanded?'':e.id});setMoving('');setError('');};
     const amount=e.amount===null?'Уточнить':(e.type==='income'?'+':personal?'−':'')+money(e.amount,e.currency);
-    const actions=(expanded||personal&&closing===e.id)&&<div className="payment-event-actions" id={'payment-actions-'+e.id}>
-      <p className="payment-event-account">{accounts.has(e.accountId)?'Счёт: '+accounts.get(e.accountId):'Счёт выберешь перед записью'}{periodLabel(e.billingPeriod)?' · За '+periodLabel(e.billingPeriod):''}</p>
+    const actions=(expanded||personal&&closing===e.id)&&<div className={'payment-event-actions'+(personal?' payment-table-actions':'')} id={'payment-actions-'+e.id}>
+      <p className="payment-event-account">{accounts.has(e.accountId)?'Счёт: '+accounts.get(e.accountId):'Счёт выберешь перед записью'}{!personal&&periodLabel(e.billingPeriod)?' · За '+periodLabel(e.billingPeriod):''}</p>
       {e.date<today&&<p className="payment-hint">В приложении нет отметки. Если деньги уже учтены, не записывай их повторно.</p>}
-      <button type="button" className="mini-primary" disabled={busy} onClick={()=>open(e)}><Icon name={e.type==='income'?'down':'check'} size={17}/>{e.type==='income'?'Записать поступление':'Записать оплату'}</button>
-      <p className="payment-hint">Перед сохранением проверишь сумму, счёт и фактическую дату.</p>
+      <button type="button" className={personal?'mini-secondary payment-table-record':'mini-primary'} disabled={busy} onClick={()=>open(e)}><Icon name={e.type==='income'?'down':'check'} size={17}/>{e.type==='income'?'Записать поступление':'Записать оплату'}</button>
+      {!personal&&<p className="payment-hint">Перед сохранением проверишь сумму, счёт и фактическую дату.</p>}
       {e.source==='plan'&&mutate&&<RecordedPayment data={data} id={e.sourceId} period={e.period} mutate={async(fn,message)=>{const ok=await mutate(fn,message);if(ok)restoreRowFocus(e.id);return ok;}} busy={busy}/>}
       {mutate&&<><button type="button" className="mini-text-button" disabled={busy} aria-expanded={moving===e.id} onClick={()=>setMoving(moving===e.id?'':e.id)}>Перенести дату</button>{moving===e.id&&<OccurrenceDateForm key={e.id} event={e} today={today} mutate={mutate} busy={busy} quickDates={personal} onDone={()=>{setMoving('');restoreRowFocus(e.id);}} onCancel={()=>{setMoving('');restoreRowFocus(e.id);}}/>}</>}
       {(personal||e.source!=='plan')&&<button type="button" className="mini-text-button" disabled={busy} onClick={()=>onSource(e)}>{e.source==='plan'?'Открыть план':e.source==='installment'?'Открыть график':'Открыть долг'}</button>}

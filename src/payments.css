@@ -48,3 +48,9 @@
 .payment-table-amount svg{transition:transform .32s cubic-bezier(.2,.75,.25,1)}
 .payment-table-event:has([aria-expanded=true]) .payment-table-amount svg{transform:rotate(180deg)}
 @media(prefers-reduced-motion:reduce){.payment-table-disclosure,.payment-table-amount svg{transition:none}}
+
+.payment-table-disclosure .payment-table-actions{display:flex;align-items:flex-start;gap:4px 12px;flex-wrap:wrap;padding:10px 12px}
+.payment-table-actions>:is(p,form),.payment-table-actions>.recorded-payment:has(.recorded-payment-panel){flex-basis:100%}
+.payment-table-actions>.payment-event-account{margin:0 0 4px}
+.payment-table-actions>.payment-table-record{display:inline-flex;align-items:center;justify-content:center;gap:7px;width:auto;min-height:44px;padding:8px 12px;background:var(--glass-selected);border-color:#b8dec44d;color:#e2eee6}
+.payment-table-actions>.mini-text-button,.payment-table-actions .recorded-payment>.mini-text-button{min-height:44px}
