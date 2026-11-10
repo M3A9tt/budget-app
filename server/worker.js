@@ -308,7 +308,7 @@ export default {
         try{
         const schedule=await env.DB.prepare('SELECT last_checked FROM notification_schedule_state WHERE user_id=?').bind(userId).first();
         const data=JSON.parse(profile.data),day=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE).date,responses=await notificationChecks(env,userId,day),reports=notificationJobs(data,now,responses,{catchUp:true,lastRun:schedule?.last_checked});
-        await deliverNotifications(env,userId,day,data,reports,responses,telegram,periodSummary,setDayCheck,{now:now.getTime()});
+        await deliverNotifications(env,userId,day,data,reports,responses,telegram,periodSummary,setDayCheck,{now:now.getTime(),widgets:true});
         await env.DB.prepare('INSERT INTO notification_schedule_state(user_id,last_checked) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET last_checked=MAX(last_checked,excluded.last_checked)').bind(userId,now.getTime()).run();
         }catch{await recordOperation(env,'cron','failed');console.error(JSON.stringify({event:'notification_processing_failed'}));}
       }

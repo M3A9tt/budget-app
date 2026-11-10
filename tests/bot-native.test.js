@@ -44,8 +44,13 @@ test('Widget menu receives authenticated private queries and opens the existing 
   body:JSON.stringify({widget_query:{id:data,from:{id:who},chat:{id:who,type:'private'},message_id:101,type:{type:'data'},data:data.startsWith('budget-entry:')?data:'budget-menu:'+data}})
  }),f.env);
  assert.equal((await query('home','wrong')).status,401);
- assert.equal((await query('home','test-hook',222)).status,200);
+ assert.equal((await query('home','test-hook',333)).status,200);
  assert.equal(f.sent.at(-1),widget);
+ await f.update('/widget',null,222);
+ assert.equal(f.sent.at(-1).method,'sendWidget');
+ assert.equal(f.sent.at(-1).body.chat_id,222);
+ assert.equal((await query('home','test-hook',222)).status,200);
+ assert.equal(JSON.parse(f.sent.at(-1).body.data).page,'home');
  assert.equal((await query('home')).status,200);
  assert.equal(f.sent.at(-1).method,'answerWidgetQuery');
  assert.equal(JSON.parse(f.sent.at(-1).body.data).page,'home');

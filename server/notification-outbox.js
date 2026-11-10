@@ -1,3 +1,4 @@
+import {digestWidget,expenseWidget,lunchWidget,paymentsWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
 import {failedDelivery,telegramFailureCode} from './delivery-state.js';
 import {recordOperation} from './operations.js';
 import {lunchDayStatus} from '../src/lunch-day-state.js';
@@ -10,7 +11,7 @@ import {paymentReminder,expenseReminder,expenseCheckStopped} from './notificatio
 import {moduleEnabled} from '../src/modules.js';
 const ready=new WeakSet();
 export async function ensureNotificationOutbox(env){if(ready.has(env.DB))return;await env.DB.prepare('CREATE TABLE IF NOT EXISTS user_notification_outbox(user_id TEXT NOT NULL,id TEXT NOT NULL,day TEXT NOT NULL,payload TEXT NOT NULL,lease_until INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,id))').run();ready.add(env.DB);}
-export async function deliverNotifications(env,userId,day,data,reports,responses,send,summary,setCheck,{now=Date.now(),deliverSummary=sendSummary}={}){
+export async function deliverNotifications(env,userId,day,data,reports,responses,send,summary,setCheck,{now=Date.now(),deliverSummary=sendSummary,widgets=false}={}){
  await ensureNotificationOutbox(env);
  for(const report of reports){const body={chat_id:userId,text:report.text||summary(data,report.from,report.to,report.title),...(report.reply_markup?{reply_markup:report.reply_markup}:report.openPayments?{reply_markup:{inline_keyboard:[[{text:'Проверить планы в чате',callback_data:'b:v:due'}]]}}:{})};await env.DB.prepare('INSERT OR IGNORE INTO user_notification_outbox(user_id,id,day,payload) SELECT ?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM user_reports_sent WHERE user_id=? AND id=?)').bind(userId,report.id,report.day||day,JSON.stringify({queuedAt:now,body,kind:report.kind,snoozeAt:report.snoozeAt,attempt:report.attempt,eventId:report.eventId,eventDate:report.eventDate,at:report.at,...(report.from?{report:{from:report.from,to:report.to,title:report.title,visual:/^(day|week):/.test(report.id)}}:{})}),userId,report.id).run();}
  const rows=(await env.DB.prepare("SELECT * FROM user_notification_outbox WHERE user_id=? ORDER BY CASE WHEN json_extract(payload,'$.delivery.phase') IN ('uncertain','blocked') THEN 1 ELSE 0 END,day DESC,id LIMIT 20").bind(userId).all()).results;
@@ -27,7 +28,31 @@ export async function deliverNotifications(env,userId,day,data,reports,responses
   const lease=await env.DB.prepare('UPDATE user_notification_outbox SET lease_until=? WHERE user_id=? AND id=? AND lease_until<=?').bind(Date.now()+60000,userId,row.id,Date.now()).run();if(!lease.meta.changes)continue;
   try{if(payload.kind==='digest')payload.body={chat_id:userId,...attentionMessage(data,day,responses)};
    payload.delivery={phase:'sending',startedAt:Date.now()};await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();
-   if(payload.kind==='expense')payload.body={chat_id:userId,...expenseReminder(data,row.day,payload.attempt||0)};if(row.id.startsWith('planned:'))payload.body={chat_id:userId,...paymentReminder(duePayments(data,day))};if(['expense','lunch'].includes(payload.kind)&&!response)await setCheck(env,userId,row.day,payload.kind,'open');if(payload.report){if(!payload.progress?.photoSent)payload.body.text=summary(data,payload.report.from,payload.report.to,payload.report.title);await deliverSummary(env,userId,data,{...payload.report,text:payload.body.text},send,{priority:'background',progress:payload.progress||{},checkpoint:async progress=>{payload.progress=progress;await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();}});}else {const sent=await send(env,'sendMessage',payload.body);payload.delivery.messageId=sent?.message_id;}payload.delivery.phase='delivered';await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,row.id,Date.now()),env.DB.prepare('DELETE FROM user_notification_outbox WHERE user_id=? AND id=?').bind(userId,row.id)]);await recordOperation(env,'delivery','delivered',Date.now()-payload.delivery.startedAt);}catch(error){
+   if(payload.kind==='expense')payload.body={chat_id:userId,...expenseReminder(data,row.day,payload.attempt||0)};
+   const planned=row.id.startsWith('planned:')?duePayments(data,day):null;
+   if(planned)payload.body={chat_id:userId,...paymentReminder(planned)};
+   if(['expense','lunch'].includes(payload.kind)&&!response)await setCheck(env,userId,row.day,payload.kind,'open');
+   const useWidget=widgets&&data.settings.calendarWidgetEnabled!==false;
+   if(payload.report&&!payload.progress?.photoSent)payload.body.text=summary(data,payload.report.from,payload.report.to,payload.report.title);
+   let card;
+   if(useWidget){
+    if(payload.report&&!payload.progress?.photoSent)card=summaryWidget(data,payload.report);
+    else if(payload.kind==='expense')card=expenseWidget(data,row.day,payload.attempt||0);
+    else if(payload.kind==='lunch')card=lunchWidget(payload.body,row.day);
+    else if(payload.kind==='digest')card=digestWidget(data,day,responses);
+    else if(currentOnce||planned)card=paymentsWidget(currentOnce?[currentOnce]:planned,currentOnce?.date||day);
+   }
+   if(card){
+    const sent=await sendNotificationWidget(env,send,payload.body,card);
+    payload.delivery.messageId=sent?.message_id;
+   }else if(payload.report){
+    await deliverSummary(env,userId,data,{...payload.report,text:payload.body.text},send,{priority:'background',progress:payload.progress||{},checkpoint:async progress=>{
+     payload.progress=progress;await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();
+    }});
+   }else{
+    const sent=await send(env,'sendMessage',payload.body);payload.delivery.messageId=sent?.message_id;
+   }
+   payload.delivery.phase='delivered';await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,row.id,Date.now()),env.DB.prepare('DELETE FROM user_notification_outbox WHERE user_id=? AND id=?').bind(userId,row.id)]);await recordOperation(env,'delivery','delivered',Date.now()-payload.delivery.startedAt);}catch(error){
    payload.delivery=failedDelivery(payload.delivery,error);
    await env.DB.prepare('UPDATE user_notification_outbox SET payload=?,lease_until=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),payload.delivery.retryAt,userId,row.id).run();
    await recordOperation(env,'delivery',payload.delivery.phase,Date.now()-(payload.delivery.startedAt||Date.now()));
