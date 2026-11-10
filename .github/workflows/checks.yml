@@ -14,10 +14,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ runner.os == 'Linux' && '0' || '1' }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
+      - name: Require release notes
+        if: runner.os == 'Linux'
+        env:
+          RELEASE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/check-release.mjs
       - run: npm ci
       - name: Production dependency audit
         run: npm audit --omit=dev
