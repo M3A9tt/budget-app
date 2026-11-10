@@ -27,6 +27,13 @@ export function demoData(today=todayMoscow()) {
   d.goals[0]={...d.goals[0],accountId:'demo-savings',targetDate:date(120)};
   d.wishes=[{id:'demo-wish-tv',name:'Телевизор в комнату',note:'Выбрать размер и место на стене',priority:'main',target:45000,currency:'RUB',accountId:'',done:false},{id:'demo-wish-trip',name:'Поездка на выходные',note:'Когда будет свободное время',priority:'secondary',target:0,currency:'RUB',accountId:'',done:false}];
   d.recurring=[{id:'demo-rent',name:'ЖКХ',amount:6780,currency:'RUB',dueDay:Number(date(3).slice(-2)),active:true,cat:'housing',accountId:'demo-bank'},{id:'demo-sub',name:'Подписки',amount:990,currency:'RUB',dueDay:Number(date(8).slice(-2)),active:true,cat:'subs',accountId:'demo-bank'}];
+  const previousMonth=new Date(today.slice(0,7)+'-01T12:00:00Z');
+  previousMonth.setUTCDate(0);
+  const previousPeriod=previousMonth.toISOString().slice(0,7);
+  d.recurring.push(
+    {id:'demo-transit',name:'Проездной',type:'expense',frequency:'monthly',startDate:previousPeriod+'-25',dueDay:25,dateOverrides:{[previousPeriod]:date(2)},amount:1850,currency:'RUB',accountId:'demo-bank',cat:'transport',active:true},
+    {id:'demo-income',name:'Аванс',type:'income',frequency:'once',startDate:date(12),amount:22000,currency:'RUB',accountId:'demo-bank',active:true}
+  );
   for(let i=6;i<100;i+=2){const cats=['food','transport','health','fun','food'],cat=cats[i%5],amount=[420,780,350,1250,580,990,310][i%7];d.transactions.push({id:'demo-past-'+i,type:'expense',cat,amount,currency:'RUB',amountRub:amount,accountAmount:amount,accountId:'demo-bank',date:date(-i),note:{food:'Продукты',transport:'Поездка',health:'Аптека',fun:'Выходные'}[cat],paymentMethod:i%3?'card':'sbp',revision:1,tags:[]});}
   return d;
 }
