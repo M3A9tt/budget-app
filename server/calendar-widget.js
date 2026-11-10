@@ -24,7 +24,7 @@ body{margin:0;color:#e8eff4;font:15px system-ui}
 .panel{padding:13px}
 h3{display:flex;align-items:center;gap:8px;margin:0 0 10px}
 h3:before,h3:after{content:'';flex:1;height:1px;background:#ffffff25}
-h4{margin:9px 0;text-align:center}
+h4{text-align:center}
 ol{margin:0;padding:0;list-style:none}
 li{display:flex;align-items:center;gap:8px;padding:5px 7px}
 li+li{border-top:1px solid #ffffff22}
@@ -39,10 +39,10 @@ footer{margin-top:8px}
 button{min-height:44px;padding:0 8px;border:1px solid #ffffff24;border-radius:10px;background:#ffffff09;color:#d6e4e8;font:inherit}
 button:active{background:#3a5356}
 nav{display:flex;margin-bottom:12px;border-bottom:1px solid #ffffff24}
-nav button{flex:1;border:0;border-radius:0;background:none;font-size:13px}
+nav button{flex:1;padding:0;border:0;border-radius:0;background:none;font-size:12px}
 nav button+button{border-left:1px solid #ffffff24}
 nav button[aria-pressed=true]{background:linear-gradient(#b7d5ca26,transparent)}
-nav button:last-child{flex:none;width:44px;color:#bde3cb;font-size:21px}
+nav button:last-child{flex:none;width:32px;font-size:20px}
 .balance{display:block;text-align:center;font-size:30px;margin:12px 0}
 #balance:before{content:'На обычных счетах';display:block;font:13px system-ui;color:#b6c5d3}
 .event summary{font-weight:bold}
@@ -56,14 +56,14 @@ nav button:last-child{flex:none;width:44px;color:#bde3cb;font-size:21px}
 .out{color:#f1bfbb}.in{color:#bde3cb}
 .out[aria-pressed=true]{background:#ed999533}
 .in[aria-pressed=true]{background:#92c9ac33}
-@media(max-width:245px){li{flex-wrap:wrap}}
+@media(max-width:245px){li,nav{flex-wrap:wrap}}
 @media(prefers-reduced-motion:no-preference){
 li,.entry>*,.event small{animation:appear .22s}
 @keyframes appear{from{opacity:0}}
 }
 </style>
-<section class="panel widget-glass"><h3><img alt="Бюрджет"></h3>
-<nav id="nav" aria-label="Разделы Бюрджета" hidden>
+<section class="panel widget-glass"><h3><img width="96" height="28" alt="Бюрджет"></h3>
+<nav id="nav" hidden>
 <button type="button" data-page="home">Главная</button><button type="button" data-page="calendar">Календарь</button><button type="button" data-page="history">Операции</button><button type="button" data-page="add" aria-label="Записать">＋</button>
 </nav><strong id="balance" class="balance" hidden></strong><h4 id="title"></h4><ol id="payments"></ol><div id="entry" class="entry" hidden></div>
 <footer><small id="status" aria-live="polite"></small>
