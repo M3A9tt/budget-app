@@ -41,6 +41,34 @@ try{for(const version of [1,2]){
  // A lower revision from a different owner replaces the profile and clears entry context.
  await nav('Записать').click();await page.locator('#amount').fill('987');userId='fictional-new-owner';data={...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:2,interfaceGuideSeen:true}};revision=1;await page.getByRole('button',{name:'Обновить данные',exact:true}).click();await page.locator('.mini-page[data-page=overview]').waitFor();assert.equal(await page.locator('#amount').count(),0);assert(await page.getByRole('button',{name:'Добавить счёт',exact:true}).isVisible());await add().click();assert.equal(await page.locator('#amount').inputValue(),'');await page.getByRole('button',{name:'Назад',exact:true}).click();await page.getByRole('button',{name:'Добавить счёт',exact:true}).click();await page.getByLabel('Название',{exact:true}).fill('Первая карта');await page.getByLabel('Текущий остаток',{exact:true}).fill('5000');await page.getByRole('button',{name:'Добавить счёт',exact:true}).click();await page.locator('.account-action-panel').waitFor({state:'hidden'});assert.equal(data.accounts[0].balance,5000);await nav('Главная').click();assert.equal(await page.locator('.interface-guide').count(),0);await add().click();await page.locator('#amount').fill('100');assert(await page.getByText('Без счёта — только история. Остатки не изменятся.',{exact:true}).isVisible());await page.locator('.entry-picker-trigger').filter({hasText:'Счёт'}).click();await page.getByRole('dialog').getByRole('button',{name:/Первая карта/}).click();await page.getByRole('button',{name:/^Записать.*100/}).click();await page.locator('.ins-home').waitFor();assert.equal(data.accounts[0].balance,4900);assert.equal(data.transactions.length,1);
  }
+ if(version===2){
+  const beforeBack=revision;
+  await page.goto(origin+'/?calendar=1#tgWebAppVersion=10.4');
+  await page.locator('.mini-shell').waitFor();
+  await page.evaluate(()=>{
+   const callbacks=new Set();
+   window.testBack={visible:false,callbacks};
+   window.Telegram={WebApp:{ready(){},expand(){},BackButton:{
+    show(){window.testBack.visible=true;},
+    hide(){window.testBack.visible=false;},
+    onClick(fn){callbacks.add(fn);},
+    offClick(fn){callbacks.delete(fn);}
+   }}};
+  });
+  const telegramBack=async()=>{
+   await page.waitForFunction(()=>window.testBack.visible&&window.testBack.callbacks.size===1);
+   await page.evaluate(()=>[...window.testBack.callbacks][0]());
+  };
+  await page.locator('.money-calendar').waitFor();
+  await telegramBack();
+  await page.locator('.ins-home').waitFor();
+  await page.locator('.home-money-links').getByRole('button',{name:'Долги',exact:true}).click();
+  await page.getByRole('heading',{name:'Долги',exact:true}).waitFor();
+  await telegramBack();
+  await page.locator('.ins-home').waitFor();
+  await page.waitForFunction(()=>!window.testBack.visible);
+  assert.equal(revision,beforeBack);
+ }
  assert.deepEqual(errors,[]);evidence.push({version,revision,...(financialResult||{balance:data.accounts[0]?.balance??null,transactions:data.transactions.length,plans:data.recurring.length}),profileSwitchCleared:version===2,pageErrors:errors});
  }catch(error){await shot('failure').catch(()=>{});console.log((await page.locator('main').innerText()).slice(0,2200));throw error;}finally{await context.close();await server.close();}
  }}finally{await browser.close();}
