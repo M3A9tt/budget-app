@@ -7,7 +7,8 @@ import {moduleEnabled} from '../src/modules.js';
 import {parseEntry,parseOwnTransfer,entryType} from '../src/quick-entry.js';
 import {entryDefaults} from '../src/entry-assist.js';
 import {homeBlocks,HOME_BLOCKS} from '../src/home-layout.js';
-import {duePayments} from '../src/due-payments.js';
+import {duePayments,paymentFromEvent} from '../src/due-payments.js';
+import {paymentReminderEvents} from '../src/payment-reminders.js';
 import {quickDefaults,compactTransaction,actionOutcome,actionDestination} from './bot-dialog.js';
 import {repeatEntry} from '../src/entry-assist.js';
 import {CATEGORIES} from '../src/mini-model.js';
@@ -198,6 +199,19 @@ async function route(env,userId,api,r){
  if(r.special==='moderation'){if(!s.isOwner)throw Error('Только владелец');const queue=await learningQueue(env),page=Math.max(0,Number(r.args?.page)||0);return render(env,userId,api,{title:'Модерация обедов',lines:[`Ожидают: ${queue.examples.filter(x=>x.status==='pending').length} · правил: ${queue.rules.length}`],actions:[...queue.examples.slice(page*8,page*8+8).map(x=>({label:`${x.status} · ${x.parsed.amount} → ${x.corrected.amount}`,special:'learning',args:{id:x.id}})),...(page>0?[{label:'← Примеры',special:'moderation',args:{page:page-1}}]:[]),...((page+1)*8<queue.examples.length?[{label:'Примеры →',special:'moderation',args:{page:page+1}}]:[]),view('Главная','home')]});}
  if(r.special==='learning'){if(!s.isOwner)throw Error('Только владелец');const x=(await learningQueue(env)).examples.find(x=>x.id===r.args.id);if(!x)throw Error('Пример отсутствует');return render(env,userId,api,{title:'Пример распознавания',lines:[x.source,`Было: ${x.parsed.amount} → исправлено: ${x.corrected.amount}`,x.status],actions:(x.status==='pending'?['approve','reject']:['disable']).map(action=>act({approve:'Одобрить',reject:'Отклонить',disable:'Отключить правило'}[action],'moderate',{id:x.id,action}))});}
 }
+export async function openDuePayment(env,userId,api,kind,id,period){
+ const state=await api.readState(env,userId),today=todayMoscow(state.data.settings.timeZone);
+ const matches=item=>item.id===id&&(kind==='p'?item.kind==='plan'&&item.period===period:kind==='i'?item.kind==='installment':kind==='d'&&item.kind==='debt');
+ const item=duePayments(state.data,today).find(matches)||
+  paymentReminderEvents(state.data,Date.now()).map(paymentFromEvent).find(matches);
+ if(!item)return false;
+ await pauseBotForm(env,userId,api);
+ const returnTo={name:'due',args:{}};
+ await start(env,userId,api,item.kind==='plan'?'confirmPlan':item.kind==='installment'?'payInstallment':'repay',
+  {...(item.kind==='plan'?{id:item.id,period:item.period}:item.kind==='installment'?{id:item.planId,paymentId:item.id}:{id:item.id}),returnTo});
+ return true;
+}
+
 export async function botChat(update,env,userId,api){
  const callback=update.callback_query,message=update.message;
  if(callback?.data?.startsWith('b:')){
@@ -209,12 +223,8 @@ export async function botChat(update,env,userId,api){
   }
   await api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});
   if(action==='n'){
-   const state=await api.readState(env,userId),today=todayMoscow(state.data.settings.timeZone);
-   const item=duePayments(state.data,today).find(x=>x.id===arg&&(id==='p'?x.kind==='plan'&&x.period===extra:id==='i'?x.kind==='installment':id==='d'&&x.kind==='debt'));
-   if(!item){await send(api,env,userId,'Этот платёж уже закрыт или изменён. Показываю актуальный список.');await showBotView(env,userId,api,'due');return true;}
-   await pauseBotForm(env,userId,api);
-   const returnTo={name:'due',args:{}};
-   await start(env,userId,api,item.kind==='plan'?'confirmPlan':item.kind==='installment'?'payInstallment':'repay',{...(item.kind==='plan'?{id:item.id,period:item.period}:item.kind==='installment'?{id:item.planId,paymentId:item.id}:{id:item.id}),returnTo});return true;
+   if(!await openDuePayment(env,userId,api,id,arg,extra)){await send(api,env,userId,'Этот платёж уже закрыт или изменён. Показываю актуальный список.');await showBotView(env,userId,api,'due');}
+   return true;
   }
   if(action==='v'){await pauseBotForm(env,userId,api);await showBotView(env,userId,{...api,viewMessage:callback.message},id);return true;}
   let loaded;try{loaded=await load(env,userId,id);}catch{const receipt=await env.DB.prepare('SELECT result FROM user_idempotency WHERE user_id=? AND id=?').bind(userId,'bot:'+id).first();return render(env,userId,api,{title:receipt?'✅ Это действие уже выполнено':'Эта карточка уже закрыта',lines:[receipt?'Повторной записи не будет. Открой историю, чтобы посмотреть результат.':'Открой актуальный раздел.'],actions:[view('✍️ Записать','add'),view('История','history'),view('Главная','home')]});}const {p}=loaded;

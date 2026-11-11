@@ -11,6 +11,7 @@ import {EMPTY,todayMoscow,dashboard} from '../src/mini-model.js';
 import {botView} from '../server/bot-views.js';
 import {applyBotAction,fieldsFor,botImportPreview,parseField} from '../server/bot-catalog.js';
 import {debtRemaining} from '../src/debt-state.js';
+import {moveDate,scheduledEvents} from '../src/finance-events.js';
 const today=todayMoscow();
 const seed=()=>({...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:1,legacyInterfaceOptIn:true},accounts:[{id:'bank',name:'Банк',currency:'RUB',balance:10000},{id:'reserve',name:'Наличный резерв',currency:'RUB',balance:2000,accType:'savings',storageKind:'cash'}],installments:[],reconciliations:[]});
 function fixture(data=seed()){
@@ -174,8 +175,41 @@ test('Native import maps unknown accounts, previews rows and deduplicates withou
  await f.update('/import');f.files.set('statement.json',JSON.stringify({format:'burget-operations',version:1,operations:[{date:today,type:'expense',amount:180,currency:'RUB',account:'Банк',category:'food',note:'Кофе'}]}));await f.update('',undefined,111,{document:{file_id:'statement.json',file_size:500,file_name:'statement.json'}});await f.press('Нет, это старая история');assert.match(f.last().text,/похожих: 1/);assert.ok(!f.last().reply_markup.inline_keyboard.flat().some(b=>b.text.startsWith('✅ Импортировать')));assert.equal(f.snapshot().transactions.length,1);
 }));
 test('Native minute settings and test messages do not write fictitious financial operations',()=>run(async f=>{
- await f.update('/reminders');await f.press(/^Время проверки:/);await f.update('20:37');await f.press('✅ Подтвердить');assert.equal(f.snapshot().settings.checkTime,'20:37');await f.update('/tests');await f.press('Вопрос об обеде');assert.match(f.last().text,/Тест/);assert.ok(f.last().reply_markup.inline_keyboard.flat().every(b=>b.callback_data.startsWith('test:')));assert.equal(f.snapshot().transactions.length,0);
+ await f.update('/reminders');await f.press(/^Время проверки:/);await f.update('20:37');await f.press('✅ Подтвердить');assert.equal(f.snapshot().settings.checkTime,'20:37');await f.update('/widget off');await f.update('/tests');await f.press('Вопрос об обеде');assert.match(f.last().text,/Тест/);assert.ok(f.last().reply_markup.inline_keyboard.flat().every(b=>b.callback_data.startsWith('test:')));assert.equal(f.snapshot().transactions.length,0);
 }));
+test('A payment widget opens the same confirmation flow without recording a payment',()=>run(async f=>{
+ const before=f.snapshot();
+ const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{
+  method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-hook'},
+  body:JSON.stringify({widget_query:{id:'pay-widget',data:'b:n:p:internet:once',from:{id:111},
+   chat:{id:111,type:'private'},message_id:1,type:{type:'data'}}})
+ }),f.env);
+ assert.equal(response.status,200);
+ const widgetPrompt=f.last().text;
+ assert.match(widgetPrompt,/Изменилась ли сумма/);
+ assert.match(JSON.parse(f.sent.find(x=>x.method==='answerWidgetQuery').body.data).status,/Открыто в чате/);
+ assert.deepEqual(f.snapshot(),before);
+ await f.update('/cancel');
+ await f.update('','b:n:p:internet:once');
+ assert.equal(f.last().text,widgetPrompt);
+},{...seed(),recurring:[{id:'internet',name:'Интернет',amount:800,type:'expense',frequency:'once',
+ startDate:today,accountId:'bank',currency:'RUB',cat:'housing',active:true}]}));
+test('A reminder opens a future payment while its occurrence is current',async()=>{
+ const date=moveDate(today,3),data={...seed(),recurring:[{id:'internet',name:'Интернет',amount:800,
+  type:'expense',frequency:'once',startDate:date,accountId:'bank',currency:'RUB',cat:'housing',active:true}]};
+ const [event]=scheduledEvents(data,today,date);
+ data.paymentReminders={[event.id]:{at:Date.now()-1000,date}};
+ await run(async f=>{
+  await f.update('','b:n:p:internet:once');
+  assert.match(f.last().text,/Изменилась ли сумма/);
+  assert.equal(f.snapshot().accounts[0].balance,10000);
+  await f.update('/cancel');
+  f.sqlite.prepare("UPDATE user_finance_state SET data=json_set(data,'$.recurring[0].startDate',?) WHERE user_id='111'").run(moveDate(date,1));
+  await f.update('','b:n:p:internet:once');
+  assert.ok(f.sent.some(x=>x.body.text?.includes('платёж уже закрыт или изменён')));
+  assert.equal(f.snapshot().transactions.length,0);
+ },data);
+});
 test('Foreign profiles cannot use form callbacks; changed Mini App state requires another preview',()=>run(async f=>{
  await f.update('/accounts');await f.press(/Банк/);await f.press('Переименовать');await f.update('Основной');const token=f.button('✅ Подтвердить');await f.update('',token,222);assert.equal(f.snapshot('222').accounts[0].name,'Банк');const d=f.snapshot();d.accounts[0].balance=7000;f.sqlite.prepare("UPDATE user_finance_state SET data=?,revision=revision+1 WHERE user_id='111'").run(JSON.stringify(d));await f.update('',token);assert.equal(f.snapshot().accounts[0].name,'Банк');await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].name,'Основной');assert.equal(f.snapshot().accounts[0].balance,7000);
 }));
@@ -608,12 +642,18 @@ test('Main menus and form choices are compact while every callback still selects
 }));
 
 test('Release refreshes each users native miniapp menu and keyboard once; repeated announcement does not spam',()=>run(async f=>{
+ await f.update('/widget off');
  const calls=[],send=async(env,method,body)=>{calls.push({method,body});};
  const first=await broadcastRelease(f.env,send);assert.equal(first.sent,2);assert.equal(first.failed,0);
- assert.equal(calls.filter(x=>x.method==='setChatMenuButton').length,2);assert.equal(calls.filter(x=>x.method==='sendMessage').length,2);
+ assert.equal(calls.filter(x=>x.method==='setChatMenuButton').length,2);assert.equal(calls.filter(x=>x.method==='sendMessage').length,1);
+ const widget=calls.find(x=>x.method==='sendWidget').body;
+ assert.equal(widget.chat_id,'222');
+ assert.equal(widget.reply_markup,undefined);
+ assert.equal(widget.caption,undefined);
+ assert.equal(JSON.parse(widget.chat_data).controls[0][0],'Что нового');
  for(const c of calls.filter(x=>x.method==='sendMessage'))assert.deepEqual(c.body.reply_markup.keyboard.map(r=>r.length),[3,3]);
  const before=calls.length,again=await broadcastRelease(f.env,send);assert.equal(again.sent,0);assert.equal(again.alreadySent,2);assert.equal(calls.length,before);
- assert.deepEqual(f.snapshot(),seed());
+ assert.deepEqual(f.snapshot('222'),seed());
 }));
 
 test('Native on-demand plan has no hidden monthly recurrence; explicit scheduling and confirmation debit once',()=>run(async f=>{
