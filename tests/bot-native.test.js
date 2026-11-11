@@ -177,21 +177,37 @@ test('Native import maps unknown accounts, previews rows and deduplicates withou
 test('Native minute settings and test messages do not write fictitious financial operations',()=>run(async f=>{
  await f.update('/reminders');await f.press(/^Время проверки:/);await f.update('20:37');await f.press('✅ Подтвердить');assert.equal(f.snapshot().settings.checkTime,'20:37');await f.update('/widget off');await f.update('/tests');await f.press('Вопрос об обеде');assert.match(f.last().text,/Тест/);assert.ok(f.last().reply_markup.inline_keyboard.flat().every(b=>b.callback_data.startsWith('test:')));assert.equal(f.snapshot().transactions.length,0);
 }));
-test('A payment widget opens the same confirmation flow without recording a payment',()=>run(async f=>{
+test('A payment widget reviews a payment and records it exactly once on confirmation',()=>run(async f=>{
  const before=f.snapshot();
- const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{
-  method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-hook'},
-  body:JSON.stringify({widget_query:{id:'pay-widget',data:'b:n:p:internet:once',from:{id:111},
-   chat:{id:111,type:'private'},message_id:1,type:{type:'data'}}})
- }),f.env);
- assert.equal(response.status,200);
- const widgetPrompt=f.last().text;
- assert.match(widgetPrompt,/Изменилась ли сумма/);
- assert.match(JSON.parse(f.sent.find(x=>x.method==='answerWidgetQuery').body.data).status,/Открыто в чате/);
+ const tap=async(data,message_id=1)=>{
+  const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{
+   method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-hook'},
+   body:JSON.stringify({widget_query:{id:crypto.randomUUID(),data,from:{id:111},
+    chat:{id:111,type:'private'},message_id,type:{type:'data'}}})
+  }),f.env);
+  assert.equal(response.status,200);
+  assert.equal(f.sent.at(-1).method,'answerWidgetQuery');
+  return JSON.parse(f.sent.at(-1).body.data);
+ };
+ const due=await tap('b:v:due');
+ assert.equal(due.title,'Платежи на сегодня');
+ assert.equal(due.rows[0][0],'Интернет');
+ const prompt=await tap(due.rows[0][3]);
+ assert.equal(prompt.title,'Интернет');
+ assert.match(prompt.foot,/Изменилась ли сумма/);
+ const no=prompt.controls.find(([label])=>label==='Нет')[1];
+ assert.match((await tap(no,2)).error,/актуальный шаг/);
+ const date=await tap(no);
+ const preview=await tap(date.input.command+today);
+ const confirm=preview.controls.find(([label])=>label==='Подтвердить')[1];
+ assert.match(preview.foot,/Проверь/);
  assert.deepEqual(f.snapshot(),before);
- await f.update('/cancel');
- await f.update('','b:n:p:internet:once');
- assert.equal(f.last().text,widgetPrompt);
+ assert.equal((await tap(confirm)).done,true);
+ assert.equal((await tap(confirm)).done,true);
+ assert.equal(f.snapshot().accounts[0].balance,9200);
+ assert.equal(f.snapshot().transactions.length,1);
+ assert.deepEqual((await tap(due.refresh)).rows,[]);
+ assert.ok(f.sent.every(call=>call.method==='answerWidgetQuery'));
 },{...seed(),recurring:[{id:'internet',name:'Интернет',amount:800,type:'expense',frequency:'once',
  startDate:today,accountId:'bank',currency:'RUB',cat:'housing',active:true}]}));
 test('A reminder opens a future payment while its occurrence is current',async()=>{

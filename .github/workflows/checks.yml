@@ -47,7 +47,7 @@ jobs:
         if: matrix.suite == 'core'
       - name: Install browser for UI checks
         if: runner.os == 'Linux'
-        run: npx --no-install playwright-core install --with-deps chromium
+        run: bash scripts/install-ci-chromium.sh
       - name: Check entry layout, pickers and complete financial flow
         if: runner.os == 'Linux' && matrix.suite == 'core'
         run: npm run test:layout

@@ -12,7 +12,7 @@ import {legacyLunchInput,legacySaveCallback} from './legacy-lunch.js';
 import {initialProfile} from '../src/home-layout.js';
 import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence,readReceipt} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams,pictureErrorCode} from './bot-pictures.js';
-import {botChat,showBotView,openDuePayment,openQuickEntry,startBotForm,pauseBotForm,cancelBotFlow} from './bot-chat.js';
+import {botChat,showBotView,openQuickEntry,startBotForm,pauseBotForm,cancelBotFlow} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
 import {sendBotFile,readBotDocument} from './bot-files.js';
 import {lunchChatMessage,lunchChatCallback,pruneLunchChat,pauseLunchEdit} from './lunch-chat.js';
@@ -34,6 +34,7 @@ import {EMPTY,demoData,money,todayMoscow} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
 import {expenseHistoryWidget,releaseWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
+import {duePaymentsWidget,openPaymentWidget,paymentFormCommand,paymentListCommand,stepPaymentWidget} from './payment-widget.js';
 import {validateTelegramInitData} from './telegram-auth.js';
 // Separate new D1 database. This Worker never writes to legacy Supabase.
 import {putTransaction,migrateData,validateStateChange} from '../src/ledger.js';
@@ -103,9 +104,11 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
   const lunchAction=query&&/^lunch:\d{4}-\d{2}-\d{2}:(?:company|own|skip|off|reason:(?:late|vacation|unpaid|sick|other))$/.test(query.data);
   const expenseAction=query&&/^check:\d{4}-\d{2}-\d{2}:(?:done|none|pending|later|history(?::\d{1,6})?|off)$/.test(query.data);
   const testAction=query&&/^test:(?:expense|lunch|planned)$/.test(query.data);
-  const notificationAction=query&&/^b:(?:v:(?:due|attention|reminders)|n:(?:p:[^:]+:[^:]+|[id]:[^:]+))$/.test(query.data);
+  const notificationAction=query&&/^b:(?:v:(?:attention|reminders)|n:(?:p:[^:]+:[^:]+|[id]:[^:]+))$/.test(query.data);
+  const paymentForm=query&&paymentFormCommand.exec(query.data);
+  const paymentList=query&&paymentListCommand.exec(query.data);
   const releaseAction=query&&/^(r|tr):([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(query.data);
-  if(query&&!lunchAction&&!expenseAction&&!testAction&&!notificationAction&&!releaseAction){
+  if(query&&!lunchAction&&!expenseAction&&!testAction&&!notificationAction&&!releaseAction&&!paymentForm&&!paymentList){
     return answerCalendarWidget(query,{env,readState,telegram,openAdd:()=>handleTelegram({message:{from:query.from,chat:query.chat,text:'/add'}},env,{preferWidget:false})});
   }
   if(query&&(typeof query.id!=='string'||query.inline_message_id||query.widget_id||!Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data'))return;
@@ -157,6 +160,11 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
       const state=await readState(env,userId),{data}=state;
       if(data.settings.calendarWidgetEnabled===false)return answer({error:'Виджеты отключены.'});
       if(testAction)return answer({status:'Кнопка работает. Данные не изменены.'});
+      if(paymentList)return answer(duePaymentsWidget(data,Number(paymentList[1])||0));
+      if(paymentForm){
+        try{return await answer(await stepPaymentWidget(env,userId,state,query.message_id,paymentForm,readState));}
+        catch(error){return answer({error:error.message});}
+      }
       if(releaseAction){
         const [,kind,id,index]=releaseAction,release=releases.find(item=>item.id===id),page=Number(index);
         if(!release||page>=release.changes.length)return answer({error:'Страница обновления недоступна.'});
@@ -165,10 +173,8 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
       if(notificationAction){
         const [,action,kind,id,period]=query.data.split(':');
         if(action==='n'){
-          if(!await openDuePayment(env,userId,botApi,kind,id,period)){
-            await showBotView(env,userId,botApi,'due');
-            return answer({status:'Платёж уже закрыт или изменён. Актуальный список открыт в чате.'});
-          }
+          const card=await openPaymentWidget(env,userId,state,query.message_id,kind,id,period);
+          return answer(card||{error:'Платёж уже закрыт или изменён.'});
         }else{
           await pauseBotForm(env,userId,botApi);
           await showBotView(env,userId,botApi,kind==='reminders'?'settingGroup':kind,kind==='reminders'?{group:'reminders'}:{});
