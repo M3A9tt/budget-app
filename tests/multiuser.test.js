@@ -392,7 +392,7 @@ test('Scheduled widgets preserve expense actions and fall back only on a definit
  await deliverNotifications(env,'222',day,d,reports,[],send,periodSummary,setDayCheck,{widgets:true});
  assert.deepEqual(sent.map(call=>call.method),['sendWidget','sendWidget','sendMessage']);
  for(const {body} of sent.filter(call=>call.method==='sendWidget')){
-  assert.match(body.html,/<img[^>]+src="data:image\/png;base64,[^"]+" alt="Бюрджет"/);
+  assert.match(body.html,/<img[^>]+src="data:image\/webp;base64,[^"]+" alt="Бюрджет"/);
   assert.ok(deflateSync(body.html,{level:9}).length<=4096);
  }
  assert.deepEqual(sent[0].body.reply_markup,reminder.reply_markup);

@@ -8,7 +8,7 @@ import {iconShape} from '../src/mini-icon-shapes.js';
 import {paymentDate} from '../src/payment-copy.js';
 import {attentionItems} from '../src/attention.js';
 import {widgetGlass} from './widget-glass.js';
-import {widgetBrand} from './widget-brand.js';
+import {notificationBrand} from './widget-brand.js';
 
 const icon=name=>'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+iconShape(name)+'</svg>';
 
@@ -36,7 +36,7 @@ time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
 #count{display:block;margin-top:6px}
 #foot{color:#c6d1dd;font-size:13px;margin-top:8px}
 @media(max-width:240px){.row{flex-wrap:wrap}}
-</style><section hidden id="card" class="widget-glass"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div><img class="brand" src="${widgetBrand}" alt="Бюрджет"></header>
+</style><section hidden id="card" class="widget-glass"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div><img class="brand" src="${notificationBrand}" alt="Бюрджет"></header>
 <div class="total"><span id="label"></span><strong id="sum"></strong></div><div id="rows"></div><small id="count"></small><p id="foot"></p></section>
 <script>
 const w=window.TelegramWidget;
