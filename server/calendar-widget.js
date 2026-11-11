@@ -352,7 +352,8 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  }
  try{
   await telegram(env,'sendWidget',{
-   chat_id:chatId,html:page==='accounts'?accountsWidgetHtml:html,caption:'Меню Бюрджета · /menu  |  Клавиатура · /widget off',
+   chat_id:chatId,html:page==='accounts'?accountsWidgetHtml:html,
+   caption:page==='accounts'?'Счета · Главное меню /menu':'Бюрджет · Счета /accounts · Клавиатура /widget off',
    chat_data:page==='accounts'?accountWidgetData(data,revision):widgetData(data,command?'calendar':page,widgetBrand,revision),
    allow_queries:true,is_shared:false,protect_content:true,
    ...(replaceKeyboard?{reply_markup:{remove_keyboard:true}}:{})

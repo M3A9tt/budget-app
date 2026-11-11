@@ -21,7 +21,7 @@ function accountsCard(data,visible,account,offset){
    const label=transfer?transferDetails(data,item).route:
     item.note||categories.find(category=>category.id===item.cat)?.name||'Операция';
    return [clip(label),(outgoing?'−':incoming?'+':'')+money(item.amount,item.currency),
-    outgoing?'expense':incoming?'income':''];
+    outgoing?'expense':incoming?'income':'',null,item.date.split('-').reverse().join('.')];
   });
   return {total:recent.length,card:{title:clip(account.name),mark:'chart',dateLabel:'Операции по счёту',label:'Остаток',
    sum:money(account.balance,account.currency),rows,count:'',foot:rows.length?'':'Операций пока нет'}};
