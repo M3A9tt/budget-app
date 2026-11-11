@@ -70,7 +70,7 @@ test('Release messages respect manual/digest modes and a Telegram acceptance wit
   f.add('111','manual');f.add('222','digest');let result=await broadcastRelease(f.env,async(e,m,b)=>sent.push(b));assert.equal(result.sent,0);assert.equal(sent.length,0);
   f.db.exec("UPDATE user_finance_state SET data=json_set(data,'$.settings.notificationMode','legacy') WHERE user_id='111'");
   f.db.exec("CREATE TRIGGER fail_release_receipt BEFORE INSERT ON user_reports_sent BEGIN SELECT RAISE(ABORT,'receipt failure'); END");
-  const send=async(e,m,b)=>{if(m==='sendMessage')sent.push(b);return {message_id:42};};result=await broadcastRelease(f.env,send);assert.equal(sent.length,1);assert.equal(result.failed,1);
+  const send=async(e,m,b)=>{if(m==='sendWidget')sent.push(b);return {message_id:42};};result=await broadcastRelease(f.env,send);assert.equal(sent.length,1);assert.equal(result.failed,1);
   f.db.exec('DROP TRIGGER fail_release_receipt');await broadcastRelease(f.env,send);assert.equal(sent.length,1);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM user_release_outbox').get().n,0);
  }finally{f.close();}
 });
@@ -78,7 +78,7 @@ test('Ambiguous release sends and a worker crash remain uncertain; a permanent T
  for(const kind of ['ambiguous','forbidden','menu-forbidden','crash']){const f=fixture();try{
   f.add('111');let calls=0;
   if(kind==='crash')f.db.prepare('INSERT INTO user_release_outbox VALUES(?,?,?,?,?)').run('111',latestRelease.id,JSON.stringify({text:'Release',delivery:{phase:'sending',startedAt:1}}),1,0);
-  const send=async(e,m)=>{if(m!=='sendMessage'&&kind!=='menu-forbidden')return;calls++;throw kind.endsWith('forbidden')?Object.assign(Error('forbidden'),{telegramCode:403,definitelyNotSent:true}):Error('lost response');};
+  const send=async(e,m)=>{if(m!=='sendWidget'&&kind!=='menu-forbidden')return;calls++;throw kind.endsWith('forbidden')?Object.assign(Error('forbidden'),{telegramCode:403,definitelyNotSent:true}):Error('lost response');};
   await broadcastRelease(f.env,send);f.db.exec('UPDATE user_release_outbox SET lease_until=0');await broadcastRelease(f.env,send);assert.equal(calls,kind==='crash'?0:1);
   const payload=JSON.parse(f.db.prepare('SELECT payload FROM user_release_outbox').get().payload);assert.equal(payload.delivery.phase,kind.endsWith('forbidden')?'blocked':'uncertain');
  }finally{f.close();}}

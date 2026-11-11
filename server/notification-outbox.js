@@ -1,4 +1,4 @@
-import {digestWidget,expenseWidget,lunchWidget,paymentsWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
+import {digestWidget,expenseWidget,lunchWidget,notificationControls,paymentsWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
 import {failedDelivery,telegramFailureCode} from './delivery-state.js';
 import {recordOperation} from './operations.js';
 import {lunchDayStatus} from '../src/lunch-day-state.js';
@@ -6,7 +6,7 @@ import {attentionMessage} from './attention-message.js';
 import {paymentReminderEvents} from '../src/payment-reminders.js';
 import {sendSummary} from './summary-delivery.js';
 import {lunchReminderDay} from '../src/lunch-schedule.js';
-import {duePayments} from '../src/due-payments.js';
+import {duePayments,paymentFromEvent} from '../src/due-payments.js';
 import {paymentReminder,expenseReminder,expenseCheckStopped} from './notifications.js';
 import {moduleEnabled} from '../src/modules.js';
 const ready=new WeakSet();
@@ -37,13 +37,13 @@ export async function deliverNotifications(env,userId,day,data,reports,responses
    let card;
    if(useWidget){
     if(payload.report&&!payload.progress?.photoSent)card=summaryWidget(data,payload.report);
-    else if(payload.kind==='expense')card=expenseWidget(data,row.day,payload.attempt||0);
+    else if(payload.kind==='expense')card=expenseWidget(data,row.day);
     else if(payload.kind==='lunch')card=lunchWidget(payload.body,row.day);
     else if(payload.kind==='digest')card=digestWidget(data,day,responses);
-    else if(currentOnce||planned)card=paymentsWidget(currentOnce?[currentOnce]:planned,currentOnce?.date||day);
+    else if(currentOnce||planned)card=paymentsWidget(currentOnce?[paymentFromEvent(currentOnce)]:planned,currentOnce?.date||day);
    }
    if(card){
-    const sent=await sendNotificationWidget(env,send,payload.body,card);
+    const sent=await sendNotificationWidget(env,send,payload.body,{...card,controls:card.controls??notificationControls(payload.body)});
     payload.delivery.messageId=sent?.message_id;
    }else if(payload.report){
     await deliverSummary(env,userId,data,{...payload.report,text:payload.body.text},send,{priority:'background',progress:payload.progress||{},checkpoint:async progress=>{

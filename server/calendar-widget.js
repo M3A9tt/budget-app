@@ -19,8 +19,19 @@ import {widgetGlass} from './widget-glass.js';
 import {widgetBrand} from './widget-brand.js';
 import {accountWidgetData} from './accounts-widget-data.js';
 import {accountsWidgetHtml} from './notification-widget.js';
+import {dayChecks} from './habits.js';
 
-const html=String.raw`<style>
+export async function sendExpenseEntryWidget(env,userId,state,day,telegram){
+ const {data,revision}=state;
+ const view=JSON.parse(widgetData(data,'add',widgetBrand,revision));
+ view.rows=[];
+ view.draft.day=day;
+ view.draft.dateLabel=paymentDate(day);
+ await telegram(env,'sendWidget',{chat_id:userId,html:expenseEntryHtml,chat_data:JSON.stringify(view),
+  allow_queries:true,protect_content:true});
+}
+
+const widgetHtml=(expenseEntry=false)=>String.raw`<style>
 ${widgetGlass}
 body{margin:0;color:#e8eff4;font:15px system-ui}
 [hidden]{display:none!important}
@@ -85,14 +96,14 @@ function render(){
  payments.textContent='';
  entry.hidden=true;
  payments.hidden=false;
- nav.hidden=refresh.hidden=!view;
+ nav.hidden=refresh.hidden=${expenseEntry?'true':'!view'};
  if(!view)return;
  title.textContent=view.title;
  balance.textContent=view.balance||'';
  balance.hidden=!view.balance;
  status.textContent=view.rows.length?'':view.empty;
  for(const button of buttons)button.setAttribute('aria-pressed',String(button.dataset.page===view.page));
- for(const [date,label,amount,category,direction,detail,icon,color] of view.rows){
+ ${expenseEntry?'':`for(const [date,label,amount,category,direction,detail,icon,color] of view.rows){
   const row=document.createElement('li');
   row.className=direction||'expense';
   node(row,'time',date);
@@ -105,7 +116,7 @@ function render(){
   if(category&&category!==label)node(event,'small',category);
   node(row,'strong',amount);
   payments.appendChild(row);
- }
+ }`}
 }
 function request(page,force=false){
  if(!privateChat||saving)return;
@@ -176,12 +187,13 @@ function entryPanel(label){
  for(const button of buttons)button.setAttribute('aria-pressed',String(button.dataset.page==='add'));
 }
 function entryForm(){
- entryPanel('Новая запись');
+ entryPanel(${expenseEntry?"'Расход · '+draft.dateLabel":"'Новая запись'"});
+ ${expenseEntry?'':`
  const types=group('entry-tools');
  for(const [type,label,icon,tone] of [['e','Расход','<path d="M12 4v16m-6-6 6 6 6-6"/>','out'],['i','Доход','<path d="M12 20V4m-6 6 6-6 6 6"/>','in']]){
   const button=control(types,label,()=>{draft.type=type;entryForm();},icon);
   button.classList.add(tone);button.setAttribute('aria-pressed',String(draft.type===type));
- }
+ }`}
  const amount=node(entry,'strong','','balance');
  const fields=group('entry-tools picker');
  control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick('A',0),draft.account?.[4],draft.account?.[3],draft.account?.[5]);
@@ -191,7 +203,7 @@ function entryForm(){
   const value=key==='⌫'?draft.amount.slice(0,-1):draft.amount+(key===','?'.':key);
   if(/^\d{0,10}(?:\.\d{0,2})?$/.test(value)){draft.amount=value.startsWith('.')?'0'+value:value;updateAmount();}
  });
- const review=control(entry,'Проверить запись',()=>ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview));
+ const review=control(entry,'Проверить запись',()=>${expenseEntry?String.raw`query(['be',draft.day,draft.revision,draft.account[0],draft.category[0],draft.amount.replace(/\.$/,'')].join(':'),showPreview)`:String.raw`ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview)`});
  review.className='review';
  function updateAmount(){
   amount.textContent=(draft.amount||'0').replace('.',',')+' '+(draft.account?.[2]||'');
@@ -221,7 +233,9 @@ function showPreview(preview){
  const save=control(entry,draft.confirming?'Проверить сохранение':'Записать',()=>{
   draft.confirming=true;save.textContent='Проверить сохранение';edit.disabled=true;
   ask('s:'+preview.token,()=>{
-   draft=null;visited.clear();entryPanel('Запись сохранена');control(entry,'На Главную',()=>request('home',true));
+   ${expenseEntry?`const day=draft.day;draft=null;entryPanel('Запись сохранена');
+   control(entry,'Завершить проверку',()=>query('check:'+day+':done',result=>{entryPanel('Проверка завершена');status.textContent=result.status||'';}));`:
+    "draft=null;visited.clear();entryPanel('Запись сохранена');control(entry,'На Главную',()=>request('home',true));"}
   });
  });
  const edit=control(entry,'Изменить',()=>{draft.preview=null;entryForm();});
@@ -234,6 +248,7 @@ render();
 if(draft)startEntry();
 widget?.ready();
 </script>`.replace(/^ +/gm,'');
+const html=widgetHtml(),expenseEntryHtml=widgetHtml(true);
 
 function widgetData(data,page,brand,revision){
  const draft=page==='add'?{revision,type:'e',amount:'',account:null,category:null}:undefined;
@@ -271,7 +286,7 @@ function privateChat(chat,from){
 const entryAccounts=data=>data.accounts.filter(account=>!account.archived);
 const entryCategories=data=>categoryCatalog(data.customCats).filter(category=>!['lunch','income'].includes(category.id));
 
-async function widgetEntry(env,id,query,readState,state){
+async function widgetEntry(env,id,query,readState,state,previewOnly){
  const {data,revision}=state;
  const text=query.data;
  if(text==='budget-entry:form'){
@@ -301,25 +316,31 @@ async function widgetEntry(env,id,query,readState,state){
   }
   return {...page,options:index===target?page.options:[],more:false};
  }
- const preview=/^budget-entry:p:([ei]):(\d{1,16}):(\d{1,6}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
+ const contextual=/^be:(\d{4}-\d{2}-\d{2}):(\d{1,16}):(\d{1,6}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
+ const day=contextual?.[1];
+ const preview=contextual?[text,'e',...contextual.slice(2)]:/^budget-entry:p:([ei]):(\d{1,16}):(\d{1,6}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
  if(preview){
   const [,direction,version,accountIndex,categoryIndex,raw]=preview;
   if(Number(version)!==revision)throw Error('Данные изменились. Открой запись заново.');
   const account=entryAccounts(data)[Number(accountIndex)],category=entryCategories(data)[Number(categoryIndex)];
   const amount=parseMoney(raw),type=direction==='i'?'income':'expense';
   if(!account||type==='expense'&&!category||!Number.isFinite(amount)||amount<=0)throw Error('Проверь сумму, счёт и категорию.');
-  const values={amount,accountId:account.id,cat:type==='income'?'income':category.id,currency:account.currency||'RUB',date:todayMoscow(data.settings.timeZone)};
-  const draft={kind:'widget-entry',messageId:query.message_id,op:'tx',args:{type,requireAccount:true},values,revision};
+  const today=todayMoscow(data.settings.timeZone);
+  if(day&&(day>today||!previewOnly&&!(await dayChecks(env,id,day)).some(row=>row.kind==='expense'&&row.status==='editing')))throw Error('Проверка дня закрыта.');
+  const values={amount,accountId:account.id,cat:type==='income'?'income':category.id,currency:account.currency||'RUB',date:day||today};
+  const draft={kind:'widget-entry',messageId:query.message_id,op:'tx',args:{type,requireAccount:true,...(day?{checkDay:day}:{})},values,revision};
   applyBotAction(structuredClone(data),draft.op,draft.args,values);
-  const token=await create(env,id,draft,'bw_');
+  const token=previewOnly?'bw_'+'0'.repeat(32):await create(env,id,draft,'bw_');
   return {token,amount:(type==='income'?'+':'−')+money(amount,values.currency),date:paymentDate(values.date),account:Array.from(account.name).slice(0,60).join(''),category:type==='income'?'Доход':Array.from(category.name).slice(0,60).join('')};
  }
  const confirm=/^budget-entry:s:(bw_[a-f0-9]{32})$/.exec(text);
  if(confirm){
   const token=confirm[1];
+  if(previewOnly)return {saved:token==='bw_'+'0'.repeat(32)};
   if(await readReceipt(env,id,'bot:'+token))return {saved:true};
   const {p}=await load(env,id,token);
   if(p.kind!=='widget-entry'||p.messageId!==query.message_id)throw Error('Открой запись в исходной карточке.');
+  if(p.args.checkDay&&!(await dayChecks(env,id,p.args.checkDay)).some(row=>row.kind==='expense'&&row.status==='editing'))throw Error('Проверка дня закрыта.');
   await commitBotAction(env,id,token,p,readState);
   return {saved:true};
  }
@@ -367,10 +388,10 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  return true;
 }
 
-export async function answerCalendarWidget(query,{env,readState,telegram,openAdd,access=hasAccess}){
+export async function answerCalendarWidget(query,{env,readState,telegram,openAdd,access=hasAccess,previewOnly=false}){
  if(typeof query.id!=='string'||!privateChat(query.chat,query.from)||query.inline_message_id||query.widget_id||
   !Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data')return;
- const match=/^budget-menu:(home|calendar|history|add)$/.exec(query.data),entry=typeof query.data==='string'&&query.data.startsWith('budget-entry:');
+ const match=/^budget-menu:(home|calendar|history|add)$/.exec(query.data),entry=typeof query.data==='string'&&/^(?:budget-entry:|be:)/.test(query.data);
  const account=/^budget-account:(list|\d{1,16}):(\d{1,6})(?::(\d{1,6}))?$/.exec(query.data);
  if((!match&&!entry&&!account)||!await access(env,query.from.id))return;
  const id=String(query.from.id),state=await readState(env,id),{data}=state,page=match?.[1];
@@ -383,7 +404,7 @@ export async function answerCalendarWidget(query,{env,readState,telegram,openAdd
    accountWidgetData(data,state.revision);
  }
  else if(entry){
-  try{result=JSON.stringify(await widgetEntry(env,id,query,readState,state));}
+  try{result=JSON.stringify(await widgetEntry(env,id,query,readState,state,previewOnly));}
   catch{result=JSON.stringify({error:'Запись не подтверждена. Проверь данные или повтори подтверждение.'});}
  }
  else if(page==='add'){

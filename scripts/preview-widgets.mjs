@@ -1,5 +1,7 @@
 import {createServer} from 'vite';
 import {reviewData} from './preview-data.mjs';
+import {todayMoscow} from '../src/mini-model.js';
+import {moveDate} from '../src/finance-events.js';
 
 const state={data:reviewData(),revision:1};
 const from={id:1},chat={id:1,type:'private'};
@@ -7,11 +9,11 @@ const port=Number(process.env.WIDGET_PREVIEW_PORT||5189);
 const notifications=[
  ['accounts','Счета'],
  ['expense','Проверка расходов'],['day','Итог дня'],['week','Итог недели'],
- ['month','Итог месяца'],['payments','Платежи'],['lunch','Обед'],['digest','Сводка'],
+ ['month','Итог месяца'],['payments','Платежи'],['lunch','Обед'],['digest','Сводка'],['release','Обновление'],
 ];
 
 function shell(requestedCard,telegramLogo){
- const cards=[['menu','Меню бота'],['entry','Запись'],...notifications];
+ const cards=[['menu','Меню бота'],['entry','Запись'],['expense-entry','Расход из проверки'],...notifications];
  const active=cards.some(([id])=>id===requestedCard)?requestedCard:'menu';
  const links=cards.map(([id,label])=>
   `<a href="/?card=${id}${telegramLogo?'&amp;logo=telegram':''}"${id===active?' aria-current="page"':''}>${label}</a>`).join('');
@@ -35,7 +37,7 @@ const server=await createServer({
  server:{host:'127.0.0.1',port,strictPort:true},
  plugins:[{name:'widget-preview',configureServer(vite){
   vite.watcher.on('change',file=>{
-   if(/[\\/]server[\\/](?:calendar-widget|notification-widget|widget-(?:glass|brand))\.js$/.test(file)){
+   if(/[\\/]server[\\/](?:calendar-widget|notification-widget|notifications|widget-(?:glass|brand))\.js$/.test(file)){
     vite.ws.send({type:'full-reload',path:'*'});
    }
   });
@@ -46,34 +48,61 @@ const server=await createServer({
    res.setHeader('Content-Type','text/html; charset=utf-8');
    try{
     if(url.pathname==='/'){res.end(shell(url.searchParams.get('card'),url.searchParams.get('logo')==='telegram'));return;}
-    const {calendarWidget,answerCalendarWidget}=await vite.ssrLoadModule('/server/calendar-widget.js');
+    const {calendarWidget,answerCalendarWidget,sendExpenseEntryWidget}=await vite.ssrLoadModule('/server/calendar-widget.js');
     let payload;
     const telegram=async(_env,_method,body)=>{payload=body;};
     const accountsRoute=url.pathname==='/card/accounts'||url.searchParams.get('data')?.startsWith('budget-account:');
     const dataForRoute=accountsRoute?previewAccounts(state.data):state.data;
-    const deps={env:{},access:async()=>true,readState:async()=>({...state,data:dataForRoute}),telegram};
+    const deps={env:{},access:async()=>true,readState:async()=>({...state,data:dataForRoute}),telegram,previewOnly:true};
     if(url.pathname==='/query'){
      const data=url.searchParams.get('data')||'';
-     if(/^budget-entry:[ps]:/.test(data))payload={data:JSON.stringify({error:'Сохранение доступно только в Telegram.'})};
+     const releasePage=/^r:([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(data);
+     if(releasePage){
+      const {latestRelease}=await vite.ssrLoadModule('/src/release-notes.js');
+      const {releaseWidget}=await vite.ssrLoadModule('/server/notification-widget.js');
+      const page=Number(releasePage[2]);
+      payload={data:JSON.stringify(releasePage[1]===latestRelease.id&&page<latestRelease.changes.length
+       ?releaseWidget(latestRelease,page):{error:'Страница обновления недоступна.'})};
+     }else if(/^lunch:\d{4}-\d{2}-\d{2}:skip$/.test(data)){
+      const {lunchReasonControls}=await vite.ssrLoadModule('/server/habits.js');
+      payload={data:JSON.stringify({status:'Почему не заказал?',controls:lunchReasonControls(data.split(':')[1])})};
+     }else if(/^lunch:\d{4}-\d{2}-\d{2}:reason:/.test(data)){
+      payload={data:JSON.stringify({status:'Обед отмечен · предпросмотр',done:true})};
+     }else if(/^check:\d{4}-\d{2}-\d{2}:history(?::\d{1,6})?$/.test(data)){
+      const {expenseHistoryWidget}=await vite.ssrLoadModule('/server/notification-widget.js');
+      const [,day,,page]=data.split(':');
+      payload={data:JSON.stringify(expenseHistoryWidget(state.data,day,Number(page)||0))};
+     }else if(/^check:\d{4}-\d{2}-\d{2}:pending$/.test(data)){
+      payload={data:JSON.stringify({status:'Форма расхода открыта.'})};
+     }else if(/^(?:lunch:|check:|b:)/.test(data))payload={data:JSON.stringify({status:'Предпросмотр. Данные не изменились.'})};
      else await answerCalendarWidget({id:'preview',chat,from,message_id:1,type:{type:'data'},data},deps);
      res.setHeader('Content-Type','application/json; charset=utf-8');
      res.end(JSON.stringify({result:payload?.data||'{}'}));return;
     }
     const kind=url.pathname.slice(6);
-    if(['menu','entry','accounts'].includes(kind)){
+    if(kind==='expense-entry'){
+     await sendExpenseEntryWidget({},1,state,moveDate(todayMoscow(state.data.settings.timeZone),-1),telegram);
+    }else if(['menu','entry','accounts'].includes(kind)){
      await calendarWidget({chat,from,text:kind==='accounts'?'/accounts':kind==='entry'?'/add':'/menu'},{...deps,readState:async()=>({...state,data:{...dataForRoute,settings:{...dataForRoute.settings,calendarWidgetMenuEnabled:true}}})});
     }else if(notifications.some(([id])=>id===kind)){
      const cards=await vite.ssrLoadModule('/server/notification-widget.js');
-     const {todayMoscow}=await vite.ssrLoadModule('/src/mini-model.js');
-     const {moveDate,scheduledEvents}=await vite.ssrLoadModule('/src/finance-events.js');
+     const {expenseReminder,lunchReminder}=await vite.ssrLoadModule('/server/notifications.js');
+     const {attentionMessage}=await vite.ssrLoadModule('/server/attention-message.js');
+     const {latestRelease}=await vite.ssrLoadModule('/src/release-notes.js');
+     const {scheduledEvents}=await vite.ssrLoadModule('/src/finance-events.js');
+     const {paymentFromEvent}=await vite.ssrLoadModule('/src/due-payments.js');
      const {data}=state,today=todayMoscow(data.settings.timeZone);
      const reports={day:[0,'Итог дня'],week:[-6,'Итог недели'],month:[-29,'Итог месяца']};
      const report=reports[kind];
-     const card=report?cards.summaryWidget(data,{from:moveDate(today,report[0]),to:today,title:report[1]})
-      :kind==='expense'?cards.expenseWidget(data,moveDate(today,-1),0)
-      :kind==='payments'?cards.paymentsWidget(scheduledEvents(data,today,moveDate(today,7),today).slice(0,3),today)
-      :kind==='lunch'?cards.lunchWidget({text:'Обед сегодня?'},today)
-      :cards.digestWidget(data,today);
+     const expenseDay=moveDate(today,-1);
+     const payments=kind==='payments'?scheduledEvents(data,today,moveDate(today,7),today).slice(0,3).map(paymentFromEvent):[];
+     const card=kind==='release'?cards.releaseWidget(latestRelease)
+      :report?cards.summaryWidget(data,{from:moveDate(today,report[0]),to:today,title:report[1]})
+      :kind==='expense'?{...cards.expenseWidget(data,expenseDay),
+       controls:cards.notificationControls(expenseReminder(data,expenseDay))}
+      :kind==='payments'?cards.paymentsWidget(payments,today)
+      :kind==='lunch'?cards.lunchWidget(lunchReminder(today),today)
+      :{...cards.digestWidget(data,today),controls:cards.notificationControls(attentionMessage(data,today))};
      await cards.sendNotificationWidget({},telegram,{chat_id:1},card);
 
     }
@@ -85,7 +114,10 @@ const server=await createServer({
      if(originalLogo.closest('h3')){originalLogo.width=144;originalLogo.height=42;}
      </script>`:'';
     res.end(`<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>
-     window.TelegramWidget={chatType:'private',chatData:${chatData},ready(){},request(data){return fetch('/query?data='+encodeURIComponent(data)).then(r=>r.json());}};
+     window.TelegramWidget={chatType:'private',chatData:${chatData},ready(){},request(data){
+      if(/^check:\\d{4}-\\d{2}-\\d{2}:pending$/.test(data))parent.location.href='/?card=expense-entry'+(location.search?'':'&logo=telegram');
+      return fetch('/query?data='+encodeURIComponent(data)).then(r=>r.json());
+     }};
      </script>${payload.html}${originalBrand}</html>`);
    }catch(error){vite.config.logger.error(error.stack);res.statusCode=500;res.end('Ошибка предпросмотра');}
   });

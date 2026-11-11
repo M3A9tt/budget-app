@@ -2,7 +2,7 @@ import {lunchDayStatus} from '../src/lunch-day-state.js';
 import {attentionMessage} from './attention-message.js';
 import {moveDate} from '../src/finance-events.js';
 import {paymentReminderEvents,localReminderInstant} from '../src/payment-reminders.js';
-import {duePayments,paymentCallback} from '../src/due-payments.js';
+import {duePayments,paymentCallback,paymentFromEvent} from '../src/due-payments.js';
 import {money} from '../src/mini-model.js';
 import {lunchReminderDay,lunchCalendarVerified} from '../src/lunch-schedule.js';
 import {clockAt,settingTime,timeMinutes,DEFAULT_ZONE} from '../src/time-settings.js';
@@ -22,7 +22,7 @@ export function checkSchedule(data,today){
 export function notificationJobs(data,now,responses=[],{catchUp=false,lastRun}={}){
  const{date:today,minutes}=clockAt(now,data.settings?.timeZone||DEFAULT_ZONE),s=data.settings||{},reports=[],local=new Date(today+'T12:00:00Z');
  const due=slot=>minutes===slot||(catchUp&&minutes>slot);
- const explicitJobs=paymentReminderEvents(data,now.getTime()).map(e=>({id:'payment-once:'+e.id+':'+e.at,kind:'payment-once',day:today,eventId:e.id,eventDate:e.date,at:e.at,...paymentReminder([{...e,kind:e.source,id:e.source==='installment'?e.paymentId:e.sourceId,planId:e.sourceId,income:e.type==='income'}])}));
+ const explicitJobs=paymentReminderEvents(data,now.getTime()).map(e=>({id:'payment-once:'+e.id+':'+e.at,kind:'payment-once',day:today,eventId:e.id,eventDate:e.date,at:e.at,...paymentReminder([paymentFromEvent(e)])}));
  if(['manual','digest'].includes(s.notificationMode)){
   const jobs=[...explicitJobs];
   let missed=false;if(s.notificationMode==='digest'&&catchUp&&Number.isFinite(lastRun))try{const slot=localReminderInstant(data,moveDate(today,-1),settingTime(s,'report',21));missed=lastRun<slot&&now.getTime()-slot<86400000;}catch{/* A nonexistent DST wall time has no previous instant to replay. */}

@@ -1,5 +1,5 @@
 import {scheduledEvents,moveDate} from '../src/finance-events.js';
-import {answerCalendarWidget,calendarWidget} from './calendar-widget.js';
+import {answerCalendarWidget,calendarWidget,sendExpenseEntryWidget} from './calendar-widget.js';
 import {fetchExchangeRates} from './exchange-rates.js';
 import {financialCommand} from './financial-command.js';
 import {recordOperation,operationsReport,pruneOperations} from './operations.js';
@@ -12,7 +12,7 @@ import {legacyLunchInput,legacySaveCallback} from './legacy-lunch.js';
 import {initialProfile} from '../src/home-layout.js';
 import {backupBefore,trimBackups,encodeState,requestHash as hashRequest,checkPersistence,readReceipt} from './state-persistence.js';
 import {getPicture,pngInfo,pictureParams,pictureErrorCode} from './bot-pictures.js';
-import {botChat,showBotView,openQuickEntry,startBotForm,pauseBotForm,cancelBotFlow} from './bot-chat.js';
+import {botChat,showBotView,openDuePayment,openQuickEntry,startBotForm,pauseBotForm,cancelBotFlow} from './bot-chat.js';
 import {commitBotAction} from './bot-commit.js';
 import {sendBotFile,readBotDocument} from './bot-files.js';
 import {lunchChatMessage,lunchChatCallback,pruneLunchChat,pauseLunchEdit} from './lunch-chat.js';
@@ -27,12 +27,13 @@ import {deliverNotifications} from './notification-outbox.js';
 import {sendFeedback} from './feedback.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
 import {broadcastRelease} from './releases.js';
-import {latestRelease,releaseText} from '../src/release-notes.js';
+import {latestRelease,releaseText,releases} from '../src/release-notes.js';
 import {notificationChecks,setDayCheck,pauseLegacyLunchInput,habitCallback} from './habits.js';
 import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invitedUsers,setMemberAccess} from './users.js';
 import {EMPTY,demoData,money,todayMoscow} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {notificationJobs} from './notifications.js';
+import {expenseHistoryWidget,releaseWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
 import {validateTelegramInitData} from './telegram-auth.js';
 // Separate new D1 database. This Worker never writes to legacy Supabase.
 import {putTransaction,migrateData,validateStateChange} from '../src/ledger.js';
@@ -98,12 +99,18 @@ async function mutateState(env,userId,change){
 const habitApi={readState,mutateState,telegram};
 const lunchChatApi={readState,telegram};
 async function handleTelegram(update,env,{preferWidget=true}={}) {
-  if(update.widget_query){
-    const query=update.widget_query;
+  const query=update.widget_query;
+  const lunchAction=query&&/^lunch:\d{4}-\d{2}-\d{2}:(?:company|own|skip|off|reason:(?:late|vacation|unpaid|sick|other))$/.test(query.data);
+  const expenseAction=query&&/^check:\d{4}-\d{2}-\d{2}:(?:done|none|pending|later|history(?::\d{1,6})?|off)$/.test(query.data);
+  const testAction=query&&/^test:(?:expense|lunch|planned)$/.test(query.data);
+  const notificationAction=query&&/^b:(?:v:(?:due|attention|reminders)|n:(?:p:[^:]+:[^:]+|[id]:[^:]+))$/.test(query.data);
+  const releaseAction=query&&/^(r|tr):([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(query.data);
+  if(query&&!lunchAction&&!expenseAction&&!testAction&&!notificationAction&&!releaseAction){
     return answerCalendarWidget(query,{env,readState,telegram,openAdd:()=>handleTelegram({message:{from:query.from,chat:query.chat,text:'/add'}},env,{preferWidget:false})});
   }
-  const source=update.callback_query?.from||update.message?.from;
-  const chat=update.callback_query?.message?.chat||update.message?.chat;
+  if(query&&(typeof query.id!=='string'||query.inline_message_id||query.widget_id||!Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data'))return;
+  const source=query?.from||update.callback_query?.from||update.message?.from;
+  const chat=query?.chat||update.callback_query?.message?.chat||update.message?.chat;
   if(!source||!Number.isSafeInteger(source.id)||source.id<=0||source.is_bot||chat?.type!=='private'||String(chat.id)!==String(source.id))return;
   const command=(update.message?.text||'').trim();
   if(command.startsWith('/start invite_')){
@@ -122,11 +129,64 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
   const userId=String(source.id);
   const send=text=>telegram(env,'sendMessage',{chat_id:chat.id,text});
   const showHome=async text=>telegram(env,'sendMessage',{chat_id:userId,text,reply_markup:botKeyboard(env.MINI_APP_URL,(await readState(env,userId)).data)});
-  const showSummary=async period=>{const state=await readState(env,userId),today=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE).date,start=new Date(today+'T12:00:00Z');if(period==='week')start.setUTCDate(start.getUTCDate()-6);const from=period==='month'?today.slice(0,8)+'01':start.toISOString().slice(0,10);const title={day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period];await sendSummary(env,chat.id,state.data,{from,to:today,title,text:periodSummary(state.data,from,today,title),visual:period!=='month'},telegram);};
+  const showSummary=async period=>{
+    const {data}=await readState(env,userId),today=clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date;
+    const from=period==='month'?today.slice(0,8)+'01':period==='week'?moveDate(today,-6):today;
+    const title={day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period];
+    const report={from,to:today,title,text:periodSummary(data,from,today,title),visual:period!=='month'};
+    if(data.settings.calendarWidgetEnabled!==false){
+      return sendNotificationWidget(env,telegram,{chat_id:chat.id,text:report.text},summaryWidget(data,report));
+    }
+    return sendSummary(env,chat.id,data,report,telegram);
+  };
+  const showUpdates=async({widgetOnly=false}={})=>{
+    const {data}=await readState(env,userId),text=releaseText();
+    if(data.settings.calendarWidgetEnabled===false){
+      if(widgetOnly)return false;
+      await send(text);
+    }else await sendNotificationWidget(env,telegram,{chat_id:chat.id,text},releaseWidget(latestRelease));
+    return true;
+  };
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
   const formApi={...botApi,openForm:(op,args)=>startBotForm(env,userId,botApi,op,args),openLunch:async(day,type,prefill={},review=false)=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{...lunchEntryArgs(day,type,prefill),review});}};
+  const openExpense=async day=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});};
   const recognizedApi={...lunchChatApi,openRecognized:async(sourceId,payload)=>{await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{type:'lunch',prefill:payload.tx,review:!!payload.tx.amount,recognizedLunch:{sourceId,parsed:payload.parsed},returnTo:{name:'lunch',args:{month:payload.tx.date.slice(0,7)}}});}};
   try {
+    if(query){
+      const answer=result=>telegram(env,'answerWidgetQuery',{widget_query_id:query.id,data:JSON.stringify(result)});
+      const state=await readState(env,userId),{data}=state;
+      if(data.settings.calendarWidgetEnabled===false)return answer({error:'Виджеты отключены.'});
+      if(testAction)return answer({status:'Кнопка работает. Данные не изменены.'});
+      if(releaseAction){
+        const [,kind,id,index]=releaseAction,release=releases.find(item=>item.id===id),page=Number(index);
+        if(!release||page>=release.changes.length)return answer({error:'Страница обновления недоступна.'});
+        return answer(releaseWidget(release,page,{test:kind==='tr'}));
+      }
+      if(notificationAction){
+        const [,action,kind,id,period]=query.data.split(':');
+        if(action==='n'){
+          if(!await openDuePayment(env,userId,botApi,kind,id,period)){
+            await showBotView(env,userId,botApi,'due');
+            return answer({status:'Платёж уже закрыт или изменён. Актуальный список открыт в чате.'});
+          }
+        }else{
+          await pauseBotForm(env,userId,botApi);
+          await showBotView(env,userId,botApi,kind==='reminders'?'settingGroup':kind,kind==='reminders'?{group:'reminders'}:{});
+        }
+        return answer({status:'Открыто в чате.'});
+      }
+      let closed,history,entryOpened=false;
+      try{
+        return await habitCallback(env,userId,{id:query.id,data:query.data,message:{message_id:query.message_id}},
+         {...habitApi,openLunch:formApi.openLunch,openExpense:async day=>{
+           try{await sendExpenseEntryWidget(env,userId,state,day,telegram);entryOpened=true;}
+           catch(error){if(![400,404].includes(error.telegramCode))throw error;await openExpense(day);}
+          },close:async text=>{closed=text;},
+          showExpenseHistory:async (day,page)=>{history=expenseHistoryWidget(data,day,page);},
+          answer:status=>answer(history||{status:entryOpened?'Форма расхода открыта.':closed||status,done:lunchAction||Boolean(closed)&&!entryOpened}),
+          chooseLunchReason:controls=>answer({status:'Почему не заказал?',controls})});
+      }catch(error){return answer({error:error.message});}
+    }
     const switched=userSwitchedDialog(update);
     if(switched&&!['/cancel','Отмена'].includes(navigationCommand((update.message?.text||'').trim()))){await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);}
     if(preferWidget&&await calendarWidget(update.message,{env,readState,mutateState,telegram})){
@@ -141,15 +201,16 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
       return;
     }
     if(update.message&&await legacyLunchInput(env,userId,update.message,formApi)){if(['/cancel','Отмена'].includes((update.message.text||'').trim()))await cancelBotFlow(env,userId,botApi);return;}
+    if(update.message&&navigationCommand(command)==='/updates'&&await showUpdates({widgetOnly:true}))return;
     if(await botChat(update,env,userId,botApi)){
       return;
     }
     if(update.callback_query) {
       const callback=update.callback_query,data=callback.data||'';
-      if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await showBotView(env,userId,botApi,'more');else if(action==='updates')await send(releaseText());else if(action==='help')await showBotView(env,userId,botApi,'help');else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
+      if(data.startsWith('nav:')){const action=data.slice(4);await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id});if(['day','week','month'].includes(action))await showSummary(action);else if(action==='more')await showBotView(env,userId,botApi,'more');else if(action==='updates')await showUpdates();else if(action==='help')await showBotView(env,userId,botApi,'help');else if(action==='home')await showHome('Клавиатура Бюрджета\nВыбери действие внизу 👇');return;}
       if(await lunchChatCallback(env,userId,callback,recognizedApi))return;
       if(data.startsWith('test:')){await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'🧪 Тест пройден: кнопка работает. Данные не изменены.',show_alert:true});return;}
-      if(await habitCallback(env,userId,callback,{...habitApi,showExpenseHistory:day=>showBotView(env,userId,botApi,'history',{from:day,to:day,type:'expense'}),openLunch:formApi.openLunch,openExpense:async day=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});}}))return;
+      if(await habitCallback(env,userId,callback,{...habitApi,showExpenseHistory:day=>showBotView(env,userId,botApi,'history',{from:day,to:day,type:'expense'}),openLunch:formApi.openLunch,openExpense}))return;
       if(data.startsWith('notify:')){
         await telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text:'Настройки в чате'});
         await showBotView(env,userId,botApi,'settingGroup',{group:'reminders'});return;
@@ -169,7 +230,6 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
     if(text==='/start'||text==='/help'||text==='/menu'){await readState(env,userId);await showHome(text==='/menu'?'Клавиатура Бюрджета\nВыбери действие внизу 👇':botHelp);return;}
     if(text==='/summary'){await telegram(env,'sendMessage',{chat_id:userId,text:'Сводки\nЗа какой период показать?',reply_markup:summariesMenu()});return;}
     if(text==='/app'){if(env.MINI_APP_URL)await telegram(env,'sendMessage',{chat_id:userId,text:'Открыть Бюрджет',reply_markup:{inline_keyboard:[[{text:'💼 Открыть Бюрджет',web_app:{url:env.MINI_APP_URL}}]]}});else await send('Адрес мини-аппы ещё не настроен');return;}
-    if(text==='/updates'){await send(releaseText());return;}
     if(text==='/lunch'){if(!env.MINI_APP_URL){await send('Адрес мини-аппы ещё не настроен');return;}const url=new URL(env.MINI_APP_URL);url.searchParams.set('lunch','1');await telegram(env,'sendMessage',{chat_id:userId,text:'Обеды: месячный лимит, копилка и доплаты.',reply_markup:{inline_keyboard:[[{text:'Открыть обеды',web_app:{url:url.href}}]]}});return;}
     if(text==='/reminders'){await showBotView(env,userId,botApi,'settingGroup',{group:'reminders'});return;}
     if(text==='/invite'){

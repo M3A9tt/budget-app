@@ -3,6 +3,7 @@ import {hasAccess} from './users.js';
 import {latestRelease,releaseText} from '../src/release-notes.js';
 import {failedDelivery,telegramFailureCode} from './delivery-state.js';
 import {recordOperation} from './operations.js';
+import {releaseWidget,sendNotificationWidget} from './notification-widget.js';
 const quiet=data=>['manual','digest'].includes(data?.settings?.notificationMode);
 async function ensureOutbox(env){await env.DB.prepare('CREATE TABLE IF NOT EXISTS user_release_outbox(user_id TEXT NOT NULL,release_id TEXT NOT NULL,payload TEXT NOT NULL,queued_at INTEGER NOT NULL,lease_until INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,release_id))').run();}
 async function finalize(env,item){await env.DB.batch([
@@ -33,13 +34,16 @@ export async function broadcastRelease(env,send){
   }
   const profile=await env.DB.prepare('SELECT data FROM user_finance_state WHERE user_id=?').bind(item.user_id).first();
   // Unsent older releases are superseded instead of being dumped into a chat.
-  if(!profile||quiet(JSON.parse(profile.data))||!await hasAccess(env,item.user_id)||item.release_id!==latestRelease.id){await env.DB.prepare('DELETE FROM user_release_outbox WHERE user_id=? AND release_id=?').bind(item.user_id,item.release_id).run();continue;}
+  const data=profile&&JSON.parse(profile.data);
+  if(!data||quiet(data)||!await hasAccess(env,item.user_id)||item.release_id!==latestRelease.id){await env.DB.prepare('DELETE FROM user_release_outbox WHERE user_id=? AND release_id=?').bind(item.user_id,item.release_id).run();continue;}
   const claim=await env.DB.prepare('UPDATE user_release_outbox SET lease_until=? WHERE user_id=? AND release_id=? AND lease_until<=?').bind(now+120000,item.user_id,item.release_id,now).run();if(!claim.meta.changes)continue;
   let messageStarted=false;
   try{
    await configureMiniAppMenu(env,item.user_id,send);
    payload.delivery={phase:'sending',startedAt:Date.now()};await env.DB.prepare('UPDATE user_release_outbox SET payload=? WHERE user_id=? AND release_id=?').bind(JSON.stringify(payload),item.user_id,item.release_id).run();messageStarted=true;
-   const sent=await send(env,'sendMessage',{chat_id:item.user_id,text:payload.text,reply_markup:payload.reply_markup});
+   const body={chat_id:item.user_id,text:payload.text,reply_markup:payload.reply_markup};
+   const sent=data.settings?.calendarWidgetEnabled!==false
+    ?await sendNotificationWidget(env,send,body,releaseWidget(latestRelease)):await send(env,'sendMessage',body);
    payload.delivery={...payload.delivery,phase:'delivered',messageId:sent?.message_id};await env.DB.prepare('UPDATE user_release_outbox SET payload=? WHERE user_id=? AND release_id=?').bind(JSON.stringify(payload),item.user_id,item.release_id).run();
    await finalize(env,item);stats.sent++;await recordOperation(env,'delivery','delivered',Date.now()-payload.delivery.startedAt);
   }catch(error){
