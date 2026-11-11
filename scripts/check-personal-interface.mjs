@@ -31,11 +31,21 @@ try{for(const version of [1,2]){
  for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:844});await shot('home-'+width);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'home overflow '+width);}
  if(version===2){
   const before=structuredClone(data),beforeRevision=revision;
+  const groceries=page.getByRole('button',{name:/Продукты на неделю/});
+  const inspectAndReturn=async()=>{
+   await groceries.click();
+   await page.getByRole('heading',{name:'Изменить',exact:true}).waitFor();
+   await page.locator('.entry-screen-heading').getByRole('button',{name:'Назад'}).click();
+   await groceries.waitFor();
+   assert.equal(revision,beforeRevision);
+  };
   await page.setViewportSize({width:390,height:844});
   await page.locator('.ins-account-strip button').filter({hasText:'Основная карта'}).click();
   await page.locator('.account-detail-heading').getByRole('heading',{name:'Основная карта'}).waitFor();
   assert.equal(await page.locator('.account-action-panel').count(),0);
   await page.getByRole('button',{name:'Все операции',exact:true}).click();
+  await inspectAndReturn();
+  await page.locator('.ins-filter-chip').getByText('Основная карта',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Сбросить ×',exact:true}).click();
   await page.getByRole('button',{name:'К счёту',exact:true}).click();
   await page.locator('.account-detail-heading').getByRole('button',{name:'Назад'}).click();
@@ -44,6 +54,8 @@ try{for(const version of [1,2]){
   await nav('Аналитика').click();
   await page.getByRole('button',{name:'7 дней',exact:true}).click();
   await page.locator('.report-category').filter({hasText:'Еда'}).click();
+  await page.locator('.ins-filter-chip').getByText(/Еда/).waitFor();
+  await inspectAndReturn();
   await page.locator('.ins-filter-chip').getByText(/Еда/).waitFor();
   await page.getByRole('button',{name:'Сбросить ×',exact:true}).click();
   await page.getByRole('button',{name:'К аналитике',exact:true}).click();
