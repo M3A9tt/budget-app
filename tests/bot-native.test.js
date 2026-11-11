@@ -41,7 +41,7 @@ test('Widget menu receives authenticated private queries and opens the existing 
  const before=f.snapshot();
  const query=async(data,secret='test-hook',who=111)=>worker.fetch(new Request('https://budget.test/telegram/webhook',{
   method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':secret,'Content-Type':'application/json'},
-  body:JSON.stringify({widget_query:{id:data,from:{id:who},chat:{id:who,type:'private'},message_id:101,type:{type:'data'},data:data.startsWith('budget-entry:')?data:'budget-menu:'+data}})
+  body:JSON.stringify({widget_query:{id:data,from:{id:who},chat:{id:who,type:'private'},message_id:101,type:{type:'data'},data:data.startsWith('budget-')?data:'budget-menu:'+data}})
  }),f.env);
  assert.equal((await query('home','wrong')).status,401);
  assert.equal((await query('home','test-hook',333)).status,200);
@@ -100,6 +100,17 @@ test('Widget menu receives authenticated private queries and opens the existing 
  const entry=f.sent.at(-1);
  assert.equal(entry.method,'sendWidget');
  assert.equal(JSON.parse(entry.body.chat_data).draft.revision,fresh.revision+1);
+ await f.update('/accounts');
+ const accounts=f.sent.at(-1);
+ assert.equal(accounts.method,'sendWidget');
+ const [bank]=JSON.parse(accounts.body.chat_data).rows;
+ assert.equal(bank[0],'Банк');
+ await query(bank[3]);
+ const account=JSON.parse(f.sent.at(-1).body.data);
+ assert.equal(account.title,'Банк');
+ assert.ok(account.rows.some(row=>row[1].startsWith('+200')));
+ await query(account.controls[0][1]);
+ assert.equal(JSON.parse(f.sent.at(-1).body.data).title,'Счета');
  await f.update('/widget off');
  await f.update('/history');
  assert.notEqual(f.sent.at(-1).method,'sendWidget');

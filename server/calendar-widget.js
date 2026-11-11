@@ -17,6 +17,8 @@ import {isIcon} from '../src/icon-catalog.js';
 import {hasAccess} from './users.js';
 import {widgetGlass} from './widget-glass.js';
 import {widgetBrand} from './widget-brand.js';
+import {accountWidgetData} from './accounts-widget-data.js';
+import {accountsWidgetHtml} from './notification-widget.js';
 
 const html=String.raw`<style>
 ${widgetGlass}
@@ -325,7 +327,7 @@ async function widgetEntry(env,id,query,readState,state){
 }
 
 // Both entry points run after authentication of the Telegram webhook.
-const widgetPages=new Map([['/menu','home'],['/budget','home'],['/calendar','calendar'],['/history','history'],['/add','add']]);
+const widgetPages=new Map([['/menu','home'],['/budget','home'],['/calendar','calendar'],['/history','history'],['/add','add'],['/accounts','accounts']]);
 export async function calendarWidget(message,{env,readState,mutateState,telegram,access=hasAccess}){
  const text=message?.text?.trim(),command=/^\/widget(?: (on|off))?$/.exec(text);
  const page=widgetPages.get(navigationCommand(text));
@@ -350,8 +352,8 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  }
  try{
   await telegram(env,'sendWidget',{
-   chat_id:chatId,html,caption:'Меню Бюрджета · /menu  |  Клавиатура · /widget off',
-   chat_data:widgetData(data,command?'calendar':page,widgetBrand,revision),
+   chat_id:chatId,html:page==='accounts'?accountsWidgetHtml:html,caption:'Меню Бюрджета · /menu  |  Клавиатура · /widget off',
+   chat_data:page==='accounts'?accountWidgetData(data,revision):widgetData(data,command?'calendar':page,widgetBrand,revision),
    allow_queries:true,is_shared:false,protect_content:true,
    ...(replaceKeyboard?{reply_markup:{remove_keyboard:true}}:{})
   });
@@ -368,10 +370,17 @@ export async function answerCalendarWidget(query,{env,readState,telegram,openAdd
  if(typeof query.id!=='string'||!privateChat(query.chat,query.from)||query.inline_message_id||query.widget_id||
   !Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data')return;
  const match=/^budget-menu:(home|calendar|history|add)$/.exec(query.data),entry=typeof query.data==='string'&&query.data.startsWith('budget-entry:');
- if((!match&&!entry)||!await access(env,query.from.id))return;
+ const account=/^budget-account:(list|\d{1,16}):(\d{1,6})(?::(\d{1,6}))?$/.exec(query.data);
+ if((!match&&!entry&&!account)||!await access(env,query.from.id))return;
  const id=String(query.from.id),state=await readState(env,id),{data}=state,page=match?.[1];
  let result;
  if(data.settings.calendarWidgetEnabled===false)result=JSON.stringify({error:'Виджет отключён. Включить: /widget on'});
+ else if(account){
+  const [,version,position,offset]=account;
+  result=version==='list'?accountWidgetData(data,state.revision,{offset:Number(position)}):
+   Number(version)===state.revision?accountWidgetData(data,state.revision,{index:Number(position),offset:Number(offset||0)}):
+   accountWidgetData(data,state.revision);
+ }
  else if(entry){
   try{result=JSON.stringify(await widgetEntry(env,id,query,readState,state));}
   catch{result=JSON.stringify({error:'Запись не подтверждена. Проверь данные или повтори подтверждение.'});}
