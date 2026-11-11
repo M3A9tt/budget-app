@@ -34,7 +34,6 @@ jobs:
   verify:
     uses: ./.github/workflows/checks.yml
   safety_backup:
-    needs: verify
     uses: ./.github/workflows/database-backup.yml
     secrets: inherit
   deploy:
