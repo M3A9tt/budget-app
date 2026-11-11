@@ -10,75 +10,89 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            suite: core
+            name: verify (ubuntu-latest)
+          - os: windows-latest
+            suite: core
+            name: verify (windows-latest)
+          - os: ubuntu-latest
+            suite: workflows
+            name: verify (browser workflows)
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: ${{ runner.os == 'Linux' && '0' || '1' }}
+          fetch-depth: ${{ matrix.os == 'ubuntu-latest' && '0' || '1' }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
       - name: Require release notes
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'core'
         env:
           RELEASE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/check-release.mjs
       - run: npm ci
       - name: Production dependency audit
+        if: matrix.suite == 'core'
         run: npm audit --omit=dev
       - run: npm test
+        if: matrix.suite == 'core'
       - run: npm run build
+        if: matrix.suite == 'core'
       - run: npm run worker:check
+        if: matrix.suite == 'core'
       - name: Install browser for UI checks
         if: runner.os == 'Linux'
         run: npx --no-install playwright-core install --with-deps chromium
       - name: Check entry layout, pickers and complete financial flow
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'core'
         run: npm run test:layout
         env:
           LAYOUT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/entry-layout
       - name: Check current bot screenshots
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'core'
         run: npm run test:bot-cards
         env:
           BOT_CARD_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/bot-cards
       - name: Check financial UI in Chromium
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'core'
         run: npm run test:browser
         env:
           BROWSER_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa
       - name: Check reliability scenarios in Chromium
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'core'
         run: npm run test:reliability
       - name: Check recorded payments and emoji categories
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'core'
         run: npm run test:usability
         env:
           USABILITY_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/usability
       - name: Check payment actions, reconciliation and filters
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'workflows'
         run: npm run test:payments
         env:
           PAYMENT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/payment-experience
       - name: Check on-demand payment lifecycle
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'workflows'
         run: npm run test:ondemand
         env:
           ONDEMAND_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/on-demand
       - name: Check connected calendar and shared financial sources
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'workflows'
         run: npm run test:calendar
         env:
           CALENDAR_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/connected-calendar
       - name: Check unified expense and income entry
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'workflows'
         run: npm run test:entry
         env:
           ENTRY_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/unified-entry
       - name: Check personal interface and reversible pilot
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.suite == 'workflows'
         run: npm run test:personal
         env:
           PERSONAL_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/personal
@@ -86,6 +100,6 @@ jobs:
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: financial-ui-screenshots
+          name: ${{ matrix.suite == 'core' && 'financial-ui-screenshots' || 'financial-ui-workflow-screenshots' }}
           path: ${{ runner.temp }}/burget-browser-qa
           if-no-files-found: ignore
