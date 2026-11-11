@@ -1,5 +1,5 @@
 import {scheduledEvents,moveDate} from '../src/finance-events.js';
-import {answerCalendarWidget,calendarWidget,sendExpenseEntryWidget} from './calendar-widget.js';
+import {answerCalendarWidget,calendarWidget,sendDatedEntryWidget} from './calendar-widget.js';
 import {fetchExchangeRates} from './exchange-rates.js';
 import {financialCommand} from './financial-command.js';
 import {recordOperation,operationsReport,pruneOperations} from './operations.js';
@@ -178,12 +178,15 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
       let closed,history,entryOpened=false;
       try{
         return await habitCallback(env,userId,{id:query.id,data:query.data,message:{message_id:query.message_id}},
-         {...habitApi,openLunch:formApi.openLunch,openExpense:async day=>{
-           try{await sendExpenseEntryWidget(env,userId,state,day,telegram);entryOpened=true;}
+         {...habitApi,openLunch:async(day,type)=>{
+           try{await sendDatedEntryWidget(env,userId,state,day,telegram,type);entryOpened=true;}
+           catch(error){if(![400,404].includes(error.telegramCode))throw error;await formApi.openLunch(day,type);}
+          },openExpense:async day=>{
+           try{await sendDatedEntryWidget(env,userId,state,day,telegram);entryOpened=true;}
            catch(error){if(![400,404].includes(error.telegramCode))throw error;await openExpense(day);}
           },close:async text=>{closed=text;},
           showExpenseHistory:async (day,page)=>{history=expenseHistoryWidget(data,day,page);},
-          answer:status=>answer(history||{status:entryOpened?'Форма расхода открыта.':closed||status,done:lunchAction||Boolean(closed)&&!entryOpened}),
+          answer:status=>answer(history||{status:entryOpened?'Форма записи открыта.':closed||status,done:!entryOpened&&(lunchAction||Boolean(closed))}),
           chooseLunchReason:controls=>answer({status:'Почему не заказал?',controls})});
       }catch(error){return answer({error:error.message});}
     }

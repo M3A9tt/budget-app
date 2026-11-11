@@ -480,6 +480,36 @@ test('An expense reminder opens a dated widget and confirms the expense once',as
  });
 });
 
+test('Lunch widgets keep company meals out of the account and charge a personal meal once',async()=>{
+ for(const kind of ['company','own']){
+  const {env,call,data}=fixture(),day=moscowDate();
+  await call('222','state','PUT',{expectedRevision:0,data:data(1000)});
+  await setDayCheck(env,'222',day,'lunch','open');
+  const query=(id,action,message_id)=>worker.fetch(new Request('https://budget.test/telegram/webhook',{
+   method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-webhook'},
+   body:JSON.stringify({widget_query:{id,data:action,from:{id:222},chat:{id:222,type:'private'},message_id,type:{type:'data'}}}),
+  }),env);
+  await botTest(async messages=>{
+   await query('lunch-open','lunch:'+day+':'+kind,1);
+   const widget=messages.find(m=>m.url.endsWith('/sendWidget'));
+   const {deflateSync}=await import('node:zlib');
+   assert.ok(deflateSync(widget.body.html,{level:9}).length<=4096);
+   const draft=JSON.parse(widget.body.chat_data).draft;
+   assert.equal(draft.lunch,kind);
+   await query('lunch-preview',['bl',day,kind[0],draft.revision,0,150].join(':'),2);
+   const {token}=JSON.parse(messages.at(-1).body.data);
+   assert.match(token,/^bw_/);
+   await query('lunch-save','budget-entry:s:'+token,2);
+   await query('lunch-repeat','budget-entry:s:'+token,2);
+   const {data:saved}=await(await call('222')).json();
+   assert.equal(saved.transactions.length,1);
+   assert.equal(saved.transactions[0].type,kind==='own'?'expense':'lunch');
+   assert.equal(saved.accounts[0].balance,kind==='own'?850:1000);
+   assert.equal((await dayChecks(env,'222',day)).find(row=>row.kind==='lunch').status,'recorded');
+  });
+ }
+});
+
 test('Scheduled visual summary checkpoints photo and retries only full text without mutating finances',async()=>{
  const {env,call,data,db}=fixture(),day=moscowDate(),d=data(1000);await call('222','state','PUT',{expectedRevision:0,data:d});
  const {deliverNotifications}=await import('../server/notification-outbox.js');const {periodSummary}=await import('../server/period-summary.js');

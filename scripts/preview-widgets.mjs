@@ -3,7 +3,10 @@ import {reviewData} from './preview-data.mjs';
 import {todayMoscow} from '../src/mini-model.js';
 import {moveDate} from '../src/finance-events.js';
 
-const state={data:reviewData(),revision:1};
+const data=reviewData();
+const previewDay=todayMoscow(data.settings.timeZone);
+data.transactions=data.transactions.filter(entry=>entry.date!==previewDay||entry.type!=='lunch');
+const state={data,revision:1};
 const from={id:1},chat={id:1,type:'private'};
 const port=Number(process.env.WIDGET_PREVIEW_PORT||5189);
 const notifications=[
@@ -13,7 +16,8 @@ const notifications=[
 ];
 
 function shell(requestedCard,telegramLogo){
- const cards=[['menu','Меню бота'],['entry','Запись'],['expense-entry','Расход из проверки'],...notifications];
+ const cards=[['menu','Меню бота'],['entry','Запись'],['expense-entry','Расход из проверки'],...notifications,
+  ['lunch-company','Обед компании'],['lunch-own','Обед за свои']];
  const active=cards.some(([id])=>id===requestedCard)?requestedCard:'menu';
  const links=cards.map(([id,label])=>
   `<a href="/?card=${id}${telegramLogo?'&amp;logo=telegram':''}"${id===active?' aria-current="page"':''}>${label}</a>`).join('');
@@ -48,7 +52,7 @@ const server=await createServer({
    res.setHeader('Content-Type','text/html; charset=utf-8');
    try{
     if(url.pathname==='/'){res.end(shell(url.searchParams.get('card'),url.searchParams.get('logo')==='telegram'));return;}
-    const {calendarWidget,answerCalendarWidget,sendExpenseEntryWidget}=await vite.ssrLoadModule('/server/calendar-widget.js');
+    const {calendarWidget,answerCalendarWidget,sendDatedEntryWidget}=await vite.ssrLoadModule('/server/calendar-widget.js');
     let payload;
     const telegram=async(_env,_method,body)=>{payload=body;};
     const accountsRoute=url.pathname==='/card/accounts'||url.searchParams.get('data')?.startsWith('budget-account:');
@@ -80,8 +84,9 @@ const server=await createServer({
      res.end(JSON.stringify({result:payload?.data||'{}'}));return;
     }
     const kind=url.pathname.slice(6);
-    if(kind==='expense-entry'){
-     await sendExpenseEntryWidget({},1,state,moveDate(todayMoscow(state.data.settings.timeZone),-1),telegram);
+    if(['expense-entry','lunch-company','lunch-own'].includes(kind)){
+     const lunch=kind.startsWith('lunch-')?kind.slice(6):undefined,today=todayMoscow(state.data.settings.timeZone);
+     await sendDatedEntryWidget({},1,state,lunch?today:moveDate(today,-1),telegram,lunch);
     }else if(['menu','entry','accounts'].includes(kind)){
      await calendarWidget({chat,from,text:kind==='accounts'?'/accounts':kind==='entry'?'/add':'/menu'},{...deps,readState:async()=>({...state,data:{...dataForRoute,settings:{...dataForRoute.settings,calendarWidgetMenuEnabled:true}}})});
     }else if(notifications.some(([id])=>id===kind)){
@@ -115,7 +120,9 @@ const server=await createServer({
      </script>`:'';
     res.end(`<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>
      window.TelegramWidget={chatType:'private',chatData:${chatData},ready(){},request(data){
-      if(/^check:\\d{4}-\\d{2}-\\d{2}:pending$/.test(data))parent.location.href='/?card=expense-entry'+(location.search?'':'&logo=telegram');
+      const lunch=/^lunch:\\d{4}-\\d{2}-\\d{2}:(company|own)$/.exec(data);
+      const page=lunch?'lunch-'+lunch[1]:/^check:\\d{4}-\\d{2}-\\d{2}:pending$/.test(data)?'expense-entry':'';
+      if(page)parent.location.href='/?card='+page+(location.search?'':'&logo=telegram');
       return fetch('/query?data='+encodeURIComponent(data)).then(r=>r.json());
      }};
      </script>${payload.html}${originalBrand}</html>`);

@@ -20,13 +20,15 @@ import {widgetBrand} from './widget-brand.js';
 import {accountWidgetData} from './accounts-widget-data.js';
 import {accountsWidgetHtml} from './notification-widget.js';
 import {dayChecks} from './habits.js';
+import {lunchEntryArgs} from './lunch-entry.js';
 
-export async function sendExpenseEntryWidget(env,userId,state,day,telegram){
+export async function sendDatedEntryWidget(env,userId,state,day,telegram,lunch){
  const {data,revision}=state;
  const view=JSON.parse(widgetData(data,'add',widgetBrand,revision));
  view.rows=[];
  view.draft.day=day;
  view.draft.dateLabel=paymentDate(day);
+ if(lunch)view.draft.lunch=lunch;
  await telegram(env,'sendWidget',{chat_id:userId,html:expenseEntryHtml,chat_data:JSON.stringify(view),
   allow_queries:true,protect_content:true});
 }
@@ -187,7 +189,7 @@ function entryPanel(label){
  for(const button of buttons)button.setAttribute('aria-pressed',String(button.dataset.page==='add'));
 }
 function entryForm(){
- entryPanel(${expenseEntry?"'Расход · '+draft.dateLabel":"'Новая запись'"});
+ entryPanel(${expenseEntry?"(draft.lunch==='company'?'Обед компании':draft.lunch?'Обед за свои':'Расход')+' · '+draft.dateLabel":"'Новая запись'"});
  ${expenseEntry?'':`
  const types=group('entry-tools');
  for(const [type,label,icon,tone] of [['e','Расход','<path d="M12 4v16m-6-6 6 6 6-6"/>','out'],['i','Доход','<path d="M12 20V4m-6 6 6-6 6 6"/>','in']]){
@@ -196,28 +198,28 @@ function entryForm(){
  }`}
  const amount=node(entry,'strong','','balance');
  const fields=group('entry-tools picker');
- control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick('A',0),draft.account?.[4],draft.account?.[3],draft.account?.[5]);
- if(draft.type==='e')control(fields,draft.category?.[1]||'Выбрать категорию',()=>pick('C',0),draft.category?.[4],draft.category?.[3]);
+ ${expenseEntry?"if(draft.lunch!=='company')":''}control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick(${expenseEntry?"draft.lunch?'L':'A'":"'A'"},0),draft.account?.[4],draft.account?.[3],draft.account?.[5]);
+ if(draft.type==='e'${expenseEntry?'&&!draft.lunch':''})control(fields,draft.category?.[1]||'Выбрать категорию',()=>pick('C',0),draft.category?.[4],draft.category?.[3]);
  const keypad=group('picker keypad');
  for(const key of ['1','2','3','4','5','6','7','8','9',',','0','⌫'])control(keypad,key,()=>{
   const value=key==='⌫'?draft.amount.slice(0,-1):draft.amount+(key===','?'.':key);
   if(/^\d{0,10}(?:\.\d{0,2})?$/.test(value)){draft.amount=value.startsWith('.')?'0'+value:value;updateAmount();}
  });
- const review=control(entry,'Проверить запись',()=>${expenseEntry?String.raw`query(['be',draft.day,draft.revision,draft.account[0],draft.category[0],draft.amount.replace(/\.$/,'')].join(':'),showPreview)`:String.raw`ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview)`});
+ const review=control(entry,'Проверить запись',()=>${expenseEntry?String.raw`query((draft.lunch?['bl',draft.day,draft.lunch==='own'?'o':'c',draft.revision,draft.account?.[0]||0]:['be',draft.day,draft.revision,draft.account[0],draft.category[0]]).concat(draft.amount.replace(/\.$/,'')).join(':'),showPreview)`:String.raw`ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview)`});
  review.className='review';
  function updateAmount(){
   amount.textContent=(draft.amount||'0').replace('.',',')+' '+(draft.account?.[2]||'');
-  review.disabled=!(Number(draft.amount)>0&&draft.account&&(draft.type==='i'||draft.category));
+  review.disabled=!(Number(draft.amount)>0&&${expenseEntry?"(draft.lunch==='company'||draft.account&&(draft.lunch||draft.category))":"draft.account&&(draft.type==='i'||draft.category)"});
  }
  updateAmount();
 }
 function pick(kind,offset){
  ask(kind+':'+offset,result=>{
   if(result.revision!==draft.revision){draft=null;entryPanel('Данные изменились');control(entry,'К записи',startEntry);return;}
-  entryPanel(kind==='A'?'Счёт':'Категория');
+  entryPanel(kind==='C'?'Категория':'Счёт');
   const choices=group('entry-tools picker');
   for(const option of result.options)control(choices,option[1]+(option[2]?' · '+option[2]:''),()=>{
-   draft[kind==='A'?'account':'category']=option;entryForm();
+   draft[kind==='C'?'category':'account']=option;entryForm();
   },option[4],option[3],option[5]);
   const links=group('picker-nav');
   control(links,'К записи',entryForm);
@@ -233,8 +235,8 @@ function showPreview(preview){
  const save=control(entry,draft.confirming?'Проверить сохранение':'Записать',()=>{
   draft.confirming=true;save.textContent='Проверить сохранение';edit.disabled=true;
   ask('s:'+preview.token,()=>{
-   ${expenseEntry?`const day=draft.day;draft=null;entryPanel('Запись сохранена');
-   control(entry,'Завершить проверку',()=>query('check:'+day+':done',result=>{entryPanel('Проверка завершена');status.textContent=result.status||'';}));`:
+   ${expenseEntry?`const {day,lunch}=draft;draft=null;entryPanel('Запись сохранена');
+   if(!lunch)control(entry,'Завершить проверку',()=>query('check:'+day+':done',result=>{entryPanel('Проверка завершена');status.textContent=result.status||'';}));`:
     "draft=null;visited.clear();entryPanel('Запись сохранена');control(entry,'На Главную',()=>request('home',true));"}
   });
  });
@@ -284,6 +286,7 @@ function privateChat(chat,from){
 }
 
 const entryAccounts=data=>data.accounts.filter(account=>!account.archived);
+const lunchAccounts=data=>entryAccounts(data).filter(account=>(account.currency||'RUB')==='RUB');
 const entryCategories=data=>categoryCatalog(data.customCats).filter(category=>!['lunch','income'].includes(category.id));
 
 async function widgetEntry(env,id,query,readState,state,previewOnly){
@@ -292,9 +295,9 @@ async function widgetEntry(env,id,query,readState,state,previewOnly){
  if(text==='budget-entry:form'){
   return {revision,accounts:entryAccounts(data).length,categories:entryCategories(data).length};
  }
- const choices=/^budget-entry:([aAcC]):(\d{1,6})$/.exec(text);
+ const choices=/^budget-entry:([aAcCL]):(\d{1,6})$/.exec(text);
  if(choices){
-  const kind=choices[1],accounts=kind.toLowerCase()==='a',rows=accounts?entryAccounts(data):entryCategories(data),target=Number(choices[2]);
+  const kind=choices[1],accounts=!['c','C'].includes(kind),rows=kind==='L'?lunchAccounts(data):accounts?entryAccounts(data):entryCategories(data),target=Number(choices[2]);
   const rowFor=(item,i)=>{
    const saved=appearanceColors(accounts?item.colors:[item.color]);
    const colors=accounts&&!saved.length?['#648fa2','#8e7aab']:saved;
@@ -315,6 +318,18 @@ async function widgetEntry(env,id,query,readState,state,previewOnly){
    }
   }
   return {...page,options:index===target?page.options:[],more:false};
+ }
+ const lunch=/^bl:(\d{4}-\d{2}-\d{2}):([co]):(\d{1,16}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
+ if(lunch){
+  const [,day,kind,version,index,raw]=lunch;
+  if(Number(version)!==revision||day>todayMoscow(data.settings.timeZone))throw Error('Данные изменились.');
+  if(!previewOnly&&!(await dayChecks(env,id,day)).some(row=>row.kind==='lunch'))throw Error('Вопрос больше не активен.');
+  const account=kind==='o'?lunchAccounts(data)[Number(index)]:null,amount=parseMoney(raw);
+  if(kind==='o'&&!account||!Number.isFinite(amount)||amount<=0)throw Error('Проверь сумму и счёт.');
+  const args=lunchEntryArgs(day,kind==='o'?'own':'company'),values={...args.prefill,amount,accountId:account?.id};
+  applyBotAction(structuredClone(data),'tx',args,values);
+  const token=previewOnly?'bw_'+'0'.repeat(32):await create(env,id,{kind:'widget-entry',messageId:query.message_id,op:'tx',args,values,revision},'bw_');
+  return {token,amount:money(amount),date:paymentDate(day),account:account?.name||'За счёт компании',category:'Обед'};
  }
  const contextual=/^be:(\d{4}-\d{2}-\d{2}):(\d{1,16}):(\d{1,6}):(\d{1,6}):(\d{1,13}(?:\.\d{1,2})?)$/.exec(text);
  const day=contextual?.[1];
@@ -391,7 +406,7 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
 export async function answerCalendarWidget(query,{env,readState,telegram,openAdd,access=hasAccess,previewOnly=false}){
  if(typeof query.id!=='string'||!privateChat(query.chat,query.from)||query.inline_message_id||query.widget_id||
   !Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data')return;
- const match=/^budget-menu:(home|calendar|history|add)$/.exec(query.data),entry=typeof query.data==='string'&&/^(?:budget-entry:|be:)/.test(query.data);
+ const match=/^budget-menu:(home|calendar|history|add)$/.exec(query.data),entry=typeof query.data==='string'&&/^(?:budget-entry:|be:|bl:)/.test(query.data);
  const account=/^budget-account:(list|\d{1,16}):(\d{1,6})(?::(\d{1,6}))?$/.exec(query.data);
  if((!match&&!entry&&!account)||!await access(env,query.from.id))return;
  const id=String(query.from.id),state=await readState(env,id),{data}=state,page=match?.[1];

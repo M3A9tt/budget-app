@@ -47,7 +47,7 @@ export async function habitCallback(env,userId,callback,api){
  else if(action==='company'){
   await api.openLunch(day,'company');
  }else if(action==='own'){
-  const {data}=await api.readState(env,userId),accounts=data.accounts.filter(a=>(a.currency||'RUB')==='RUB');
+  const {data}=await api.readState(env,userId),accounts=data.accounts.filter(a=>!a.archived&&(a.currency||'RUB')==='RUB');
   if(!accounts.length){await send('Сначала добавь рублёвый счёт: Ещё → Счета. Затем нажми «Купил за свои» ещё раз.');}
   else await api.openLunch(day,'own');
  }else if(action==='account'){
