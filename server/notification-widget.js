@@ -8,11 +8,11 @@ import {iconShape} from '../src/mini-icon-shapes.js';
 import {paymentDate} from '../src/payment-copy.js';
 import {attentionItems} from '../src/attention.js';
 import {widgetGlass} from './widget-glass.js';
-import {notificationBrand} from './widget-brand.js';
+import {notificationBrand,widgetBrand} from './widget-brand.js';
 
 const icon=name=>'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+iconShape(name)+'</svg>';
 
-const html=`<style>
+const cardHtml=(interactive=false)=>`<style>
 ${widgetGlass}
 body{margin:0;color:#e8eff4;font:15px system-ui}
 section{padding:14px 15px}
@@ -36,27 +36,47 @@ time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
 #count{display:block;margin-top:6px}
 #foot{color:#c6d1dd;font-size:13px;margin-top:8px}
 @media(max-width:240px){.row{flex-wrap:wrap}}
-</style><section hidden id="card" class="widget-glass"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div><img class="brand" src="${notificationBrand}" alt="Бюрджет"></header>
-<div class="total"><span id="label"></span><strong id="sum"></strong></div><div id="rows"></div><small id="count"></small><p id="foot"></p></section>
+${interactive?'button{font:inherit;color:#c5e4d4;background:none;border:0;text-align:left;padding:6px 0;cursor:pointer}#controls{display:flex;gap:12px}':''}
+</style><section hidden id="card" class="widget-glass"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div><img class="brand" src="${interactive?widgetBrand:notificationBrand}" alt="Бюрджет"></header>
+<div class="total"><span id="label"></span><strong id="sum"></strong></div><div id="rows"></div><small id="count"></small><p id="foot"></p>${interactive?'<div id="controls"></div><small id="status" aria-live="polite"></small>':''}</section>
 <script>
 const w=window.TelegramWidget;
-if(w?.chatType==='private'&&!w.isForward&&!w.isPreview&&w.chatData){
- const d=JSON.parse(w.chatData);
- const get=id=>document.getElementById(id),put=(id,value)=>get(id).textContent=value;
+const get=id=>document.getElementById(id),put=(id,value)=>get(id).textContent=value;
+function render(d){
  put('heading',d.title);put('date',d.dateLabel);put('label',d.label);put('sum',d.sum);put('foot',d.foot);put('count',d.count);
  const marks=${JSON.stringify(Object.fromEntries(['check','chart','calendar','lunch','bell'].map(name=>[name,icon(name)])))};
  get('mark').innerHTML=marks[d.mark]||marks.chart;
- for(const [label,value,tone] of d.rows){
+ put('rows','');
+ for(const [label,value,tone,action] of d.rows){
   const row=document.createElement('div');row.className='row '+(tone||'');
   for(const [tag,text] of [['span',label],['b',value]]){
    const part=document.createElement(tag);part.textContent=text;row.appendChild(part);
   }
+  ${interactive?"if(action){const title=row.firstChild;title.textContent='';addAction(title,label,action);}":''}
   document.getElementById('rows').appendChild(row);
  }
- const card=get('card');card.classList.add(d.expense?'expense':d.mark||'chart');card.hidden=false;
+ const card=get('card');card.className='widget-glass '+(d.expense?'expense':d.mark||'chart');card.hidden=false;
+ ${interactive?"put('controls','');for(const [label,action] of d.controls||[])addAction(get('controls'),label,action);":''}
 }
+${interactive?`let pending=false;
+function addAction(parent,label,action){
+ const button=document.createElement('button');button.type='button';button.textContent=label;parent.appendChild(button);
+ button.addEventListener('click',async()=>{
+  if(pending)return;
+  pending=true;put('status','Загрузка…');
+  try{
+   const data=JSON.parse((await w.request(action)).result);
+   put('status',data.error||'');
+   if(!data.error)render(data);
+  }catch{put('status','Повтори запрос.');}
+  finally{pending=false;}
+ });
+}`:''}
+if(w?.chatType==='private'&&!w.isForward&&!w.isPreview&&w.chatData)render(JSON.parse(w.chatData));
 w?.ready();
 </script>`;
+const html=cardHtml();
+export const accountsWidgetHtml=cardHtml(true);
 
 export function expenseWidget(data,date,attempt){
  const {total,count,entries}=expenseCheckSummary(data,date,3);

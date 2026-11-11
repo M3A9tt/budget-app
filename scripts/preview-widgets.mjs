@@ -1,9 +1,5 @@
 import {createServer} from 'vite';
 import {reviewData} from './preview-data.mjs';
-import {accountTotals,isSavingAccount,orderedAccounts} from '../src/account-balances.js';
-import {money} from '../src/mini-model.js';
-import {activityEntries,filterActivity,transferDetails} from '../src/activity-history.js';
-import {categoryCatalog} from '../src/categories.js';
 
 const state={data:reviewData(),revision:1};
 const from={id:1},chat={id:1,type:'private'};
@@ -53,7 +49,9 @@ const server=await createServer({
     const {calendarWidget,answerCalendarWidget}=await vite.ssrLoadModule('/server/calendar-widget.js');
     let payload;
     const telegram=async(_env,_method,body)=>{payload=body;};
-    const deps={env:{},access:async()=>true,readState:async()=>state,telegram};
+    const accountsRoute=url.pathname==='/card/accounts'||url.searchParams.get('data')?.startsWith('budget-account:');
+    const dataForRoute=accountsRoute?previewAccounts(state.data):state.data;
+    const deps={env:{},access:async()=>true,readState:async()=>({...state,data:dataForRoute}),telegram};
     if(url.pathname==='/query'){
      const data=url.searchParams.get('data')||'';
      if(/^budget-entry:[ps]:/.test(data))payload={data:JSON.stringify({error:'Сохранение доступно только в Telegram.'})};
@@ -62,9 +60,8 @@ const server=await createServer({
      res.end(JSON.stringify({result:payload?.data||'{}'}));return;
     }
     const kind=url.pathname.slice(6);
-    let accountLinks='';
-    if(kind==='menu'||kind==='entry'){
-     await calendarWidget({chat,from,text:kind==='entry'?'/add':'/menu'},{...deps,readState:async()=>({...state,data:{...state.data,settings:{...state.data.settings,calendarWidgetMenuEnabled:true}}})});
+    if(['menu','entry','accounts'].includes(kind)){
+     await calendarWidget({chat,from,text:kind==='accounts'?'/accounts':kind==='entry'?'/add':'/menu'},{...deps,readState:async()=>({...state,data:{...dataForRoute,settings:{...dataForRoute.settings,calendarWidgetMenuEnabled:true}}})});
     }else if(notifications.some(([id])=>id===kind)){
      const cards=await vite.ssrLoadModule('/server/notification-widget.js');
      const {todayMoscow}=await vite.ssrLoadModule('/src/mini-model.js');
@@ -72,26 +69,13 @@ const server=await createServer({
      const {data}=state,today=todayMoscow(data.settings.timeZone);
      const reports={day:[0,'Итог дня'],week:[-6,'Итог недели'],month:[-29,'Итог месяца']};
      const report=reports[kind];
-     const accountId=url.searchParams.get('account');
-     const accounts=kind==='accounts'?previewAccounts(data):[];
-     const account=accounts.find(item=>item.id===accountId);
-     const card=kind==='accounts'?accountsCard(data,accounts,account)
-      :report?cards.summaryWidget(data,{from:moveDate(today,report[0]),to:today,title:report[1]})
+     const card=report?cards.summaryWidget(data,{from:moveDate(today,report[0]),to:today,title:report[1]})
       :kind==='expense'?cards.expenseWidget(data,moveDate(today,-1),0)
       :kind==='payments'?cards.paymentsWidget(scheduledEvents(data,today,moveDate(today,7),today).slice(0,3),today)
       :kind==='lunch'?cards.lunchWidget({text:'Обед сегодня?'},today)
       :cards.digestWidget(data,today);
      await cards.sendNotificationWidget({},telegram,{chat_id:1},card);
-     if(kind==='accounts')accountLinks=account
-      ?'<p><a href="?'+(url.searchParams.has('original')?'original=1':'')+'">← К счетам</a></p>'
-      :`<script>
-       const accountIds=${JSON.stringify(accounts.slice(0,6).map(item=>item.id))};
-       document.querySelectorAll('.row span').forEach((label,index)=>{
-        const link=document.createElement('a'),query=new URLSearchParams(location.search);
-        query.set('account',accountIds[index]);link.href='?'+query;link.textContent=label.textContent;
-        label.replaceChildren(link);
-       });
-       </script><style>a{color:#c5e4d4;text-underline-offset:3px}</style>`;
+
     }
     if(!payload?.html){res.statusCode=404;res.end('Виджет недоступен');return;}
     const chatData=JSON.stringify(payload.chat_data).replaceAll('<','\\u003c');
@@ -102,7 +86,7 @@ const server=await createServer({
      </script>`:'';
     res.end(`<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>
      window.TelegramWidget={chatType:'private',chatData:${chatData},ready(){},request(data){return fetch('/query?data='+encodeURIComponent(data)).then(r=>r.json());}};
-     </script>${payload.html}${originalBrand}${accountLinks}</html>`);
+     </script>${payload.html}${originalBrand}</html>`);
    }catch(error){vite.config.logger.error(error.stack);res.statusCode=500;res.end('Ошибка предпросмотра');}
   });
  }}],
@@ -114,36 +98,7 @@ function previewAccounts(data){
   if(account.id==='demo-savings')return {...account,name:'Срочный вклад',savingsKind:'deposit'};
   return account;
  });
- const visible=orderedAccounts(data,accounts).filter(account=>!account.archived);
- return [...visible.filter(account=>!isSavingAccount(account)),...visible.filter(isSavingAccount)];
-}
-
-function accountsCard(data,visible,account){
- if(account){
-  const categories=categoryCatalog(data.customCats);
-  const recent=filterActivity(activityEntries(data),data,categories,{accountId:account.id,includeCompanyLunch:false});
-  const rows=recent.slice(0,5).map(item=>{
-   const transfer=item.type==='transfer';
-   const outgoing=transfer?item.from===account.id:item.type==='expense';
-   const incoming=transfer?item.to===account.id:item.type==='income';
-   const label=transfer?transferDetails({...data,accounts:visible},item).route:
-    item.note||categories.find(category=>category.id===item.cat)?.name||'Операция';
-   return [label,(outgoing?'−':incoming?'+':'')+money(item.amount,item.currency),
-    outgoing?'expense':incoming?'income':''];
-  });
-  return {title:account.name,mark:'chart',dateLabel:'Последние операции',label:'Остаток',
-   sum:money(account.balance,account.currency),rows,count:'',foot:rows.length?'':'Операций пока нет'};
- }
- const {spendable,savings}=accountTotals({...data,accounts:visible});
- const rows=visible.slice(0,6).map(account=>[
-  isSavingAccount(account)?`${account.name} · ${account.savingsKind==='deposit'?'вклад':'накопления'}`:account.name,
-  money(account.balance,account.currency),account.balance<0?'expense':'',
- ]);
- return {
-  title:'Счета',mark:'chart',dateLabel:'',label:'На обычных счетах',
-  sum:money(spendable),rows,count:visible.length>rows.length?`Показано ${rows.length} из ${visible.length}`:'',
-  foot:savings?`Отложено отдельно · ${money(savings)}`:'',
- };
+ return {...data,accounts};
 }
 
 await server.listen();
