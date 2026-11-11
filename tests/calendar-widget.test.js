@@ -4,6 +4,27 @@ import {deflateSync} from 'node:zlib';
 import {answerCalendarWidget,calendarWidget} from '../server/calendar-widget.js';
 import {EMPTY,todayMoscow} from '../src/mini-model.js';
 
+test('widget history keeps amounts and titles ahead of optional account details',async()=>{
+ const accountId='card',date=todayMoscow();
+ const data={...structuredClone(EMPTY),
+  accounts:[{id:accountId,name:'Счёт для повседневных расходов и покупок',balance:1000}],
+  settings:{...EMPTY.settings,calendarWidgetMenuEnabled:true},
+  transactions:['Кофе','Такси','Возврат долга'].map((note,index)=>({
+   id:String(index),type:'expense',cat:'transport',amount:180,date,accountId,currency:'RUB',note,
+  })),
+ };
+ let payload;
+ await calendarWidget({text:'/history',from:{id:1},chat:{id:1,type:'private'}},{
+  env:{},access:async()=>true,readState:async()=>({data}),
+  telegram:async(_,method,body)=>{assert.equal(method,'sendWidget');payload=body;},
+ });
+ const {rows}=JSON.parse(payload.chat_data);
+ assert.ok(Buffer.byteLength(payload.chat_data)<=1024);
+ assert.deepEqual(rows.map(row=>row[1]),['Возврат долга','Такси','Кофе']);
+ assert.ok(rows.every(row=>row[2].startsWith('−180')));
+ assert.ok(rows.some(row=>row[5]===undefined));
+});
+
 test('calendar widget is private, access-controlled and reversible',async()=>{
  const data=structuredClone(EMPTY);
  const name='Проверка <b>ЖКХ</b>';

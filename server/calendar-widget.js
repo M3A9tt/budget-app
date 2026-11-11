@@ -255,8 +255,10 @@ function widgetData(data,page,brand,revision){
  const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand,draft};
  if(page==='home')view.balance=money(accountTotals(data).spendable);
  const encoder=new TextEncoder();
- for(let i=rows.length-1;i>=0&&encoder.encode(JSON.stringify(view)).length>1024;i--)rows[i].length=6;
- while(encoder.encode(JSON.stringify(view)).length>1024)rows.pop();
+ const exceedsBudget=()=>encoder.encode(JSON.stringify(view)).length>1024;
+ for(let i=rows.length-1;i>=0&&exceedsBudget();i--)rows[i].length=6;
+ for(let i=rows.length-1;i>=0&&exceedsBudget();i--)rows[i].pop();
+ while(exceedsBudget())rows.pop();
  return JSON.stringify(view);
 }
 
