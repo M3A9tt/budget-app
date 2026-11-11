@@ -10,7 +10,7 @@ const notifications=[
 ];
 
 function shell(){
- const links=[['menu','Меню бота'],...notifications].map(([id,label])=>
+ const links=[['menu','Меню бота'],['entry','Запись'],...notifications].map(([id,label])=>
   `<a href="/card/${id}?original=1" target="widget">${label}</a>`).join('');
  return `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
  <title>Виджеты Бюрджета</title><style>
@@ -53,8 +53,8 @@ const server=await createServer({
      res.end(JSON.stringify({result:payload?.data||'{}'}));return;
     }
     const kind=url.pathname.slice(6);
-    if(kind==='menu'){
-     await calendarWidget({chat,from,text:'/menu'},{...deps,readState:async()=>({...state,data:{...state.data,settings:{...state.data.settings,calendarWidgetMenuEnabled:true}}})});
+    if(kind==='menu'||kind==='entry'){
+     await calendarWidget({chat,from,text:kind==='entry'?'/add':'/menu'},{...deps,readState:async()=>({...state,data:{...state.data,settings:{...state.data.settings,calendarWidgetMenuEnabled:true}}})});
     }else if(notifications.some(([id])=>id===kind)){
      const cards=await vite.ssrLoadModule('/server/notification-widget.js');
      const {todayMoscow}=await vite.ssrLoadModule('/src/mini-model.js');

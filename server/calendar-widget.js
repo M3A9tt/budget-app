@@ -2,7 +2,7 @@ import {moveDate,scheduledEvents} from '../src/finance-events.js';
 import {dashboard,money,todayMoscow} from '../src/mini-model.js';
 import {activityEntries,filterActivity,transferDetails} from '../src/activity-history.js';
 import {categoryCatalog} from '../src/categories.js';
-import {botKeyboard,miniAppButton} from './bot-navigation.js';
+import {botKeyboard,miniAppButton,navigationCommand} from './bot-navigation.js';
 import {parseMoney} from '../src/ledger.js';
 import {applyBotAction} from './bot-catalog.js';
 import {create,load} from './bot-drafts.js';
@@ -37,7 +37,7 @@ time,strong{white-space:nowrap}
 footer,.picker-nav{display:flex;justify-content:space-between}
 footer{margin-top:8px}
 button{min-height:44px;padding:0 8px;border:1px solid #ffffff24;border-radius:10px;background:#ffffff09;color:#d6e4e8;font:inherit}
-button:active{background:#3a5356}
+button:active{opacity:.8}
 nav{display:flex;margin-bottom:12px;border-bottom:1px solid #ffffff24}
 nav button{flex:1;padding:0;border:0;border-radius:0;background:none;font-size:12px}
 nav button+button{border-left:1px solid #ffffff24}
@@ -76,7 +76,7 @@ const nav=document.getElementById('nav'),title=document.getElementById('title'),
 const entry=document.getElementById('entry');
 const buttons=Array.from(nav.querySelectorAll('button'));
 const visited=new Map();
-let view=null,pending=false,saving=false,selected='',draft=null;
+let view,pending=false,saving=false,selected,draft;
 const privateChat=widget&&widget.chatType==='private'&&!widget.isForward&&!widget.isPreview;
 function render(){
  payments.textContent='';
@@ -226,12 +226,15 @@ function showPreview(preview){
 }
 for(const button of buttons)button.addEventListener('click',()=>button.dataset.page==='add'?startEntry():request(button.dataset.page));
 refresh.addEventListener('click',()=>request(view.page,true));
-if(privateChat&&widget.chatData){try{view=JSON.parse(widget.chatData);selected=view.page;visited.set(view.page,view);if(view.brand)document.querySelector('h3 img').src=view.brand;}catch{}}
+if(privateChat&&widget.chatData){try{view=JSON.parse(widget.chatData);draft=view.draft;selected=view.page;visited.set(view.page,view);document.querySelector('h3 img').src=view.brand;}catch{}}
 render();
+if(draft)startEntry();
 widget?.ready();
 </script>`.replace(/^ +/gm,'');
 
-function widgetData(data,page,brand){
+function widgetData(data,page,brand,revision){
+ const draft=page==='add'?{revision,type:'e',amount:'',account:null,category:null}:undefined;
+ if(draft)page='home';
  const today=todayMoscow(data.settings.timeZone);
  const clip=(value,length)=>Array.from(String(value||'').replace(/[\u0000-\u001f]/g,' ')).slice(0,length).join('');
  const cats=categoryCatalog(data.customCats);
@@ -248,7 +251,7 @@ function widgetData(data,page,brand){
   const icon=transfer?'transfer':appearance?.icon;
   return [paymentDate(item.date),clip(label,44),amount,clip(category,22),item.type,clip(detail,32),isIcon(icon)?iconShape(icon):'',appearanceColors([appearance?.color])[0]];
  });
- const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand};
+ const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand,draft};
  if(page==='home')view.balance=money(dashboard(data,today).balance);
  const encoder=new TextEncoder();
  for(let i=rows.length-1;i>=0&&encoder.encode(JSON.stringify(view)).length>1024;i--)rows[i].length=6;
@@ -319,9 +322,11 @@ async function widgetEntry(env,id,query,readState,state){
 }
 
 // Both entry points run after authentication of the Telegram webhook.
+const widgetPages=new Map([['/menu','home'],['/budget','home'],['/calendar','calendar'],['/history','history'],['/add','add']]);
 export async function calendarWidget(message,{env,readState,mutateState,telegram,access=hasAccess}){
  const text=message?.text?.trim(),command=/^\/widget(?: (on|off))?$/.exec(text);
- if(!command&&text!=='/menu')return false;
+ const page=widgetPages.get(navigationCommand(text));
+ if(!command&&!page)return false;
  if(!privateChat(message.chat,message.from)||!await access(env,message.from.id))return Boolean(command);
  const chatId=message.chat.id,id=String(chatId);
  if(command?.[1]){
@@ -332,7 +337,7 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
   await telegram(env,'sendMessage',{chat_id:chatId,text:'Виджет отключён. Включить: /widget on',reply_markup:botKeyboard(env.MINI_APP_URL,data)});
   return true;
  }
- const {data}=await readState(env,id);
+ const {data,revision}=await readState(env,id);
  const replaceKeyboard=data.settings.calendarWidgetMenuEnabled===true;
  if(!command&&!replaceKeyboard)return false;
  if(data.settings.calendarWidgetEnabled===false){
@@ -343,12 +348,13 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  try{
   await telegram(env,'sendWidget',{
    chat_id:chatId,html,caption:'Меню Бюрджета · /menu  |  Клавиатура · /widget off',
-   chat_data:widgetData(data,command?'calendar':'home',widgetBrand),
+   chat_data:widgetData(data,command?'calendar':page,widgetBrand,revision),
    allow_queries:true,is_shared:false,protect_content:true,
    ...(replaceKeyboard?{reply_markup:{remove_keyboard:true}}:{})
   });
  }catch(error){
   if(![400,404].includes(error.telegramCode))throw error;
+  if(page&&text!=='/menu')return false;
   const app=miniAppButton(env.MINI_APP_URL,'Открыть Бюрджет');
   await telegram(env,'sendMessage',{chat_id:chatId,text:'Виджет недоступен. Можно открыть обычное меню или миниаппу.',reply_markup:{inline_keyboard:[[{text:'Обычное меню',callback_data:'b:v:home'},...(app?[app]:[])]]}});
  }
