@@ -376,6 +376,7 @@ test('After-midnight snooze lists expenses for the original day, with original-d
 
 test('Scheduled widgets preserve expense actions and fall back only on a definite rejection',async()=>{
  const {env,data,db}=fixture(),day=moscowDate(),d=data(1000);
+ const {deflateSync}=await import('node:zlib');
  const {deliverNotifications}=await import('../server/notification-outbox.js');
  const {expenseReminder}=await import('../server/notifications.js');
  const {periodSummary}=await import('../server/period-summary.js');
@@ -390,6 +391,10 @@ test('Scheduled widgets preserve expense actions and fall back only on a definit
  };
  await deliverNotifications(env,'222',day,d,reports,[],send,periodSummary,setDayCheck,{widgets:true});
  assert.deepEqual(sent.map(call=>call.method),['sendWidget','sendWidget','sendMessage']);
+ for(const {body} of sent.filter(call=>call.method==='sendWidget')){
+  assert.match(body.html,/<img[^>]+src="data:image\/png;base64,[^"]+" alt="Бюрджет"/);
+  assert.ok(deflateSync(body.html,{level:9}).length<=4096);
+ }
  assert.deepEqual(sent[0].body.reply_markup,reminder.reply_markup);
  assert.equal(sent[0].body.protect_content,true);
  assert(!sent[0].body.public_data);
