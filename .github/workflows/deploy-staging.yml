@@ -50,7 +50,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Install Chromium
-        run: npx --no-install playwright-core install --with-deps chromium
+        run: bash scripts/install-ci-chromium.sh
       - name: Configure existing staging Worker
         env:
           STAGING_FRIEND_IDS: ${{ vars.TELEGRAM_ALLOWED_IDS }}
