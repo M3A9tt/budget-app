@@ -1,5 +1,6 @@
 import {moveDate,scheduledEvents} from '../src/finance-events.js';
-import {dashboard,money,todayMoscow} from '../src/mini-model.js';
+import {money,todayMoscow} from '../src/mini-model.js';
+import {accountTotals} from '../src/account-balances.js';
 import {activityEntries,filterActivity,transferDetails} from '../src/activity-history.js';
 import {categoryCatalog} from '../src/categories.js';
 import {botKeyboard,miniAppButton,navigationCommand} from './bot-navigation.js';
@@ -252,7 +253,7 @@ function widgetData(data,page,brand,revision){
   return [paymentDate(item.date),clip(label,44),amount,clip(category,22),item.type,clip(detail,32),isIcon(icon)?iconShape(icon):'',appearanceColors([appearance?.color])[0]];
  });
  const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand,draft};
- if(page==='home')view.balance=money(dashboard(data,today).balance);
+ if(page==='home')view.balance=money(accountTotals(data).spendable);
  const encoder=new TextEncoder();
  for(let i=rows.length-1;i>=0&&encoder.encode(JSON.stringify(view)).length>1024;i--)rows[i].length=6;
  while(encoder.encode(JSON.stringify(view)).length>1024)rows.pop();
