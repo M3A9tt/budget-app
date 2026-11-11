@@ -95,8 +95,11 @@ const server=await createServer({
     }
     if(!payload?.html){res.statusCode=404;res.end('Виджет недоступен');return;}
     const chatData=JSON.stringify(payload.chat_data).replaceAll('<','\\u003c');
-    const originalBrand=url.searchParams.has('original')?
-     '<script>document.querySelector(\'img[alt="Бюрджет"]\').src="/brand/lockup-refined-b.webp";</script>':'';
+    const originalBrand=url.searchParams.has('original')?`<script>
+     const originalLogo=document.querySelector('img[alt="Бюрджет"]');
+     originalLogo.src='/brand/lockup-refined-b.webp';
+     if(originalLogo.closest('h3')){originalLogo.width=144;originalLogo.height=42;}
+     </script>`:'';
     res.end(`<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>
      window.TelegramWidget={chatType:'private',chatData:${chatData},ready(){},request(data){return fetch('/query?data='+encodeURIComponent(data)).then(r=>r.json());}};
      </script>${payload.html}${originalBrand}${accountLinks}</html>`);
