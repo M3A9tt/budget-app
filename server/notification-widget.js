@@ -48,6 +48,8 @@ ${interactive?`button{font:inherit;color:#c5e4d4;background:none;border:0;text-a
 #controls .primary{background:linear-gradient(135deg,#badacc,#9dbeb1);color:#132c26;font-weight:650}
 #controls .quiet{justify-self:center;border-color:transparent;background:none;color:#b6c5d3;font-size:13px}
 #status:not(:empty){display:block;margin-top:10px;color:#c6d1dd}
+#controls form{grid-column:1/-1;display:flex;gap:8px}
+#controls input{min-width:0;flex:1;padding:8px;color:inherit;background:#152431;border:1px solid #ffffff34;border-radius:9px;font:inherit}
 @media(prefers-reduced-motion:reduce){#controls button{transition:none}}
 .calendar .row{position:relative;padding:5px 6px;border-radius:5px;transition:background-color .2s}
 .calendar .row:focus-within,.calendar .row:hover{background-color:#ffffff0b}
@@ -76,9 +78,17 @@ function render(d){
   document.getElementById('rows').appendChild(row);
  }
  const card=get('card');card.className='widget-glass '+(d.expense?'expense':d.mark||'chart');card.hidden=false;
- ${interactive?"put('controls','');for(const [label,action] of d.controls||[])addAction(get('controls'),label,action);":''}
+ ${interactive?"put('controls','');if(d.input)addInput(d.input);for(const [label,action] of d.controls||[])addAction(get('controls'),label,action);":''}
 }
-${interactive?`let pending=false,current,previous;
+${interactive?`let pending=false,current,trail=[],refreshBack=false;
+function addInput(field){
+ const form=document.createElement('form'),input=document.createElement('input'),button=document.createElement('button');
+ input.type=field.type==='date'?'date':'text';input.inputMode=field.type==='money'?'decimal':'';
+ input.required=true;input.maxLength=16;input.value=field.value;
+ input.setAttribute('aria-label',field.label);button.textContent='Дальше';
+ form.append(input,button);get('controls').appendChild(form);
+ form.addEventListener('submit',event=>{event.preventDefault();request(field.command+input.value.trim());});
+}
 function addAction(parent,label,action){
  const button=document.createElement('button');button.type='button';button.textContent=label;parent.appendChild(button);
  if(action.startsWith('lunch:')){
@@ -89,21 +99,36 @@ function addAction(parent,label,action){
   if(action.endsWith(':done')||label==='Всё записал ✅'){button.className='primary';button.textContent='Всё записал';}
   if(action.endsWith(':off')||label==='Отключить проверки')button.className='quiet';
  }
- button.addEventListener('click',async()=>{
+ if(action.startsWith('pf:')&&action.endsWith(':c'))button.className='primary';
+ button.addEventListener('click',()=>request(action));
+}
+async function request(action){
   if(pending)return;
-  if(action==='back'&&previous){render(previous);previous=null;put('status','');return;}
+  if(action==='back'&&trail.length){
+   const target=trail.at(-1);
+   if(refreshBack&&target.refresh){
+    pending=true;put('status','Обновляю список…');
+    try{
+     const updated=JSON.parse((await w.request(target.refresh)).result);
+     if(!updated.rows)throw Error();
+     trail.pop();render(updated);put('status','');
+    }catch{put('status','Не удалось обновить список. Повтори нажатие.');return;}
+    finally{pending=false;}
+   }else{render(trail.pop());put('status','');}
+   refreshBack=false;return;
+  }
   pending=true;put('status','Загрузка…');
   try{
    const data=JSON.parse((await w.request(action)).result);
    put('status',data.error||data.status||'');
-   if(data.rows){previous??=current;render(data);}
+   if(data.rows){if((data.scope||data.title)!==(current.scope||current.title))trail.push(current);render(data);}
    if(data.done||data.controls&&!data.rows){
     put('controls','');
     for(const [label,action] of data.controls||[])addAction(get('controls'),label,action);
+    if(data.done&&trail.length){refreshBack=current.scope==='payment-form';addAction(get('controls'),'← Назад','back');}
    }
   }catch{put('status','Повтори запрос.');}
   finally{pending=false;}
- });
 }`:''}
 if(w?.chatType==='private'&&!w.isForward&&!w.isPreview&&w.chatData)render(JSON.parse(w.chatData));
 w?.ready();

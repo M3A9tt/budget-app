@@ -199,16 +199,26 @@ async function route(env,userId,api,r){
  if(r.special==='moderation'){if(!s.isOwner)throw Error('Только владелец');const queue=await learningQueue(env),page=Math.max(0,Number(r.args?.page)||0);return render(env,userId,api,{title:'Модерация обедов',lines:[`Ожидают: ${queue.examples.filter(x=>x.status==='pending').length} · правил: ${queue.rules.length}`],actions:[...queue.examples.slice(page*8,page*8+8).map(x=>({label:`${x.status} · ${x.parsed.amount} → ${x.corrected.amount}`,special:'learning',args:{id:x.id}})),...(page>0?[{label:'← Примеры',special:'moderation',args:{page:page-1}}]:[]),...((page+1)*8<queue.examples.length?[{label:'Примеры →',special:'moderation',args:{page:page+1}}]:[]),view('Главная','home')]});}
  if(r.special==='learning'){if(!s.isOwner)throw Error('Только владелец');const x=(await learningQueue(env)).examples.find(x=>x.id===r.args.id);if(!x)throw Error('Пример отсутствует');return render(env,userId,api,{title:'Пример распознавания',lines:[x.source,`Было: ${x.parsed.amount} → исправлено: ${x.corrected.amount}`,x.status],actions:(x.status==='pending'?['approve','reject']:['disable']).map(action=>act({approve:'Одобрить',reject:'Отклонить',disable:'Отключить правило'}[action],'moderate',{id:x.id,action}))});}
 }
-export async function openDuePayment(env,userId,api,kind,id,period){
- const state=await api.readState(env,userId),today=todayMoscow(state.data.settings.timeZone);
+export function duePaymentAction(data,kind,id,period){
+ const today=todayMoscow(data.settings.timeZone);
  const matches=item=>item.id===id&&(kind==='p'?item.kind==='plan'&&item.period===period:kind==='i'?item.kind==='installment':kind==='d'&&item.kind==='debt');
- const item=duePayments(state.data,today).find(matches)||
-  paymentReminderEvents(state.data,Date.now()).map(paymentFromEvent).find(matches);
- if(!item)return false;
+ const item=duePayments(data,today).find(matches)||paymentReminderEvents(data,Date.now()).map(paymentFromEvent).find(matches);
+ if(!item)return null;
+ const action={
+  plan:{op:'confirmPlan',args:{id:item.id,period:item.period}},
+  installment:{op:'payInstallment',args:{id:item.planId,paymentId:item.id}},
+  debt:{op:'repay',args:{id:item.id}},
+ }[item.kind];
+ return {...action,item};
+}
+
+export async function openDuePayment(env,userId,api,kind,id,period){
+ const {data}=await api.readState(env,userId);
+ const payment=duePaymentAction(data,kind,id,period);
+ if(!payment)return false;
  await pauseBotForm(env,userId,api);
  const returnTo={name:'due',args:{}};
- await start(env,userId,api,item.kind==='plan'?'confirmPlan':item.kind==='installment'?'payInstallment':'repay',
-  {...(item.kind==='plan'?{id:item.id,period:item.period}:item.kind==='installment'?{id:item.planId,paymentId:item.id}:{id:item.id}),returnTo});
+ await start(env,userId,api,payment.op,{...payment.args,returnTo});
  return true;
 }
 

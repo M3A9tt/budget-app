@@ -2,11 +2,26 @@ import {createServer} from 'vite';
 import {reviewData} from './preview-data.mjs';
 import {todayMoscow} from '../src/mini-model.js';
 import {moveDate} from '../src/finance-events.js';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
 
 const data=reviewData();
 const previewDay=todayMoscow(data.settings.timeZone);
 data.transactions=data.transactions.filter(entry=>entry.date!==previewDay||entry.type!=='lunch');
 const state={data,revision:1};
+const paymentState={...state,data:{...data,recurring:[{
+ id:'preview-internet',name:'Интернет',type:'expense',amount:800,currency:'RUB',accountId:'demo-bank',
+ cat:'housing',frequency:'once',startDate:previewDay,active:true,
+},...data.recurring]}};
+const sqlite=new DatabaseSync(':memory:');
+sqlite.exec(readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
+const previewEnv={DB:{prepare(sql){
+ const statement=sqlite.prepare(sql);
+ return {bind(...values){return {
+  first:async()=>statement.get(...values),
+  run:async()=>({meta:{changes:Number(statement.run(...values).changes)}}),
+ };}};
+}}};
 const from={id:1},chat={id:1,type:'private'};
 const port=Number(process.env.WIDGET_PREVIEW_PORT||5189);
 const notifications=[
@@ -61,7 +76,17 @@ const server=await createServer({
     if(url.pathname==='/query'){
      const data=url.searchParams.get('data')||'';
      const releasePage=/^r:([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(data);
-     if(releasePage){
+     const payment=/^b:n:([pid]):([^:]+)(?::([^:]+))?$/.exec(data);
+     if(payment||data.startsWith('pf:')||data==='b:v:due'||data.startsWith('pd:')){
+      const {duePaymentsWidget,openPaymentWidget,paymentFormCommand,paymentListCommand,stepPaymentWidget}=await vite.ssrLoadModule('/server/payment-widget.js');
+      try{
+       const list=paymentListCommand.exec(data);
+       const card=list?duePaymentsWidget(paymentState.data,Number(list[1])||0):
+        payment?await openPaymentWidget(previewEnv,'1',paymentState,1,...payment.slice(1)):
+        await stepPaymentWidget(previewEnv,'1',paymentState,1,paymentFormCommand.exec(data),async()=>paymentState,async()=>{});
+       payload={data:JSON.stringify(card?.done?{...card,status:'Платёж проверен · предпросмотр'}:card||{error:'Открой ближайший платёж.'})};
+      }catch(error){payload={data:JSON.stringify({error:error.message})};}
+     }else if(releasePage){
       const {latestRelease}=await vite.ssrLoadModule('/src/release-notes.js');
       const {releaseWidget}=await vite.ssrLoadModule('/server/notification-widget.js');
       const page=Number(releasePage[2]);
@@ -100,7 +125,9 @@ const server=await createServer({
      const reports={day:[0,'Итог дня'],week:[-6,'Итог недели'],month:[-29,'Итог месяца']};
      const report=reports[kind];
      const expenseDay=moveDate(today,-1);
-     const payments=kind==='payments'?scheduledEvents(data,today,moveDate(today,7),today).slice(0,3).map(paymentFromEvent):[];
+     const {duePayments}=await vite.ssrLoadModule('/src/due-payments.js');
+     const due=kind==='payments'?duePayments(paymentState.data,today):[];
+     const payments=kind==='payments'?[...due,...scheduledEvents(data,today,moveDate(today,7),moveDate(today,1)).map(paymentFromEvent)].slice(0,3):[];
      const card=kind==='release'?cards.releaseWidget(latestRelease)
       :report?cards.summaryWidget(data,{from:moveDate(today,report[0]),to:today,title:report[1]})
       :kind==='expense'?{...cards.expenseWidget(data,expenseDay),
