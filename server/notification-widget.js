@@ -36,7 +36,7 @@ time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
 #count{display:block;margin-top:6px}
 #foot{color:#c6d1dd;font-size:13px;margin-top:8px}
 @media(max-width:240px){.row{flex-wrap:wrap}}
-${interactive?'button{font:inherit;color:#c5e4d4;background:none;border:0;text-align:left;padding:6px 0;cursor:pointer}#controls{display:flex;gap:12px}':''}
+${interactive?'button{font:inherit;color:#c5e4d4;background:none;border:0;text-align:left;padding:6px 0;cursor:pointer}#controls{display:flex;gap:12px}.row time{margin-top:2px}':''}
 </style><section hidden id="card" class="widget-glass"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div><img class="brand" src="${interactive?widgetBrand:notificationBrand}" alt="Бюрджет"></header>
 <div class="total"><span id="label"></span><strong id="sum"></strong></div><div id="rows"></div><small id="count"></small><p id="foot"></p>${interactive?'<div id="controls"></div><small id="status" aria-live="polite"></small>':''}</section>
 <script>
@@ -47,12 +47,13 @@ function render(d){
  const marks=${JSON.stringify(Object.fromEntries(['check','chart','calendar','lunch','bell'].map(name=>[name,icon(name)])))};
  get('mark').innerHTML=marks[d.mark]||marks.chart;
  put('rows','');
- for(const [label,value,tone,action] of d.rows){
+ for(const [label,value,tone,action,date] of d.rows){
   const row=document.createElement('div');row.className='row '+(tone||'');
   for(const [tag,text] of [['span',label],['b',value]]){
    const part=document.createElement(tag);part.textContent=text;row.appendChild(part);
   }
   ${interactive?"if(action){const title=row.firstChild;title.textContent='';addAction(title,label,action);}":''}
+  ${interactive?"if(date){const time=document.createElement('time');time.textContent=date;row.firstChild.appendChild(time);}":''}
   document.getElementById('rows').appendChild(row);
  }
  const card=get('card');card.className='widget-glass '+(d.expense?'expense':d.mark||'chart');card.hidden=false;
