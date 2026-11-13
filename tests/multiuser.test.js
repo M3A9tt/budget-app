@@ -493,6 +493,7 @@ test('An expense reminder opens a dated widget and confirms the expense once',as
   const manualDigest=messages.at(-1);
   assert.ok(manualDigest.url.endsWith('/sendWidget'));
   assert.equal(manualDigest.body.reply_markup,undefined);
+  assert.equal(manualDigest.body.caption,undefined);
   assert.ok(JSON.parse(manualDigest.body.chat_data).controls.some(([,action])=>action==='b:v:attention'));
   await query('digest-open','b:v:attention',1);
   const digest=JSON.parse(messages.at(-1).body.data);
@@ -518,6 +519,12 @@ test('An expense reminder opens a dated widget and confirms the expense once',as
   assert.equal(saved.transactions[0].date,day);
   await query('expense-done','check:'+day+':done',2);
   assert.equal((await dayChecks(env,'222',day)).find(row=>row.kind==='expense').status,'done');
+  await webhook(env,222,'/widget off');
+  const beforeTextDigest=messages.length;
+  await webhook(env,222,'/attention');
+  const textDigest=messages.slice(beforeTextDigest);
+  assert.ok(textDigest.some(message=>message.url.endsWith('/sendMessage')));
+  assert.ok(textDigest.every(message=>!message.url.endsWith('/sendWidget')));
  });
 });
 
