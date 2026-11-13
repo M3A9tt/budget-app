@@ -5,6 +5,10 @@ export async function ensureHabits(env){await env.DB.prepare('CREATE TABLE IF NO
 export async function dayChecks(env,userId,day){await ensureHabits(env);return(await env.DB.prepare('SELECT * FROM user_day_checks WHERE user_id=? AND day=?').bind(userId,day).all()).results;}
 export async function notificationChecks(env,userId,day){await ensureHabits(env);return(await env.DB.prepare("SELECT * FROM user_day_checks WHERE user_id=? AND (day=? OR (kind='expense' AND status='pending'))").bind(userId,day).all()).results;}
 export async function setDayCheck(env,userId,day,kind,status,payload={}){await ensureHabits(env);await env.DB.prepare('INSERT INTO user_day_checks(user_id,day,kind,status,payload) VALUES(?,?,?,?,?) ON CONFLICT(user_id,day,kind) DO UPDATE SET status=excluded.status,payload=excluded.payload').bind(userId,day,kind,status,JSON.stringify(payload)).run();}
+export async function openDayCheck(env,userId,day,kind){
+ await ensureHabits(env);
+ await env.DB.prepare("INSERT OR IGNORE INTO user_day_checks(user_id,day,kind,status,payload) VALUES(?,?,?,'open','{}')").bind(userId,day,kind).run();
+}
 const reasons={late:'Опоздал',vacation:'Отпуск',unpaid:'Неоплачиваемый отпуск',sick:'Больничный',other:'Другое'};
 export const lunchReasonControls=day=>Object.entries(reasons).map(([key,label])=>[label,'lunch:'+day+':reason:'+key]);
 export async function habitCallback(env,userId,callback,api){

@@ -450,18 +450,59 @@ test('An oversized notification keeps every action in the ordinary bot fallback'
  assert.deepEqual(sent,[{method:'sendMessage',payload:body}]);
 });
 
+test('A reminder widget saves a validated time after confirmation only',async()=>{
+ const {env,call,data}=fixture();
+ await call('222','state','PUT',{expectedRevision:0,data:data(1000)});
+ await botTest(async messages=>{
+  const query=async(action,message_id=1)=>{
+   const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{
+    method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-webhook'},
+    body:JSON.stringify({widget_query:{id:crypto.randomUUID(),data:action,from:{id:222},
+     chat:{id:222,type:'private'},message_id,type:{type:'data'}}}),
+   }),env);
+   assert.equal(response.status,200);
+   return JSON.parse(messages.at(-1).body.data);
+  };
+  const form=await query('rw:time');
+  const preview=await query(form.input.command+'20:37');
+  const save=preview.controls[0][1];
+  assert.notEqual((await(await call('222')).json()).data.settings.reportTime,'20:37');
+  assert.match((await query(save,2)).error,/исходной карточке/);
+  assert.equal((await query(save)).rows[0][1],'20:37');
+  assert.equal((await query(save)).rows[0][1],'20:37');
+  const profile=await(await call('222')).json();
+  assert.equal(profile.data.settings.reportTime,'20:37');
+  assert.equal(profile.data.accounts[0].balance,1000);
+  assert.ok(messages.every(m=>m.url.endsWith('/answerWidgetQuery')));
+ });
+});
+
 test('An expense reminder opens a dated widget and confirms the expense once',async()=>{
  const {moveDate}=await import('../src/finance-events.js');
  const {env,call,data}=fixture(),day=moveDate(moscowDate(),-1);
- await call('222','state','PUT',{expectedRevision:0,data:data(1000)});
+ const profile=data(1000);
+ profile.settings.expenseCheckEnabled=true;
+ await call('222','state','PUT',{expectedRevision:0,data:profile});
  await setDayCheck(env,'222',day,'expense','open');
  const query=(id,action,message_id)=>worker.fetch(new Request('https://budget.test/telegram/webhook',{
   method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-webhook'},
   body:JSON.stringify({widget_query:{id,data:action,from:{id:222},chat:{id:222,type:'private'},message_id,type:{type:'data'}}}),
  }),env);
  await botTest(async messages=>{
+  await webhook(env,222,'/attention');
+  const manualDigest=messages.at(-1);
+  assert.ok(manualDigest.url.endsWith('/sendWidget'));
+  assert.equal(manualDigest.body.reply_markup,undefined);
+  assert.ok(JSON.parse(manualDigest.body.chat_data).controls.some(([,action])=>action==='b:v:attention'));
+  await query('digest-open','b:v:attention',1);
+  const digest=JSON.parse(messages.at(-1).body.data);
+  const check=digest.rows.find(row=>row[3]?.endsWith(':check'));
+  assert.ok(check);
+  await query('digest-check',check[3],1);
+  assert.ok(JSON.parse(messages.at(-1).body.data).controls.some(([,action])=>action.endsWith(':pending')));
+  assert.equal(messages.filter(m=>m.url.endsWith('/sendMessage')).length,0);
   await query('expense-open','check:'+day+':pending',1);
-  const widget=messages.find(m=>m.url.endsWith('/sendWidget'));
+  const widget=messages.findLast(m=>m.url.endsWith('/sendWidget'));
   const {deflateSync}=await import('node:zlib');
   assert.ok(deflateSync(widget.body.html,{level:9}).length<=4096);
   const draft=JSON.parse(widget.body.chat_data).draft;

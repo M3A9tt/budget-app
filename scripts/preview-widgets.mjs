@@ -77,7 +77,28 @@ const server=await createServer({
      const data=url.searchParams.get('data')||'';
      const releasePage=/^r:([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(data);
      const payment=/^b:n:([pid]):([^:]+)(?::([^:]+))?$/.exec(data);
-     if(payment||data.startsWith('pf:')||data==='b:v:due'||data.startsWith('pd:')){
+     const digest=/^(?:b:v:attention|da:(?:(\d{1,5})|(\d{4}-\d{2}-\d{2}):(check|lunch)))$/.exec(data);
+     if(data==='b:v:reminders'||data.startsWith('rw:')){
+      const {answerReminderWidget,reminderWidgetCommand}=await vite.ssrLoadModule('/server/reminder-widget.js');
+      const {applyBotAction}=await vite.ssrLoadModule('/server/bot-catalog.js');
+      let shown=state;
+      try{
+       const match=reminderWidgetCommand.exec(data);
+       if(!match)throw Error('Проверь время.');
+       const card=await answerReminderWidget(previewEnv,'1',state,1,match,async()=>shown,async(_env,_id,_token,draft)=>{
+        shown={...state,data:applyBotAction(structuredClone(state.data),draft.op,draft.args,draft.values)};
+       });
+       payload={data:JSON.stringify(card.status?{...card,status:'Настройки проверены · предпросмотр'}:card)};
+      }catch(error){payload={data:JSON.stringify({error:error.message})};}
+     }else if(digest){
+      const [,page,day,kind]=digest;
+      const cards=await vite.ssrLoadModule('/server/notification-widget.js');
+      const {expenseReminder,lunchReminder}=await vite.ssrLoadModule('/server/notifications.js');
+      const card=kind==='check'?{...cards.expenseWidget(state.data,day),controls:cards.notificationControls(expenseReminder(state.data,day))}
+       :kind==='lunch'?cards.lunchWidget(lunchReminder(day),day):cards.digestWidget(state.data,previewDay,[],Number(page)||0);
+      if(kind)card.controls.push(['К списку','back']);
+      payload={data:JSON.stringify(card)};
+     }else if(payment||data.startsWith('pf:')||data==='b:v:due'||data.startsWith('pd:')){
       const {duePaymentsWidget,openPaymentWidget,paymentFormCommand,paymentListCommand,stepPaymentWidget}=await vite.ssrLoadModule('/server/payment-widget.js');
       try{
        const list=paymentListCommand.exec(data);

@@ -10,7 +10,7 @@ import {widgetGlass} from './widget-glass.js';
 import {notificationBrand,widgetBrand} from './widget-brand.js';
 import {brandText} from '../src/release-notes.js';
 import {roundMoney} from '../src/ledger.js';
-import {paymentCallback} from '../src/due-payments.js';
+import {paymentCallback,paymentFromEvent} from '../src/due-payments.js';
 
 const icon=name=>'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+iconShape(name)+'</svg>';
 
@@ -51,11 +51,11 @@ ${interactive?`button{font:inherit;color:#c5e4d4;background:none;border:0;text-a
 #controls form{grid-column:1/-1;display:flex;gap:8px}
 #controls input{min-width:0;flex:1;padding:8px;color:inherit;background:#152431;border:1px solid #ffffff34;border-radius:9px;font:inherit}
 @media(prefers-reduced-motion:reduce){#controls button{transition:none}}
-.calendar .row{position:relative;padding:5px 6px;border-radius:5px;transition:background-color .2s}
-.calendar .row:focus-within,.calendar .row:hover{background-color:#ffffff0b}
-.calendar .row button{min-height:44px;color:inherit;font-weight:600}
-.calendar .row button::after{content:'';position:absolute;inset:0}
-.calendar .row b::after{content:'›';margin-left:8px;color:#b6c5d3}
+.row.action{position:relative;padding:5px 6px;border-radius:5px;transition:background-color .2s}
+.row.action:focus-within,.row.action:hover{background-color:#ffffff0b}
+.row.action button{min-height:44px;color:inherit;font-weight:600}
+.row.action button::after{content:'';position:absolute;inset:0}
+.row.action b::after{content:'›';margin-left:8px;color:#b6c5d3}
 .row time{margin-top:2px}`:''}
 </style><section hidden id="card" class="widget-glass"><header><span class="mark" id="mark"></span><div><h3 id="heading"></h3><time id="date"></time></div><img class="brand" src="${interactive?widgetBrand:notificationBrand}" alt="Бюрджет"></header>
 <div class="total"><span id="label"></span><strong id="sum"></strong></div><div id="rows"></div><small id="count"></small><p id="foot"></p>${interactive?'<div id="controls"></div><small id="status" aria-live="polite"></small>':''}</section>
@@ -73,7 +73,7 @@ function render(d){
   for(const [tag,text] of [['span',label],['b',value]]){
    const part=document.createElement(tag);part.textContent=text;row.appendChild(part);
   }
-  ${interactive?"if(action){const title=row.firstChild;title.textContent='';addAction(title,label,action);}":''}
+  ${interactive?"if(action){row.classList.add('action');const title=row.firstChild;title.textContent='';addAction(title,label,action);}":''}
   ${interactive?"if(date){const time=document.createElement('time');time.textContent=date;row.firstChild.appendChild(time);}":''}
   document.getElementById('rows').appendChild(row);
  }
@@ -83,7 +83,7 @@ function render(d){
 ${interactive?`let pending=false,current,trail=[],refreshBack=false;
 function addInput(field){
  const form=document.createElement('form'),input=document.createElement('input'),button=document.createElement('button');
- input.type=field.type==='date'?'date':'text';input.inputMode=field.type==='money'?'decimal':'';
+ input.type=['date','time'].includes(field.type)?field.type:'text';input.inputMode=field.type==='money'?'decimal':'';
  input.required=true;input.maxLength=16;input.value=field.value;
  input.setAttribute('aria-label',field.label);button.textContent='Дальше';
  form.append(input,button);get('controls').appendChild(form);
@@ -99,7 +99,7 @@ function addAction(parent,label,action){
   if(action.endsWith(':done')||label==='Всё записал ✅'){button.className='primary';button.textContent='Всё записал';}
   if(action.endsWith(':off')||label==='Отключить проверки')button.className='quiet';
  }
- if(action.startsWith('pf:')&&action.endsWith(':c'))button.className='primary';
+ if(action.startsWith('rw:save:')||action.startsWith('pf:')&&action.endsWith(':c'))button.className='primary';
  button.addEventListener('click',()=>request(action));
 }
 async function request(action){
@@ -121,11 +121,15 @@ async function request(action){
   try{
    const data=JSON.parse((await w.request(action)).result);
    put('status',data.error||data.status||'');
-   if(data.rows){if((data.scope||data.title)!==(current.scope||current.title))trail.push(current);render(data);}
+   if(data.rows){
+    if(data.scope&&trail.at(-1)?.scope===data.scope)trail.pop();
+    else if((data.scope||data.title)!==(current.scope||current.title))trail.push(current);
+    render(data);
+   }
    if(data.done||data.controls&&!data.rows){
     put('controls','');
     for(const [label,action] of data.controls||[])addAction(get('controls'),label,action);
-    if(data.done&&trail.length){refreshBack=current.scope==='payment-form';addAction(get('controls'),'← Назад','back');}
+    if(data.done&&trail.length){refreshBack=true;addAction(get('controls'),'← Назад','back');}
    }
   }catch{put('status','Повтори запрос.');}
   finally{pending=false;}
@@ -188,10 +192,21 @@ export function notificationControls(body){
  return (body.reply_markup?.inline_keyboard||[]).flat().filter(button=>button.callback_data)
   .map(button=>[button.text,button.callback_data]);
 }
-export function digestWidget(data,date,responses){
+export function digestWidget(data,date,responses,page){
  const items=attentionItems(data,date,{responses});
- const rows=items.slice(0,5).map(item=>[shortName(item.name),item.amount==null?paymentDate(item.date):money(item.amount,item.currency)]);
- return dateCard('Что требует внимания',date,'bell','Дел в сводке',String(items.length),rows);
+ const details=page!==undefined,size=details?3:5,pages=Math.max(1,Math.ceil(items.length/size));
+ const index=details?Math.min(page,pages-1):0;
+ const rows=items.slice(index*size,(index+1)*size).map(item=>[
+  shortName(item.name),item.amount==null?paymentDate(item.date):money(item.amount,item.currency),'',
+  details&&(item.kind==='check'||item.kind==='lunch')?'da:'+item.date+':'+item.kind:
+   details&&item.kind==='payment'&&item.date<=date?paymentCallback(paymentFromEvent(item)):undefined,
+ ]);
+ const card=dateCard('Что требует внимания',date,'bell','Дел в сводке',String(items.length),rows);
+ if(!details)return card;
+ return {...card,scope:'attention',refresh:'da:'+index,count:pages>1?`${index+1} из ${pages}`:'',
+  foot:items.length?'':'Всё разобрано.',
+  controls:[...(index>0?[['← Назад','da:'+(index-1)]]:[]),
+   ...(index+1<pages?[['Дальше →','da:'+(index+1)]]:[]),['К сводке','back']]};
 }
 
 export function releaseWidget(release,page=-1,{test=false}={}){
