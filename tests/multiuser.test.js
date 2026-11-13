@@ -450,6 +450,31 @@ test('An oversized notification keeps every action in the ordinary bot fallback'
  assert.deepEqual(sent,[{method:'sendMessage',payload:body}]);
 });
 
+test('Scheduled digest sends exactly one message in the selected format',async()=>{
+ const {deliverNotifications}=await import('../server/notification-outbox.js');
+ const {periodSummary}=await import('../server/period-summary.js');
+ for(const enabled of [true,false]){
+  const {env,call,data}=fixture(),day=moscowDate(),profile=data(1000);
+  Object.assign(profile.settings,{notificationMode:'digest',expenseCheckEnabled:true,calendarWidgetEnabled:enabled});
+  await call('222','state','PUT',{expectedRevision:0,data:profile});
+  const sent=[];
+  await deliverNotifications(env,'222',day,profile,[{id:'digest:'+day,kind:'digest',day,text:'Сводка'}],[],
+   async(_env,method,body)=>sent.push({method,body}),periodSummary,setDayCheck,{widgets:true});
+  assert.equal(sent.length,1);
+  const [{method,body}]=sent;
+  assert.equal(method,enabled?'sendWidget':'sendMessage');
+  assert.equal(body.count,undefined);
+  assert.equal(body.caption,undefined);
+  if(enabled){
+   assert.equal(body.reply_markup,undefined);
+   assert.ok(JSON.parse(body.chat_data).controls.some(([,action])=>action==='b:v:attention'));
+  }else{
+   assert.match(body.text,/Что требует внимания/);
+   assert.equal(body.reply_markup.inline_keyboard[0][0].callback_data,'b:v:attention');
+  }
+ }
+});
+
 test('A reminder widget saves a validated time after confirmation only',async()=>{
  const {env,call,data}=fixture();
  await call('222','state','PUT',{expectedRevision:0,data:data(1000)});

@@ -26,7 +26,10 @@ export async function deliverNotifications(env,userId,day,data,reports,responses
   if(payload.delivery?.phase==='sending'&&row.lease_until<=Date.now()){payload.delivery.phase='uncertain';await recordOperation(env,'delivery','uncertain');await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();continue;}
   if(row.lease_until>Date.now())continue;
   const lease=await env.DB.prepare('UPDATE user_notification_outbox SET lease_until=? WHERE user_id=? AND id=? AND lease_until<=?').bind(Date.now()+60000,userId,row.id,Date.now()).run();if(!lease.meta.changes)continue;
-  try{if(payload.kind==='digest')payload.body={chat_id:userId,...attentionMessage(data,day,responses)};
+  try{if(payload.kind==='digest'){
+    const {text,reply_markup}=attentionMessage(data,day,responses);
+    payload.body={chat_id:userId,text,reply_markup};
+   }
    payload.delivery={phase:'sending',startedAt:Date.now()};await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();
    if(payload.kind==='expense')payload.body={chat_id:userId,...expenseReminder(data,row.day,payload.attempt||0)};
    const planned=row.id.startsWith('planned:')?duePayments(data,day):null;
