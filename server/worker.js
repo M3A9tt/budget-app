@@ -33,7 +33,7 @@ import {allAllowedUsers,isAllowedUser,hasAccess,ensureInvites,acceptInvite,invit
 import {EMPTY,demoData,money,todayMoscow} from '../src/mini-model.js';
 import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {expenseReminder,lunchReminder,notificationJobs} from './notifications.js';
-import {digestWidget,expenseHistoryWidget,expenseWidget,lunchWidget,notificationControls,releaseWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
+import {digestWidget,expenseHistoryWidget,expenseWidget,interactiveSummaryWidget,lunchWidget,notificationControls,releaseWidget,sendNotificationWidget,summaryPeriodReport,summaryWidgetCommand} from './notification-widget.js';
 import {attentionItems} from '../src/attention.js';
 import {attentionMessage} from './attention-message.js';
 import {duePaymentsWidget,openPaymentWidget,paymentFormCommand,paymentListCommand,stepPaymentWidget} from './payment-widget.js';
@@ -113,7 +113,8 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
   const paymentForm=query&&paymentFormCommand.exec(query.data);
   const paymentList=query&&paymentListCommand.exec(query.data);
   const releaseAction=query&&/^(r|tr):([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(query.data);
-  if(query&&!lunchAction&&!expenseAction&&!testAction&&!notificationAction&&!releaseAction&&!paymentForm&&!paymentList&&!digestAction&&!reminderAction){
+  const summaryAction=query&&summaryWidgetCommand.exec(query.data);
+  if(query&&!lunchAction&&!expenseAction&&!testAction&&!notificationAction&&!releaseAction&&!paymentForm&&!paymentList&&!digestAction&&!reminderAction&&!summaryAction){
     return answerCalendarWidget(query,{env,readState,telegram,openAdd:()=>handleTelegram({message:{from:query.from,chat:query.chat,text:'/add'}},env,{preferWidget:false})});
   }
   if(query&&(typeof query.id!=='string'||query.inline_message_id||query.widget_id||!Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data'))return;
@@ -137,15 +138,16 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
   const userId=String(source.id);
   const send=text=>telegram(env,'sendMessage',{chat_id:chat.id,text});
   const showHome=async text=>telegram(env,'sendMessage',{chat_id:userId,text,reply_markup:botKeyboard(env.MINI_APP_URL,(await readState(env,userId)).data)});
-  const showSummary=async period=>{
-    const {data}=await readState(env,userId),today=clockAt(new Date(),data.settings?.timeZone||DEFAULT_ZONE).date;
-    const from=period==='month'?today.slice(0,8)+'01':period==='week'?moveDate(today,-6):today;
-    const title={day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period];
-    const report={from,to:today,title,text:periodSummary(data,from,today,title),visual:period!=='month'};
+  const summaryReport=(data,period)=>summaryPeriodReport(todayMoscow(data.settings.timeZone),period);
+  const showSummary=async (period,{widgetOnly=false}={})=>{
+    const {data}=await readState(env,userId);
+    if(widgetOnly&&data.settings.calendarWidgetEnabled===false)return false;
+    const report=summaryReport(data,period);
+    report.text=periodSummary(data,report.from,report.to,report.title);
     if(data.settings.calendarWidgetEnabled!==false){
-      return sendNotificationWidget(env,telegram,{chat_id:chat.id,text:report.text},summaryWidget(data,report));
-    }
-    return sendSummary(env,chat.id,data,report,telegram);
+      await sendNotificationWidget(env,telegram,{chat_id:chat.id,text:report.text,reply_markup:summariesMenu()},interactiveSummaryWidget(data,report,period));
+    }else await sendSummary(env,chat.id,data,report,telegram);
+    return true;
   };
   const showUpdates=async({widgetOnly=false}={})=>{
     const {data}=await readState(env,userId),text=releaseText();
@@ -173,6 +175,10 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
       const answer=result=>telegram(env,'answerWidgetQuery',{widget_query_id:query.id,data:JSON.stringify(result)});
       const state=await readState(env,userId),{data}=state;
       if(data.settings.calendarWidgetEnabled===false)return answer({error:'Виджеты отключены.'});
+      if(summaryAction){
+        const period=summaryAction[1];
+        return answer(interactiveSummaryWidget(data,summaryReport(data,period),period));
+      }
       if(testAction)return answer({status:'Кнопка работает. Данные не изменены.'});
       if(reminderAction){
         try{return await answer(await answerReminderWidget(env,userId,state,query.message_id,reminderAction,readState));}
@@ -233,6 +239,10 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
     if(update.message&&await legacyLunchInput(env,userId,update.message,formApi)){if(['/cancel','Отмена'].includes((update.message.text||'').trim()))await cancelBotFlow(env,userId,botApi);return;}
     if(update.message&&navigationCommand(command)==='/updates'&&await showUpdates({widgetOnly:true}))return;
     if(update.message&&navigationCommand(command)==='/attention'&&await showAttentionWidget())return;
+    if(update.message&&navigationCommand(command)==='/summary'&&await showSummary('day',{widgetOnly:true})){
+      if(switched)await pauseBotForm(env,userId,botApi);
+      return;
+    }
     if(await botChat(update,env,userId,botApi)){
       return;
     }

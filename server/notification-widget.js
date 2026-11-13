@@ -1,4 +1,5 @@
 import {money} from '../src/mini-model.js';
+import {moveDate} from '../src/finance-events.js';
 import {expenseCheckSummary} from '../src/expense-check.js';
 import {budgetState} from '../src/budget-view.js';
 import {periodSummaryData} from './period-summary.js';
@@ -159,20 +160,46 @@ export function expenseHistoryWidget(data,date,page=0){
    ...(page+1<pages?[['Дальше →',action(page+1)]]:[]),['← К проверке','back']]};
 }
 
-export function summaryWidget(data,report){
+export const summaryWidgetCommand=/^summary:(day|week|month)$/;
+const summaryPeriods={
+ day:{label:'Сегодня',title:'Итог дня',from:today=>today},
+ week:{label:'Неделя',title:'Итог недели',from:today=>moveDate(today,-6)},
+ month:{label:'Месяц',title:'Итог месяца',from:today=>today.slice(0,8)+'01'},
+};
+
+export function summaryPeriodReport(today,period){
+ const {title,from}=summaryPeriods[period];
+ return {from:from(today),to:today,title,visual:period!=='month',daily:period==='day'};
+}
+
+export function interactiveSummaryWidget(data,report,period){
+ const controls=Object.entries(summaryPeriods).filter(([key])=>key!==period)
+  .map(([key,{label}])=>[label,'summary:'+key]);
+ return summaryWidget(data,report,controls);
+}
+
+export function summaryWidget(data,report,controls){
  const r=periodSummaryData(data,report.from,report.to,report.title);
- const daily=report.from===report.to;
+ const daily=report.daily??(report.from===report.to);
  const rows=[daily?['Расходы за день',money(r.expense),'expense']:['На обычных счетах сейчас',money(r.actual)],[budgetState({free:r.free,balance:r.actual,unknown:r.unknown}).heading,money(Math.abs(r.free)),r.free<0?'short':'']];
  if(r.savings)rows.push(['В копилках',money(r.savings)]);
  if(r.income)rows.push(['Доходы',money(r.income),'income']);
  if(r.lunch)rows.push(['Обеды компании',money(r.lunch)]);
- for(const category of r.categories)rows.push([category.name,money(category.value),'expense']);
+ const categoryRows=r.categories.map(category=>[shortName(category.name),money(category.value),'expense']);
  if(r.previous){
   const change=roundMoney(r.expense-r.previous);
   rows.push(['К прошлому периоду',(change>0?'+':'')+money(change)]);
  }
- const dateLabel=daily?paymentDate(report.to):paymentDate(report.from)+' — '+paymentDate(report.to);
- return {title:report.title,date:report.to,dateLabel,expense:!daily,label:daily?'На обычных счетах':'Расходы за период',sum:money(daily?r.actual:r.expense),rows,count:`Операций · ${r.count}`,foot:''};
+ const dateLabel=report.from===report.to?paymentDate(report.to):paymentDate(report.from)+' — '+paymentDate(report.to);
+ const card={title:report.title,date:report.to,dateLabel,expense:!daily,label:daily?'На обычных счетах':'Расходы за период',sum:money(daily?r.actual:r.expense),rows,count:`Операций · ${r.count}`,controls};
+ // Keep financial totals and period controls ahead of optional category rows.
+ const encoder=new TextEncoder();
+ for(const row of categoryRows){
+  const nextRows=[...card.rows,row];
+  if(encoder.encode(JSON.stringify({...card,rows:nextRows})).length>1024)break;
+  card.rows=nextRows;
+ }
+ return card;
 }
 
 const shortName=value=>Array.from(value||'').slice(0,48).join('');

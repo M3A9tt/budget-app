@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import worker from '../server/worker.js';
+import {interactiveSummaryWidget,summaryPeriodReport} from '../server/notification-widget.js';
 import {EMPTY,todayMoscow,dashboard} from '../src/mini-model.js';
 import {botView} from '../server/bot-views.js';
 import {applyBotAction,fieldsFor,botImportPreview,parseField} from '../server/bot-catalog.js';
@@ -34,6 +35,33 @@ function fixture(data=seed()){
  return {env,sqlite,sent,files,update,last,button,press,snapshot,close:()=>{globalThis.fetch=original;sqlite.close();}};
 }
 async function run(fn,data){const f=fixture(data);try{await fn(f);}finally{f.close();}}
+test('Monthly widget keeps the period layout on the first day of the month',()=>{
+ const report=summaryPeriodReport('2026-11-01','month');
+ const card=interactiveSummaryWidget(seed(),report,'month');
+ assert.equal(card.label,'Расходы за период');
+ assert.equal(card.rows[0][0],'На обычных счетах сейчас');
+ assert.ok(Buffer.byteLength(JSON.stringify(card))<=1024);
+});
+test('Summary switches periods inside the widget and keeps the text menu when disabled',()=>run(async f=>{
+ await f.update('/summary');
+ const widget=f.sent.at(-1);
+ assert.equal(widget.method,'sendWidget');
+ assert.equal(widget.body.reply_markup,undefined);
+ const card=JSON.parse(widget.body.chat_data);
+ assert.equal(card.title,'Итог дня');
+ const week=card.controls.find(([label])=>label==='Неделя')[1];
+ const response=await worker.fetch(new Request('https://budget.test/telegram/webhook',{
+  method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-hook','Content-Type':'application/json'},
+  body:JSON.stringify({widget_query:{id:'summary-week',from:{id:111},chat:{id:111,type:'private'},message_id:101,type:{type:'data'},data:week}})
+ }),f.env);
+ assert.equal(response.status,200);
+ assert.equal(f.sent.at(-1).method,'answerWidgetQuery');
+ assert.equal(JSON.parse(f.sent.at(-1).body.data).title,'Итог недели');
+ await f.update('/widget off');
+ await f.update('/summary');
+ assert.equal(f.sent.at(-1).method,'sendMessage');
+ assert.ok(f.button(/Неделя/));
+}));
 test('Widget menu receives authenticated private queries and opens the existing add menu',()=>run(async f=>{
  await f.update('/widget on');
  const widget=f.sent.at(-1);

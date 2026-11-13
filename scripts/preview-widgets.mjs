@@ -75,10 +75,15 @@ const server=await createServer({
     const deps={env:{},access:async()=>true,readState:async()=>({...state,data:dataForRoute}),telegram,previewOnly:true};
     if(url.pathname==='/query'){
      const data=url.searchParams.get('data')||'';
+     const cards=await vite.ssrLoadModule('/server/notification-widget.js');
+     const summary=cards.summaryWidgetCommand.exec(data);
      const releasePage=/^r:([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(data);
      const payment=/^b:n:([pid]):([^:]+)(?::([^:]+))?$/.exec(data);
      const digest=/^(?:b:v:attention|da:(?:(\d{1,5})|(\d{4}-\d{2}-\d{2}):(check|lunch)))$/.exec(data);
-     if(data==='b:v:reminders'||data.startsWith('rw:')){
+     if(summary){
+      const period=summary[1],today=todayMoscow(state.data.settings.timeZone);
+      payload={data:JSON.stringify(cards.interactiveSummaryWidget(state.data,cards.summaryPeriodReport(today,period),period))};
+     }else if(data==='b:v:reminders'||data.startsWith('rw:')){
       const {answerReminderWidget,reminderWidgetCommand}=await vite.ssrLoadModule('/server/reminder-widget.js');
       const {applyBotAction}=await vite.ssrLoadModule('/server/bot-catalog.js');
       let shown=state;
@@ -92,7 +97,6 @@ const server=await createServer({
       }catch(error){payload={data:JSON.stringify({error:error.message})};}
      }else if(digest){
       const [,page,day,kind]=digest;
-      const cards=await vite.ssrLoadModule('/server/notification-widget.js');
       const {expenseReminder,lunchReminder}=await vite.ssrLoadModule('/server/notifications.js');
       const card=kind==='check'?{...cards.expenseWidget(state.data,day),controls:cards.notificationControls(expenseReminder(state.data,day))}
        :kind==='lunch'?cards.lunchWidget(lunchReminder(day),day):cards.digestWidget(state.data,previewDay,[],Number(page)||0);
@@ -143,14 +147,13 @@ const server=await createServer({
      const {scheduledEvents}=await vite.ssrLoadModule('/src/finance-events.js');
      const {paymentFromEvent}=await vite.ssrLoadModule('/src/due-payments.js');
      const {data}=state,today=todayMoscow(data.settings.timeZone);
-     const reports={day:[0,'Итог дня'],week:[-6,'Итог недели'],month:[-29,'Итог месяца']};
-     const report=reports[kind];
+     const report=['day','week','month'].includes(kind)?cards.summaryPeriodReport(today,kind):null;
      const expenseDay=moveDate(today,-1);
      const {duePayments}=await vite.ssrLoadModule('/src/due-payments.js');
      const due=kind==='payments'?duePayments(paymentState.data,today):[];
      const payments=kind==='payments'?[...due,...scheduledEvents(data,today,moveDate(today,7),moveDate(today,1)).map(paymentFromEvent)].slice(0,3):[];
      const card=kind==='release'?cards.releaseWidget(latestRelease)
-      :report?cards.summaryWidget(data,{from:moveDate(today,report[0]),to:today,title:report[1]})
+      :report?cards.interactiveSummaryWidget(data,report,kind)
       :kind==='expense'?{...cards.expenseWidget(data,expenseDay),
        controls:cards.notificationControls(expenseReminder(data,expenseDay))}
       :kind==='payments'?cards.paymentsWidget(payments,today)
