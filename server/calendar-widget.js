@@ -70,8 +70,7 @@ nav button:last-child{flex:none;width:32px;font-size:20px}
 .review:enabled{background:#c5e4d4;color:#182b28}
 .choice svg{width:16px;margin-right:5px}
 .out{color:#f1bfbb}.in{color:#bde3cb}
-.out[aria-pressed=true]{background:#ed999533}
-.in[aria-pressed=true]{background:#92c9ac33}
+.entry-tools [aria-pressed=true]{background:#ffffff19}
 @media(max-width:245px){li,nav{flex-wrap:wrap}}
 @media(prefers-reduced-motion:no-preference){
 li,.entry>*,.event small{animation:appear .22s}
@@ -103,7 +102,7 @@ function render(){
  title.textContent=view.title;
  balance.textContent=view.balance||'';
  balance.hidden=!view.balance;
- status.textContent=view.rows.length?'':view.empty;
+ status.textContent=view.page==='home'?view.hint:view.rows.length?'':view.empty;
  for(const button of buttons)button.setAttribute('aria-pressed',String(button.dataset.page===view.page));
  ${expenseEntry?'':`for(const [date,label,amount,category,direction,detail,icon,color] of view.rows){
   const row=document.createElement('li');
@@ -272,7 +271,10 @@ function widgetData(data,page,brand,revision){
   return [paymentDate(item.date),clip(label,44),amount,clip(category,22),item.type,clip(detail,32),isIcon(icon)?iconShape(icon):'',appearanceColors([appearance?.color])[0]];
  });
  const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand,draft};
- if(page==='home')view.balance=money(accountTotals(data).spendable);
+ if(page==='home'){
+  view.balance=money(accountTotals(data).spendable);
+  view.hint=(rows.length?'':view.empty+' · ')+'Счета /accounts · Клавиатура /widget off';
+ }
  const encoder=new TextEncoder();
  const exceedsBudget=()=>encoder.encode(JSON.stringify(view)).length>1024;
  for(let i=rows.length-1;i>=0&&exceedsBudget();i--)rows[i].length=6;
@@ -389,7 +391,6 @@ export async function calendarWidget(message,{env,readState,mutateState,telegram
  try{
   await telegram(env,'sendWidget',{
    chat_id:chatId,html:page==='accounts'?accountsWidgetHtml:html,
-   caption:page==='accounts'?'Счета · Главное меню /menu':'Бюрджет · Счета /accounts · Клавиатура /widget off',
    chat_data:page==='accounts'?accountWidgetData(data,revision):widgetData(data,command?'calendar':page,widgetBrand,revision),
    allow_queries:true,is_shared:false,protect_content:true,
    ...(replaceKeyboard?{reply_markup:{remove_keyboard:true}}:{})

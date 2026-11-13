@@ -55,7 +55,8 @@ test('calendar widget is private, access-controlled and reversible',async()=>{
  assert.equal(method,'sendWidget');
  assert.match(payload.chat_data,/Проверка/);
  assert.deepEqual(JSON.parse(payload.chat_data).rows[0].slice(3,5),['Транспорт','expense']);
- assert(!payload.html.includes(name)&&!payload.caption.includes(name));
+ assert(!payload.html.includes(name));
+ assert.equal(payload.caption,undefined);
  assert.equal(payload.public_data,undefined);
  assert.equal(payload.allow_queries,true);
  assert.equal(payload.reply_markup,undefined);
@@ -74,6 +75,8 @@ test('calendar widget is private, access-controlled and reversible',async()=>{
  assert.deepEqual(calls.at(-1).payload.reply_markup,{remove_keyboard:true});
  await command('/menu');
  assert.equal(JSON.parse(calls.at(-1).payload.chat_data).page,'home');
+ assert.match(JSON.parse(calls.at(-1).payload.chat_data).hint,/\/accounts.*\/widget off/);
+ assert.equal(calls.at(-1).payload.caption,undefined);
  for(const [text,page] of [['/budget','home'],['/calendar','calendar'],['/history','history']]){
   assert.equal(await command(text),true);
   assert.equal(JSON.parse(calls.at(-1).payload.chat_data).page,page);

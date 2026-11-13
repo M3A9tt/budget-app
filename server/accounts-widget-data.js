@@ -34,7 +34,7 @@ function accountsCard(data,visible,account,offset){
  return {total:visible.length,card:{
   title:'Счета',mark:'chart',dateLabel:'',label:'На обычных счетах',
   sum:money(spendable),rows,count:visible.length>rows.length?`Показано ${rows.length} из ${visible.length}`:'',
-  foot:savings?`Отложено отдельно · ${money(savings)}`:'',
+  foot:[savings?`Отложено отдельно · ${money(savings)}`:'','Главное меню /menu'].filter(Boolean).join(' · '),
  }};
 }
 
