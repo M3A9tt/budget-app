@@ -15,7 +15,7 @@ import {accountBackground,appearanceColors} from '../src/appearance.js';
 import {iconShape} from '../src/mini-icon-shapes.js';
 import {isIcon} from '../src/icon-catalog.js';
 import {hasAccess} from './users.js';
-import {widgetGlass} from './widget-glass.js';
+import {widgetGlass,widgetPrimary} from './widget-glass.js';
 import {widgetBrand} from './widget-brand.js';
 import {accountWidgetData} from './accounts-widget-data.js';
 import {accountsWidgetHtml} from './notification-widget.js';
@@ -67,7 +67,7 @@ nav button:last-child{flex:none;width:32px;font-size:20px}
 .entry-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
 .entry-tools.picker button:last-child:nth-child(odd){grid-column:span 2}
 .keypad button{text-align:center;font-size:19px}
-.review:enabled{background:#c5e4d4;color:#182b28}
+.review:enabled{${widgetPrimary}}
 .choice svg{width:16px;margin-right:5px}
 .out{color:#f1bfbb}.in{color:#bde3cb}
 .entry-tools [aria-pressed=true]{background:#ffffff19}
@@ -240,6 +240,7 @@ function showPreview(preview){
   });
  });
  const edit=control(entry,'Изменить',()=>{draft.preview=null;entryForm();});
+ save.className='review';
  edit.disabled=Boolean(draft.confirming);
 }
 for(const button of buttons)button.addEventListener('click',()=>button.dataset.page==='add'?startEntry():request(button.dataset.page));
