@@ -273,7 +273,7 @@ function widgetData(data,page,brand,revision){
  const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand,draft};
  if(page==='home'){
   view.balance=money(accountTotals(data).spendable);
-  view.hint='Счета /accounts · Клавиатура /widget off';
+  view.hint=(rows.length?'':view.empty+' · ')+'Счета /accounts · Клавиатура /widget off';
  }
  const encoder=new TextEncoder();
  const exceedsBudget=()=>encoder.encode(JSON.stringify(view)).length>1024;
