@@ -1,4 +1,5 @@
 import {money} from '../src/mini-model.js';
+import {moveDate} from '../src/finance-events.js';
 import {expenseCheckSummary} from '../src/expense-check.js';
 import {budgetState} from '../src/budget-view.js';
 import {periodSummaryData} from './period-summary.js';
@@ -40,11 +41,11 @@ time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
 #foot:empty,#count:empty{display:none}
 @media(max-width:240px){.row{flex-wrap:wrap}}
 ${interactive?`button{font:inherit;color:#c5e4d4;background:none;border:0;text-align:left;padding:6px 0;cursor:pointer}
-#controls:not(:empty){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:12px}
-#controls button{min-height:44px;border:1px solid #ffffff29;border-radius:10px;padding:8px;background:linear-gradient(145deg,#ffffff0e,#ffffff04);text-align:center;transition:background-color .22s,border-color .22s,transform .18s}
+#controls:not(:empty){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #ffffff28}
+#controls button{min-height:44px;border:1px solid #ffffff36;border-radius:10px;padding:8px;background:linear-gradient(145deg,#ffffff18,#ffffff06);text-align:center;transition:background-color .22s,border-color .22s,transform .18s}
 #controls button:hover{background-color:#ffffff10;border-color:#ffffff55}
 #controls button:active{transform:scale(.97)}
-#controls button:only-child,#controls .primary,#controls .quiet{grid-column:1/-1}
+#controls button:only-child,#controls .primary,#controls .quiet,#controls button[data-wide]{grid-column:1/-1}
 #controls .primary{${widgetPrimary};border-color:#d7ede299;border-radius:13px;min-height:48px;box-shadow:inset 0 1px #f0fff550,0 4px 12px #071c181f;font-weight:650}
 #controls :focus-visible{outline:2px solid #c4decf;outline-offset:2px}
 #controls .quiet{justify-self:center;border-color:transparent;background:none;color:#b6c5d3;font-size:13px}
@@ -99,6 +100,7 @@ function addAction(parent,label,action){
  if(action.startsWith('check:')||action==='test:expense'){
   if(action.endsWith(':done')||label==='Всё записал ✅'){button.className='primary';button.textContent='Всё записал';}
   if(action.endsWith(':off')||label==='Отключить проверки')button.className='quiet';
+ if(action.endsWith(':history'))button.dataset.wide='';
  }
  if(action.startsWith('rw:save:')||action.startsWith('pf:')&&action.endsWith(':c'))button.className='primary';
  button.addEventListener('click',()=>request(action));
@@ -159,20 +161,46 @@ export function expenseHistoryWidget(data,date,page=0){
    ...(page+1<pages?[['Дальше →',action(page+1)]]:[]),['← К проверке','back']]};
 }
 
-export function summaryWidget(data,report){
+export const summaryWidgetCommand=/^summary:(day|week|month)$/;
+const summaryPeriods={
+ day:{label:'Сегодня',title:'Итог дня',from:today=>today},
+ week:{label:'Неделя',title:'Итог недели',from:today=>moveDate(today,-6)},
+ month:{label:'Месяц',title:'Итог месяца',from:today=>today.slice(0,8)+'01'},
+};
+
+export function summaryPeriodReport(today,period){
+ const {title,from}=summaryPeriods[period];
+ return {from:from(today),to:today,title,visual:period!=='month',daily:period==='day'};
+}
+
+export function interactiveSummaryWidget(data,report,period){
+ const controls=Object.entries(summaryPeriods).filter(([key])=>key!==period)
+  .map(([key,{label}])=>[label,'summary:'+key]);
+ return summaryWidget(data,report,controls);
+}
+
+export function summaryWidget(data,report,controls){
  const r=periodSummaryData(data,report.from,report.to,report.title);
- const daily=report.from===report.to;
+ const daily=report.daily??(report.from===report.to);
  const rows=[daily?['Расходы за день',money(r.expense),'expense']:['На обычных счетах сейчас',money(r.actual)],[budgetState({free:r.free,balance:r.actual,unknown:r.unknown}).heading,money(Math.abs(r.free)),r.free<0?'short':'']];
  if(r.savings)rows.push(['В копилках',money(r.savings)]);
  if(r.income)rows.push(['Доходы',money(r.income),'income']);
  if(r.lunch)rows.push(['Обеды компании',money(r.lunch)]);
- for(const category of r.categories)rows.push([category.name,money(category.value),'expense']);
+ const categoryRows=r.categories.map(category=>[shortName(category.name),money(category.value),'expense']);
  if(r.previous){
   const change=roundMoney(r.expense-r.previous);
   rows.push(['К прошлому периоду',(change>0?'+':'')+money(change)]);
  }
- const dateLabel=daily?paymentDate(report.to):paymentDate(report.from)+' — '+paymentDate(report.to);
- return {title:report.title,date:report.to,dateLabel,expense:!daily,label:daily?'На обычных счетах':'Расходы за период',sum:money(daily?r.actual:r.expense),rows,count:`Операций · ${r.count}`,foot:''};
+ const dateLabel=report.from===report.to?paymentDate(report.to):paymentDate(report.from)+' — '+paymentDate(report.to);
+ const card={title:report.title,date:report.to,dateLabel,expense:!daily,label:daily?'На обычных счетах':'Расходы за период',sum:money(daily?r.actual:r.expense),rows,count:`Операций · ${r.count}`,controls};
+ // Keep financial totals and period controls ahead of optional category rows.
+ const encoder=new TextEncoder();
+ for(const row of categoryRows){
+  const nextRows=[...card.rows,row];
+  if(encoder.encode(JSON.stringify({...card,rows:nextRows})).length>1024)break;
+  card.rows=nextRows;
+ }
+ return card;
 }
 
 const shortName=value=>Array.from(value||'').slice(0,48).join('');
