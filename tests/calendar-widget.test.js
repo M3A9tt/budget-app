@@ -63,7 +63,8 @@ test('calendar widget is private, access-controlled and reversible',async()=>{
  assert.equal(await command('/menu'),false);
  assert.equal(payload.protect_content,true);
  assert(Buffer.byteLength(payload.chat_data)<=1024);
- assert(deflateSync(payload.html,{level:9}).length<=4096);
+ const compressedSize=deflateSync(payload.html,{level:9}).length;
+ assert(compressedSize<=4096,`Widget HTML is ${compressedSize} bytes compressed (limit 4096)`);
 
  await command('/widget off');
  assert(calls.at(-1).payload.reply_markup.keyboard.length);

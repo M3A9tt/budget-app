@@ -53,7 +53,7 @@ time,strong{white-space:nowrap}
 footer,.picker-nav{display:flex;justify-content:space-between}
 footer{margin-top:8px}
 button{min-height:44px;padding:0 8px;border:1px solid #ffffff24;border-radius:10px;background:#ffffff09;color:#d6e4e8;font:inherit}
-button:active{opacity:.8}
+button:active{transform:scale(.97)}
 nav{display:flex;margin-bottom:12px;border-bottom:1px solid #ffffff24}
 nav button{flex:1;padding:0;border:0;border-radius:0;background:none;font-size:12px}
 nav button+button{border-left:1px solid #ffffff24}
@@ -63,6 +63,8 @@ nav button:last-child{flex:none;width:32px;font-size:20px}
 #balance:before{content:'На обычных счетах';display:block;font:13px system-ui;color:#b6c5d3}
 .event summary{font-weight:bold}
 .entry{display:grid;gap:8px}
+.amount-field{text-align:center;padding:8px;border:1px solid #b8ddcc66;border-radius:12px;background:#142431}
+.amount-field strong{font-size:30px}
 .entry-tools,.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
 .entry-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
 .entry-tools.picker button:last-child:nth-child(odd){grid-column:span 2}
@@ -90,8 +92,7 @@ const status=document.getElementById('status');
 const nav=document.getElementById('nav'),title=document.getElementById('title'),balance=document.getElementById('balance'),refresh=document.getElementById('refresh');
 const entry=document.getElementById('entry');
 const buttons=Array.from(nav.querySelectorAll('button'));
-const visited=new Map();
-let view,pending=false,saving=false,selected,draft;
+let view,pending=false,saving=false,draft;
 const privateChat=widget&&widget.chatType==='private'&&!widget.isForward&&!widget.isPreview;
 function render(){
  payments.textContent='';
@@ -119,20 +120,9 @@ function render(){
   payments.appendChild(row);
  }`}
 }
-function request(page,force=false){
- if(!privateChat||saving)return;
- if(!force&&visited.has(page)){
-  selected=page;
-  view=visited.get(page);
-  render();
-  return;
- }
- if(pending)return;
- selected=page;
- query('budget-menu:'+page,result=>{
-  visited.set(page,result);
-  if(selected===page){view=result;render();}
- });
+function request(page){
+ if(!privateChat||saving||pending)return;
+ query('budget-menu:'+page,result=>{view=result;render();});
 }
 function node(parent,tag,text='',className=''){
  const el=document.createElement(tag);
@@ -160,22 +150,22 @@ function group(className){
  return node(entry,'div','',className);
 }
 async function query(command,then){
- const page=selected;
+ if(pending)return;
  pending=true;saving=command.startsWith('budget-entry:s:');status.textContent='Загрузка…';
  try{
   const result=JSON.parse((await widget.request(command)).result);
-  if(result.error){if(selected===page)status.textContent=result.error;}
-  else if(page!=='add'||selected===page)then(result);
- }catch{if(selected===page)status.textContent='Повтори запрос.';}
+  if(result.error)status.textContent=result.error;
+  else then(result);
+ }catch{status.textContent='Повтори запрос.';}
  finally{pending=saving=false;}
 }
 function ask(command,then){
  if(!privateChat||pending)return;
- selected='add';query('budget-entry:'+command,then);
+ query('budget-entry:'+command,then);
 }
 function startEntry(){
  if(pending)return;
- if(draft){selected='add';if(draft.preview)showPreview(draft.preview);else entryForm();return;}
+ if(draft){if(draft.preview)showPreview(draft.preview);else entryForm();return;}
  ask('form',result=>{
   draft={...result,type:'e',amount:'',account:null,category:null};
   entryForm();
@@ -195,7 +185,10 @@ function entryForm(){
   const button=control(types,label,()=>{draft.type=type;entryForm();},icon);
   button.classList.add(tone);button.setAttribute('aria-pressed',String(draft.type===type));
  }`}
- const amount=node(entry,'strong','','balance');
+ const amountField=node(entry,'div','','amount-field');
+ node(amountField,'small','Сумма'+(draft.account?.[2]?' · '+draft.account[2]:''));
+ const amount=node(amountField,'strong');
+ amount.setAttribute('aria-live','polite');
  const fields=group('entry-tools picker');
  ${expenseEntry?"if(draft.lunch!=='company')":''}control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick(${expenseEntry?"draft.lunch?'L':'A'":"'A'"},0),draft.account?.[4],draft.account?.[3],draft.account?.[5]);
  if(draft.type==='e'${expenseEntry?'&&!draft.lunch':''})control(fields,draft.category?.[1]||'Выбрать категорию',()=>pick('C',0),draft.category?.[4],draft.category?.[3]);
@@ -204,10 +197,10 @@ function entryForm(){
   const value=key==='⌫'?draft.amount.slice(0,-1):draft.amount+(key===','?'.':key);
   if(/^\d{0,10}(?:\.\d{0,2})?$/.test(value)){draft.amount=value.startsWith('.')?'0'+value:value;updateAmount();}
  });
- const review=control(entry,'Проверить запись',()=>${expenseEntry?String.raw`query((draft.lunch?['bl',draft.day,draft.lunch==='own'?'o':'c',draft.revision,draft.account?.[0]||0]:['be',draft.day,draft.revision,draft.account[0],draft.category[0]]).concat(draft.amount.replace(/\.$/,'')).join(':'),showPreview)`:String.raw`ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview)`});
+ const review=control(entry,'Далее · подтверждение',()=>${expenseEntry?String.raw`query((draft.lunch?['bl',draft.day,draft.lunch==='own'?'o':'c',draft.revision,draft.account?.[0]||0]:['be',draft.day,draft.revision,draft.account[0],draft.category[0]]).concat(draft.amount.replace(/\.$/,'')).join(':'),showPreview)`:String.raw`ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview)`});
  review.className='review';
  function updateAmount(){
-  amount.textContent=(draft.amount||'0').replace('.',',')+' '+(draft.account?.[2]||'');
+  amount.textContent=(draft.amount||'0').replace('.',',');
   review.disabled=!(Number(draft.amount)>0&&${expenseEntry?"(draft.lunch==='company'||draft.account&&(draft.lunch||draft.category))":"draft.account&&(draft.type==='i'||draft.category)"});
  }
  updateAmount();
@@ -236,7 +229,7 @@ function showPreview(preview){
   ask('s:'+preview.token,()=>{
    ${expenseEntry?`const {day,lunch}=draft;draft=null;entryPanel('Запись сохранена');
    if(!lunch)control(entry,'Завершить проверку',()=>query('check:'+day+':done',result=>{entryPanel('Проверка завершена');status.textContent=result.status||'';}));`:
-    "draft=null;visited.clear();entryPanel('Запись сохранена');control(entry,'На Главную',()=>request('home',true));"}
+    "draft=null;entryPanel('Запись сохранена');control(entry,'На Главную',()=>request('home'));"}
   });
  });
  const edit=control(entry,'Изменить',()=>{draft.preview=null;entryForm();});
@@ -244,8 +237,8 @@ function showPreview(preview){
  edit.disabled=Boolean(draft.confirming);
 }
 for(const button of buttons)button.addEventListener('click',()=>button.dataset.page==='add'?startEntry():request(button.dataset.page));
-refresh.addEventListener('click',()=>request(view.page,true));
-if(privateChat&&widget.chatData){try{view=JSON.parse(widget.chatData);draft=view.draft;selected=view.page;visited.set(view.page,view);document.querySelector('h3 img').src=view.brand;}catch{}}
+refresh.addEventListener('click',()=>request(view.page));
+if(privateChat&&widget.chatData){try{view=JSON.parse(widget.chatData);draft=view.draft;document.querySelector('h3 img').src=view.brand;}catch{}}
 render();
 if(draft)startEntry();
 widget?.ready();
@@ -273,8 +266,9 @@ function widgetData(data,page,brand,revision){
  });
  const view={page,title:history?'Последние операции':'Ближайшие платежи',empty:history?'Операций пока нет':'На ближайшие 7 дней событий нет',rows,brand,draft};
  if(page==='home'){
-  view.balance=money(accountTotals(data).spendable);
-  view.hint=(rows.length?'':view.empty+' · ')+'Счета /accounts · Клавиатура /widget off';
+  const {spendable,savings}=accountTotals(data);
+  view.balance=money(spendable);
+  view.hint=[!rows.length&&view.empty,savings&&'В копилках '+money(savings),'Счета /accounts · Клавиатура /widget off'].filter(Boolean).join(' · ');
  }
  const encoder=new TextEncoder();
  const exceedsBudget=()=>encoder.encode(JSON.stringify(view)).length>1024;

@@ -41,11 +41,11 @@ time{display:block;color:#b6c5d3;font-size:13px;margin-top:3px}
 #foot:empty,#count:empty{display:none}
 @media(max-width:240px){.row{flex-wrap:wrap}}
 ${interactive?`button{font:inherit;color:#c5e4d4;background:none;border:0;text-align:left;padding:6px 0;cursor:pointer}
-#controls:not(:empty){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:12px}
-#controls button{min-height:44px;border:1px solid #ffffff29;border-radius:10px;padding:8px;background:linear-gradient(145deg,#ffffff0e,#ffffff04);text-align:center;transition:background-color .22s,border-color .22s,transform .18s}
+#controls:not(:empty){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #ffffff28}
+#controls button{min-height:44px;border:1px solid #ffffff36;border-radius:10px;padding:8px;background:linear-gradient(145deg,#ffffff18,#ffffff06);text-align:center;transition:background-color .22s,border-color .22s,transform .18s}
 #controls button:hover{background-color:#ffffff10;border-color:#ffffff55}
 #controls button:active{transform:scale(.97)}
-#controls button:only-child,#controls .primary,#controls .quiet{grid-column:1/-1}
+#controls button:only-child,#controls .primary,#controls .quiet,#controls button[data-wide]{grid-column:1/-1}
 #controls .primary{${widgetPrimary};border-color:#d7ede299;border-radius:13px;min-height:48px;box-shadow:inset 0 1px #f0fff550,0 4px 12px #071c181f;font-weight:650}
 #controls :focus-visible{outline:2px solid #c4decf;outline-offset:2px}
 #controls .quiet{justify-self:center;border-color:transparent;background:none;color:#b6c5d3;font-size:13px}
@@ -100,6 +100,7 @@ function addAction(parent,label,action){
  if(action.startsWith('check:')||action==='test:expense'){
   if(action.endsWith(':done')||label==='Всё записал ✅'){button.className='primary';button.textContent='Всё записал';}
   if(action.endsWith(':off')||label==='Отключить проверки')button.className='quiet';
+ if(action.endsWith(':history'))button.dataset.wide='';
  }
  if(action.startsWith('rw:save:')||action.startsWith('pf:')&&action.endsWith(':c'))button.className='primary';
  button.addEventListener('click',()=>request(action));
