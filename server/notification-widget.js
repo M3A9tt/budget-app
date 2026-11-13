@@ -6,7 +6,7 @@ import {categoryCatalog} from '../src/categories.js';
 import {iconShape} from '../src/mini-icon-shapes.js';
 import {paymentDate} from '../src/payment-copy.js';
 import {attentionItems} from '../src/attention.js';
-import {widgetGlass} from './widget-glass.js';
+import {widgetGlass,widgetPrimary} from './widget-glass.js';
 import {notificationBrand,widgetBrand} from './widget-brand.js';
 import {brandText} from '../src/release-notes.js';
 import {roundMoney} from '../src/ledger.js';
@@ -45,12 +45,13 @@ ${interactive?`button{font:inherit;color:#c5e4d4;background:none;border:0;text-a
 #controls button:hover{background-color:#ffffff10;border-color:#ffffff55}
 #controls button:active{transform:scale(.97)}
 #controls button:only-child,#controls .primary,#controls .quiet{grid-column:1/-1}
-#controls .primary{background:linear-gradient(135deg,#badacc,#9dbeb1);color:#132c26;font-weight:650}
+#controls .primary{${widgetPrimary};border-color:#d7ede299;border-radius:13px;min-height:48px;box-shadow:inset 0 1px #f0fff550,0 4px 12px #071c181f;font-weight:650}
+#controls :focus-visible{outline:2px solid #c4decf;outline-offset:2px}
 #controls .quiet{justify-self:center;border-color:transparent;background:none;color:#b6c5d3;font-size:13px}
 #status:not(:empty){display:block;margin-top:10px;color:#c6d1dd}
 #controls form{grid-column:1/-1;display:flex;gap:8px}
 #controls input{min-width:0;flex:1;padding:8px;color:inherit;background:#152431;border:1px solid #ffffff34;border-radius:9px;font:inherit}
-@media(prefers-reduced-motion:reduce){#controls button{transition:none}}
+@media(prefers-reduced-motion:reduce){#controls button,.row.action{transition:none}#controls button:active{transform:none}}
 .row.action{position:relative;padding:5px 6px;border-radius:5px;transition:background-color .2s}
 .row.action:focus-within,.row.action:hover{background-color:#ffffff0b}
 .row.action button{min-height:44px;color:inherit;font-weight:600}
