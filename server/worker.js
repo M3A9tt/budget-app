@@ -35,6 +35,7 @@ import {issueWebCode,webSession,webAuthRoute,hashToken} from './web-auth.js';
 import {expenseReminder,lunchReminder,notificationJobs} from './notifications.js';
 import {digestWidget,expenseHistoryWidget,expenseWidget,lunchWidget,notificationControls,releaseWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
 import {attentionItems} from '../src/attention.js';
+import {attentionMessage} from './attention-message.js';
 import {duePaymentsWidget,openPaymentWidget,paymentFormCommand,paymentListCommand,stepPaymentWidget} from './payment-widget.js';
 import {answerReminderWidget,reminderWidgetCommand} from './reminder-widget.js';
 import {validateTelegramInitData} from './telegram-auth.js';
@@ -154,6 +155,15 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
     }else await sendNotificationWidget(env,telegram,{chat_id:chat.id,text},releaseWidget(latestRelease));
     return true;
   };
+  const showAttentionWidget=async()=>{
+    const {data}=await readState(env,userId);
+    if(data.settings.calendarWidgetEnabled===false)return false;
+    const today=todayMoscow(data.settings.timeZone),responses=await notificationChecks(env,userId,today);
+    const {count,...body}=attentionMessage(data,today,responses);
+    const card={...digestWidget(data,today,responses),controls:notificationControls(body)};
+    await sendNotificationWidget(env,telegram,{chat_id:chat.id,...body},card);
+    return true;
+  };
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
   const formApi={...botApi,openForm:(op,args)=>startBotForm(env,userId,botApi,op,args),openLunch:async(day,type,prefill={},review=false)=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);await pauseBotForm(env,userId,botApi);return startBotForm(env,userId,botApi,'tx',{...lunchEntryArgs(day,type,prefill),review});}};
   const openExpense=async day=>{await pauseLunchEdit(env,userId);await pauseLegacyLunchInput(env,userId);return startBotForm(env,userId,botApi,'tx',{type:'expense',checkDay:day,prefill:{date:day},returnTo:{name:'expenseCheck',args:{day}}});};
@@ -222,6 +232,7 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
     }
     if(update.message&&await legacyLunchInput(env,userId,update.message,formApi)){if(['/cancel','Отмена'].includes((update.message.text||'').trim()))await cancelBotFlow(env,userId,botApi);return;}
     if(update.message&&navigationCommand(command)==='/updates'&&await showUpdates({widgetOnly:true}))return;
+    if(update.message&&navigationCommand(command)==='/attention'&&await showAttentionWidget())return;
     if(await botChat(update,env,userId,botApi)){
       return;
     }

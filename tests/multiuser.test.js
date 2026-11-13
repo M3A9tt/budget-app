@@ -489,6 +489,11 @@ test('An expense reminder opens a dated widget and confirms the expense once',as
   body:JSON.stringify({widget_query:{id,data:action,from:{id:222},chat:{id:222,type:'private'},message_id,type:{type:'data'}}}),
  }),env);
  await botTest(async messages=>{
+  await webhook(env,222,'/attention');
+  const manualDigest=messages.at(-1);
+  assert.ok(manualDigest.url.endsWith('/sendWidget'));
+  assert.equal(manualDigest.body.reply_markup,undefined);
+  assert.ok(JSON.parse(manualDigest.body.chat_data).controls.some(([,action])=>action==='b:v:attention'));
   await query('digest-open','b:v:attention',1);
   const digest=JSON.parse(messages.at(-1).body.data);
   const check=digest.rows.find(row=>row[3]?.endsWith(':check'));
@@ -497,7 +502,7 @@ test('An expense reminder opens a dated widget and confirms the expense once',as
   assert.ok(JSON.parse(messages.at(-1).body.data).controls.some(([,action])=>action.endsWith(':pending')));
   assert.equal(messages.filter(m=>m.url.endsWith('/sendMessage')).length,0);
   await query('expense-open','check:'+day+':pending',1);
-  const widget=messages.find(m=>m.url.endsWith('/sendWidget'));
+  const widget=messages.findLast(m=>m.url.endsWith('/sendWidget'));
   const {deflateSync}=await import('node:zlib');
   assert.ok(deflateSync(widget.body.html,{level:9}).length<=4096);
   const draft=JSON.parse(widget.body.chat_data).draft;
