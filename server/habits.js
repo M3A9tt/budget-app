@@ -1,6 +1,7 @@
 import {lunchReminderAnswered} from './lunch-entry.js';
 import {validDate} from '../src/finance-tools.js';
 import {clockAt,DEFAULT_ZONE} from '../src/time-settings.js';
+import {lunchQuestionsPaused} from '../src/lunch-schedule.js';
 export async function ensureHabits(env){await env.DB.prepare('CREATE TABLE IF NOT EXISTS user_day_checks(user_id TEXT NOT NULL,day TEXT NOT NULL,kind TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(user_id,day,kind))').run();}
 export async function dayChecks(env,userId,day){await ensureHabits(env);return(await env.DB.prepare('SELECT * FROM user_day_checks WHERE user_id=? AND day=?').bind(userId,day).all()).results;}
 export async function notificationChecks(env,userId,day){await ensureHabits(env);return(await env.DB.prepare("SELECT * FROM user_day_checks WHERE user_id=? AND (day=? OR (kind='expense' AND status='pending'))").bind(userId,day).all()).results;}
@@ -15,11 +16,15 @@ export async function habitCallback(env,userId,callback,api){
  const value=callback.data||'';if(!value.startsWith('check:')&&!value.startsWith('lunch:'))return false;
  const [prefix,day,action,argument]=value.split(':'),kind=prefix==='check'?'expense':'lunch',state=await api.readState(env,userId),clock=clockAt(new Date(),state.data.settings?.timeZone||DEFAULT_ZONE);
  if(!validDate(day)||day>clock.date)throw Error('Некорректная дата вопроса.');
+ const answer=api.answer||(text=>api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text}));
+ if(kind==='lunch'&&lunchQuestionsPaused(state.data,day)){
+  await answer('В эту дату вопросы об обеде на паузе. Обед можно записать вручную.');
+  return true;
+ }
  const row=(await dayChecks(env,userId,day)).find(r=>r.kind===kind);
  if(!row)throw Error('Вопрос больше не активен.');
  const payload=JSON.parse(row.payload),send=text=>api.telegram(env,'sendMessage',{chat_id:userId,text});
  const transition=async(status,nextPayload={})=>{const result=await env.DB.prepare("UPDATE user_day_checks SET status=?,payload=? WHERE user_id=? AND day=? AND kind='expense' AND status=? AND payload=?").bind(status,JSON.stringify(nextPayload),userId,day,row.status,row.payload).run();return result.meta.changes===1;};
- const answer=api.answer|| (text=>api.telegram(env,'answerCallbackQuery',{callback_query_id:callback.id,text}));
  if(kind==='expense'&&action==='history'){
   await api.showExpenseHistory(day,Number(argument)||0);await answer('Записи за '+day);return true;
  }

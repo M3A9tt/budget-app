@@ -16,6 +16,7 @@ import {iconShape} from '../src/mini-icon-shapes.js';
 import {isIcon} from '../src/icon-catalog.js';
 import {hasAccess} from './users.js';
 import {widgetGlass,widgetPrimary} from './widget-glass.js';
+import {expenseCategoryLabel} from '../src/expense-allocations.js';
 import {widgetBrand} from './widget-brand.js';
 import {accountWidgetData} from './accounts-widget-data.js';
 import {accountsWidgetHtml} from './notification-widget.js';
@@ -264,7 +265,7 @@ function widgetData(data,page,brand,revision){
  const rows=source.slice(0,page==='home'?2:4).map(item=>{
   const transfer=item.type==='transfer';
   const appearance=history?cats.find(cat=>cat.id===item.cat):calendarEventCategory(data,item);
-  const category=appearance?.name;
+  const category=item.categoryAllocations?expenseCategoryLabel(item,cats):appearance?.name;
   const label=history?item.note||(transfer?transferDetails(data,item).route:category||(item.type==='income'?'Доход':'Расход')):item.name;
   const amount=item.amount===null?'Уточнить':(transfer?'↔ ':item.type==='income'?'+':'−')+money(item.amount,item.currency);
   const detail=transfer?transferDetails(data,item).route:account(item.accountId);

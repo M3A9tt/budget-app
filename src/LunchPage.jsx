@@ -5,6 +5,7 @@ import {deleteTransaction} from './ledger.js';
 import {setLunchWorkday} from './lunch-schedule.js';
 import {lunchDayRecords,orphanedLunchTopups} from './lunch-records.js';
 import LunchImport from './LunchImport.jsx';
+import LunchPeriods from './LunchPeriods.jsx';
 import {money,todayMoscow} from './mini-model.js';
 import {lunchBudget,lunchCalculator,companyLunch,personalLunch} from './lunch-budget.js';
 function LunchCellStatus({pending=false}){
@@ -37,6 +38,7 @@ export default function LunchPage({data,mutate,busy,onAdd,onEdit,onBack,initialM
    <div className="history-heading lunch-detail-title"><h1>{mode==='calculator'?'Обед по прайсу':'Обеды'}</h1></div>
  </header>}
  {mode==='table'?<><div className="lunch-month"><button className="icon-button" aria-label="Предыдущий месяц" onClick={()=>changeMonth(-1)}><Icon name="back"/></button><label><span key={month} className="view-slide">{title}</span><input aria-label="Месяц обедов" type="month" min="2000-01" max="2100-12" value={month} onChange={e=>{if(/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value)&&e.target.value>='2000-01'&&e.target.value<='2100-12')setMonth(e.target.value);}}/></label><button className="icon-button" aria-label="Следующий месяц" onClick={()=>changeMonth(1)}><Icon name="arrow"/></button></div>
+ <LunchPeriods data={data} today={today} month={month} mutate={mutate} busy={busy}/>
  <div className="lunch-metrics">{[['Лимит месяца',b.budget],['Потрачено',b.spent],['Осталось',b.remaining],[b.difference>=0?'Профицит':'Дефицит',Math.abs(b.difference)]].map(([label,value],i)=><div key={label}><small>{label}{i===3&&b.unrecorded?' *':''}</small><strong className={i===3?(b.difference<0?'ins-danger':'mini-income'):''}>{money(value)}</strong></div>)}</div>
  <div className="lunch-toolbar"><button className="mini-primary" disabled={busy} onClick={()=>onAdd({type:'lunch',date:today})}><Icon name="plus" size={17}/> Записать обед</button><button className="mini-secondary lunch-price-action" onClick={()=>setMode('calculator')}><Icon name="food" size={17}/> По прайсу</button></div>
  <button type="button" className="mini-text-button lunch-extra-entry" onClick={()=>selectDay(month===today.slice(0,7)?today:month+'-01')}><Icon name="calendar" size={17}/> Работал в выходной</button><p className="lunch-caption">{b.workDays} раб. дн. × {money(b.daily)}{b.extraDays>0?` · дополнительных выходов: ${b.extraDays} дн., уже в лимите`:""}</p>{!b.verified&&<p role="alert" className="mini-small">Календарь этого года ещё не проверен: лимит предварительный по графику.</p>}

@@ -13,7 +13,7 @@ await mkdir(out,{recursive:true});
 const today=todayMoscow(),seed={
   ...structuredClone(EMPTY),
   accounts:[{id:'fictional-card',name:'Карта',balance:1000,currency:'RUB'}],
-  settings:{...EMPTY.settings,telemetryEnabled:false,interfaceGuideSeen:true}
+  settings:{...EMPTY.settings,telemetryEnabled:false,interfaceGuideSeen:true,modules:{lunch:true}}
 };
 const server=await preview({preview:{host:'127.0.0.1',port:0},logLevel:'error'});
 const browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTABLE_PATH||undefined,headless:true,args:['--no-sandbox']});
@@ -110,6 +110,11 @@ try {
         assert.equal(await page.locator('select[aria-label="Валюта чека"]').inputValue(),'RUB');
       };
       await page.locator('#amount').fill('90');
+      await page.reload();
+      await page.getByText('Остался незавершённый ввод').waitFor();
+      await navigate('Записать');
+      assert.equal(await page.locator('#amount').inputValue(),'90');
+      assert.equal(await page.getByText('Остался незавершённый ввод').count(),0);
       await readReceipt('GEL');
       await page.getByText(/123\.45 GEL · Валюта чека недоступна/).waitFor();
       assert.equal(await page.getByLabel('Итог чека').inputValue(),'');
@@ -203,6 +208,46 @@ try {
       assert.equal(await result.getByText('С ожидаемыми доходами',{exact:true}).count(),0);
       await shot('purchase-existing-shortfall-390');
       assert.equal(writes.size,2);
+
+      await navigate('Записать');
+      await page.locator('#amount').fill('10.01');
+      await page.getByRole('button',{name:'Разделить по категориям'}).click();
+      const split=page.getByRole('region',{name:'Распределение покупки'});
+      const chooseCategory=async(index,name)=>{
+        await split.getByRole('button',{name:'Категория '+index,exact:true}).click();
+        await page.getByRole('dialog',{name:'Категория '+index,exact:true}).getByRole('button',{name,exact:true}).click();
+      };
+      await chooseCategory(2,'Транспорт');
+      await split.getByRole('button',{name:'Добавить категорию',exact:true}).click();
+      await chooseCategory(3,'Техника');
+      await split.getByRole('button',{name:'Проценты',exact:true}).click();
+      for(const [index,value] of ['33.33','33.33','33.34'].entries())await split.getByLabel('Процент категории '+(index+1)).fill(value);
+      await split.getByText('Вся сумма распределена').waitFor();
+      await page.setViewportSize({width:320,height:844});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+      await shot('split-expense-320');
+      await split.getByRole('button',{name:'Суммы',exact:true}).click();
+      assert.equal(await split.getByLabel('Сумма категории 2').inputValue(),'3.33');
+      await page.getByRole('button',{name:/^Записать · 10/}).click();
+      await page.getByText('Операция сохранена',{exact:true}).waitFor();
+      assert.equal(data.transactions.length,1);
+      assert.equal(data.accounts[0].balance,989.99);
+      assert.deepEqual(data.transactions[0].categoryAllocations.map(part=>part.minor),[334,333,334]);
+      assert.equal(writes.size,3);
+
+      await page.goto(origin+'/?lunch=1');
+      await page.getByRole('button',{name:'Периоды без вопросов'}).click();
+      await page.getByRole('button',{name:'Добавить период'}).click();
+      await page.getByRole('button',{name:'Пауза вопросов',exact:true}).click();
+      await page.getByLabel('Конец',{exact:true}).fill(moveDate(today,5));
+      await page.getByRole('button',{name:'Сохранить период'}).click();
+      await page.getByText('Период сохранён',{exact:true}).waitFor();
+      assert.equal(data.lunchPeriods.length,1);
+      assert.equal(data.lunchPeriods[0].mode,'pause');
+      assert.equal(data.accounts[0].balance,989.99);
+      assert.equal(writes.size,4);
+      await page.setViewportSize({width:390,height:844});
+      await shot('lunch-pause-390');
       assert.deepEqual(errors,[]);
     } catch(error) {
       await shot('failure').catch(()=>{});

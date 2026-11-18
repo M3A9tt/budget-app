@@ -1643,3 +1643,24 @@
  .mini-shell.personal-ui .mini-header .mini-brand{flex-basis:clamp(104px,32vw,148px)}
  .header-summary span{white-space:normal;font-size:12px;overflow-wrap:anywhere}
 }
+.lunch-periods {
+  margin: 0 0 12px;
+  border: 1px solid var(--mini-line);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #aecdc414, transparent);
+  padding: 4px 10px;
+}
+.lunch-period-trigger {width: 100%;min-height: 48px;text-align: left}
+.lunch-period-content {border-top: 1px solid var(--mini-line);padding: 8px 2px}
+.lunch-period-row, .lunch-period-actions {display: flex;align-items: center;flex-wrap: wrap;gap: 8px}
+.lunch-period-row {justify-content: space-between;padding-block: 8px;border-bottom: 1px solid var(--mini-line)}
+.lunch-period-row small {display: block;color: var(--mini-muted);margin-top: 3px}
+.lunch-period-actions button {min-height: 44px}
+.lunch-period-row .mini-text-button {
+  border: 1px solid var(--mini-line);
+  border-radius: 10px;
+  padding: 0 8px;
+  background: var(--glass-field, var(--mini-panel));
+}
+.lunch-period-row .lunch-period-delete {color: #e6a9ab}
+.lunch-period-form {padding-block: 10px}

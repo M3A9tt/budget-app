@@ -2,6 +2,7 @@ import {matchesInsight} from './analytics-report.js';
 import {companyLunch} from './lunch-budget.js';
 import {sumMoney,transactionRub} from './ledger.js';
 import {money} from './mini-model.js';
+import {expenseCategoryAmount,expenseCategoryLabel} from './expense-allocations.js';
 
 // This is a read model: transfers retain their own ledger records and balances.
 export function activityEntries(data){
@@ -23,11 +24,15 @@ export function filterActivity(entries,data,cats,{type='all',date='',search='',c
   if(lunch&&includeCompanyLunch===false)return false;
   const matchesType=type==='all'||t.type===type||(type==='expense'&&lunch&&includeCompanyLunch===true);
   if(!matchesType||date&&t.date!==date||chartFilter&&!matchesInsight(t,chartFilter))return false;
-  const details=t.type==='transfer'?Object.values(transferDetails(data,t)).join(' '):[cats.find(c=>c.id===t.cat)?.name,t.type==='income'?'Доход':t.type==='lunch'?'Обед компании':'Расход',data.accounts.find(a=>a.id===t.accountId)?.name,{sbp:'СБП',card:'Карта',cash:'Наличные'}[t.paymentMethod]].join(' ');
+  const details=t.type==='transfer'?Object.values(transferDetails(data,t)).join(' '):[t.type==='expense'?expenseCategoryLabel(t,cats):cats.find(c=>c.id===t.cat)?.name,t.type==='income'?'Доход':t.type==='lunch'?'Обед компании':'Расход',data.accounts.find(a=>a.id===t.accountId)?.name,{sbp:'СБП',card:'Карта',cash:'Наличные'}[t.paymentMethod]].join(' ');
   return normalize([t.note,t.date,t.amount,money(t.amount,t.currency),details].join(' ')).includes(query);
  });
 }
 
-export function activityNetRub(data,entries){
- return sumMoney(entries,t=>t.type==='transfer'||companyLunch(t)?0:(t.type==='expense'?-1:1)*transactionRub(data,t));
+export function activityNetRub(data,entries,category){
+ return sumMoney(entries,t=>{
+  if(t.type==='transfer'||companyLunch(t))return 0;
+  const value=transactionRub(data,t);
+  return t.type==='expense'?-(category?expenseCategoryAmount(t,value,category):value):value;
+ });
 }

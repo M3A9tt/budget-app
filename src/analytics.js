@@ -2,6 +2,7 @@ import {transactionRub,sumMoney,roundMoney} from './ledger.js';
 import {fixedExpense,personalExpense} from './expense-groups.js';
 import {scheduledEvents} from './finance-events.js';
 import {CATEGORIES} from './mini-model.js';
+import {expenseCategoryAmounts} from './expense-allocations.js';
 export const COLORS=['#91dc75','#9f9bff','#ffbc76','#f78fa7','#6bcedb','#e7ca72','#d9a2f0','#75c9ac','#84b5ff','#a2acbe'];
 export const shiftDate=(date,n)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 export const rub=transactionRub;
@@ -14,13 +15,17 @@ export function analytics(data,today,days=7,scope={}){
  const byMonth=new Map(months.map(m=>[m.key,m]));let total=0,previous=0,fixed=0;
  for(const t of data.transactions){
   if(!personalExpense(t)||t.date>today||scope.accountId&&t.accountId!==scope.accountId)continue;
-  const value=rub(data,t);if(!known.has(t.cat)){known.add(t.cat);allCats.push({id:t.cat,name:'Без категории'});}
+  const value=rub(data,t);
   const month=byMonth.get(t.date.slice(0,7));if(month&&t.date<=month.end){month.value=roundMoney(month.value+value);month.count++;}
   if(t.date>=previousFrom&&t.date<=previousTo)previous=roundMoney(previous+value);
   if(t.date<from||t.date>to)continue;
   total=roundMoney(total+value);if(fixedExpense(t))fixed=roundMoney(fixed+value);
-  totals.set(t.cat,roundMoney((totals.get(t.cat)||0)+value));
-  let day=byDay.get(t.date);if(!day){day=new Map();byDay.set(t.date,day);}day.set(t.cat,roundMoney((day.get(t.cat)||0)+value));
+  let day=byDay.get(t.date);if(!day){day=new Map();byDay.set(t.date,day);}
+  for(const {cat,amount} of expenseCategoryAmounts(t,value)){
+   if(!known.has(cat)){known.add(cat);allCats.push({id:cat,name:'Без категории'});}
+   totals.set(cat,roundMoney((totals.get(cat)||0)+amount));
+   day.set(cat,roundMoney((day.get(cat)||0)+amount));
+  }
  }
  const cats=allCats.map((c,i)=>({...c,color:COLORS[i%COLORS.length],value:totals.get(c.id)||0}));
  const daily=Array.from({length:days},(_,i)=>{const date=shiftDate(from,i),values=byDay.get(date),parts=values?cats.map(c=>({...c,value:values.get(c.id)||0})).filter(c=>c.value>0):[];return{date,parts,value:sumMoney(parts,c=>c.value)};});

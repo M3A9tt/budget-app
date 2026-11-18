@@ -19,14 +19,14 @@ export function repeatEntry(data,tx,today,categories){
   return prepareEvent(data,next,today);
  }
  const validCat=categories.some(c=>c.id===tx.cat),account=data.accounts.find(a=>a.id===tx.accountId);
- return {...(tx.debtId?{debtId:tx.debtId}:{}),type:tx.type,cat:tx.type==='lunch'?'lunch':tx.type==='income'?'income':validCat?tx.cat:'other',amount:String(tx.amount),note:tx.note||'',currency:tx.currency||'RUB',date:today,accountId:tx.type==='lunch'?undefined:account?.id||'',paymentMethod:tx.paymentMethod||'unknown',tags:[]};
+ return {...(tx.debtId?{debtId:tx.debtId}:{}),...(tx.categoryAllocations?{categoryAllocations:tx.categoryAllocations.map(part=>({...part}))}:{}),type:tx.type,cat:tx.type==='lunch'?'lunch':tx.type==='income'?'income':validCat?tx.cat:'other',amount:String(tx.amount),note:tx.note||'',currency:tx.currency||'RUB',date:today,accountId:tx.type==='lunch'?undefined:account?.id||'',paymentMethod:tx.paymentMethod||'unknown',tags:[]};
 }
 export function repeatSuggestions(data,today,limit=6){
  const seen=new Set(),out=[];
  for(const tx of sortedEntries(data.transactions)){
   if(tx.date>today||tx.type!=='expense'||tx.recurringId||tx.installmentPaymentId||tx.debtId||tx.lunchId||tx.balanceEffect==='history-only'||tx.cat==='lunch')continue;
   if(tx.accountId&&!data.accounts.some(a=>a.id===tx.accountId))continue;
-  const key=JSON.stringify([tx.note,tx.cat,tx.accountId,tx.currency,tx.paymentMethod]);
+  const key=JSON.stringify([tx.note,tx.cat,tx.accountId,tx.currency,tx.paymentMethod,tx.categoryAllocations]);
   if(seen.has(key))continue;seen.add(key);out.push(tx);if(out.length===limit)break;
  }
  return out;

@@ -1,5 +1,6 @@
 import {lunchDayStatus} from '../src/lunch-day-state.js';
 import {validDate} from '../src/finance-tools.js';
+import {lunchQuestionsPaused} from '../src/lunch-schedule.js';
 
 export const lunchReminderKey=day=>'lunch-day:'+day; // Read old receipts only.
 export const lunchReminderAnswered=(data,day)=>!['unanswered','absence'].includes(lunchDayStatus(data,day));
@@ -14,6 +15,7 @@ export function lunchEntryArgs(day,type,prefill={}){
 
 export function validateLunchEntry(data,args,values){
  if(!args.lunchCheckDay)return;
+ if(lunchQuestionsPaused(data,args.lunchCheckDay))throw Error('В эту дату вопросы об обеде на паузе. Обед можно записать вручную.');
  if(!validDate(args.lunchCheckDay)||values.date!==args.lunchCheckDay)throw Error('Этот вопрос относится к обеду за '+args.lunchCheckDay+'. Оставь эту дату или создай отдельную запись');
  if((values.currency||'RUB')!=='RUB')throw Error('Вопрос об обеде учитывается в рублях');
  if(args.type==='expense'){

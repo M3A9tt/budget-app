@@ -14,6 +14,7 @@ import {orderedAccounts} from '../src/account-balances.js';
 import {validateLunchEntry} from './lunch-entry.js';
 import {customizeHome} from '../src/home-layout.js';
 import {repeatEntry} from '../src/entry-assist.js';
+import {draftExpenseAllocations,supportsExpenseAllocation} from '../src/expense-allocations.js';
 import {EMPTY,CATEGORIES,todayMoscow} from '../src/mini-model.js';
 import {parseMoney,putTransaction,deleteTransaction,undoTransaction,transferMoney,migrateData} from '../src/ledger.js';
 import {accountInput} from '../src/account-input.js';
@@ -29,10 +30,40 @@ import {prepareImportAccounts,importAccountSources,resolveImportAccount} from '.
 import {reminderSettingsFromDraft} from '../src/reminder-settings.js';
 import {MODULES,setModule} from '../src/modules.js';
 import {validZone} from '../src/time-settings.js';
-import {setLunchWorkday} from '../src/lunch-schedule.js';
+import {deleteLunchPeriod,LUNCH_PERIOD_LABELS,resumeLunchPeriod,saveLunchPeriod,setLunchWorkday} from '../src/lunch-schedule.js';
 const text=(key,label,extra={})=>({key,label,type:'text',...extra}),num=(key,label,extra={})=>text(key,label,{type:'money',...extra}),date=(key,label,extra={})=>text(key,label,{type:'date',...extra}),choice=(key,label,choices,extra={})=>text(key,label,{type:'choice',choices,...extra});
 const yesno=[[true,'Да'],[false,'Нет']],currencies=d=>Object.keys(d.rates).map(x=>[x,x]),accounts=(d,filter=()=>true)=>orderedAccounts(d).filter(filter).map(a=>[a.id,a.name+' · '+a.currency]),cats=d=>categoryCatalog(d.customCats).map(c=>[c.id,c.name]);
 const source=(d,a,key,list)=>{const row=list.find(x=>x.id===a[key]);if(!row)throw Error('Запись больше не существует');return row;};
+
+function transactionCategories(d,args,values,old) {
+ const category=choice('cat','Категория',cats(d));
+ if(!supportsExpenseAllocation({...old,...values,type:'expense'})||args.ownLunch||args.lunchCheckDay)return [category];
+ const format=parts=>parts?.map(({cat,minor})=>cat+';'+(minor/100)).join('\n')||'';
+ return [category,text('categoryDistribution','Доли по категориям',{
+  optional:true,advanced:true,max:4000,default:format(values.categoryAllocations||old?.categoryAllocations),
+  hint:'Пришли по одной категории на строку: Еда;600 и Транспорт;400. Для процентов: Еда;60% и Транспорт;40%. Чтобы оставить одну, напиши «одна категория».',
+ })];
+}
+
+function parseBotDistribution(data,value,amount) {
+ const normalized=value.trim().toLocaleLowerCase('ru');
+ if(!normalized||normalized==='одна категория')return undefined;
+ const options=categoryCatalog(data.customCats);
+ const rows=value.split('\n').filter(line=>line.trim()).map(line=>{
+  const [name,raw,...rest]=line.split(';').map(field=>field.trim());
+  const term=name.toLocaleLowerCase('ru');
+  const matches=options.filter(category=>category.id===name||category.name.toLocaleLowerCase('ru')===term);
+  if(matches.length!==1||!raw||rest.length)throw Error('Укажи точную категорию и долю через «;», по одной на строку');
+  return {cat:matches[0].id,amount:raw,percent:raw.endsWith('%')?raw.slice(0,-1).trim():''};
+ });
+ const usePercent=rows.some(row=>row.amount.endsWith('%'));
+ if(usePercent&&rows.some(row=>!row.percent))throw Error('Выбери один формат: суммы или проценты');
+ return draftExpenseAllocations(amount,{mode:usePercent?'percent':'amount',rows});
+}
+export function botExpenseAllocations(data,values,old) {
+ return values.categoryDistribution===undefined?values.categoryAllocations||old?.categoryAllocations:
+  parseBotDistribution(data,values.categoryDistribution,parseMoney(values.amount));
+}
 export const SETTING_GROUPS={
  reminders:[['expenseCheckEnabled','Проверка расходов','bool'],['checkTime','Время проверки','time'],['checkRepeats','Повторы (0–3)','integer'],['checkInterval','Интервал в часах (1–4)','integer'],['checkEscalation','Усиление при пропусках','bool'],['checkEscalationDays','После скольких дней (1–7)','integer'],['reminderStyle','Стиль текста','style'],['reminderText','Свой текст','text'],['lunchAskEnabled','Вопрос об обеде','bool'],['lunchAskTime','Время вопроса об обеде','time'],['lunchAskDays','Дни вопроса: 1,2,3,4,5 (вс=0)','days'],['plannedReminders','Напоминания о платежах','bool'],['plannedReminderTime','Время напоминания о платежах','time'],['reportTime','Время сводок','time'],['dailyReport','Сводка дня','bool'],['weeklyReport','Сводка недели','bool'],['monthlyReport','Сводка месяца','bool'],['timeZone','Часовой пояс','zone']],
  lunch:[['lunchEmployer','Работодатель','text'],['lunchDaily','Компенсация в день, ₽','money'],['lunchCalendar','Календарь','calendar'],['lunchWorkDays','Рабочие дни: 1,2,3,4,5 (вс=0)','days'],['lunchEmployeeId','Номер сотрудника','text'],['lunchLearningEnabled','Учиться на исправлениях','bool']],
@@ -49,7 +80,7 @@ export function fieldsFor(d,op,args={},values={}){
  if(op==='moveCalendarEvent')return [date('date','Новая дата события',{default:args.date||today})];
  if(op==='reschedulePlan')return [date('date','Новый день оплаты',{default:today})];
  if(op==='paymentReminder')return [date('date','Напомнить в дату',{default:today}),text('time','Время ЧЧ:ММ',{type:'time',default:'18:00'})];
- if(op==='tx'){const old=args.id?source(d,args,'id',d.transactions):null,type=args.type||old?.type||'expense';return [num('amount',type==='lunch'?'Стоимость обеда':'Сумма'),...(type==='lunch'?[]:[choice('accountId',type==='income'?'Куда поступили':'Откуда оплатили',[...(args.requireAccount?[]:[['','Без счёта']]),...accounts(d,a=>args.accountCurrency?(a.currency||'RUB')===args.accountCurrency:!args.quickInput||(a.currency||'RUB')===(values.currency||'RUB'))]),...(type==='expense'?[choice('cat','Категория',cats(d))]:[]),choice('currency','Валюта суммы',currencies(d),{default:old?.currency||d.accounts.find(a=>a.id===values.accountId)?.currency||'RUB',advanced:true}),choice('paymentMethod','Способ оплаты',[['card','Карта'],['sbp','СБП'],['cash','Наличные'],['bank','Перевод'],['unknown','Не указан']],{default:old?.paymentMethod||'unknown',advanced:true})]),...common.map(f=>f.key==='note'?{...f,default:type==='lunch'?'Обед компании':type==='income'?'Доход':'Покупка'}:f)];}
+ if(op==='tx'){const old=args.id?source(d,args,'id',d.transactions):null,type=args.type||old?.type||'expense';return [num('amount',type==='lunch'?'Стоимость обеда':'Сумма'),...(type==='lunch'?[]:[choice('accountId',type==='income'?'Куда поступили':'Откуда оплатили',[...(args.requireAccount?[]:[['','Без счёта']]),...accounts(d,a=>args.accountCurrency?(a.currency||'RUB')===args.accountCurrency:!args.quickInput||(a.currency||'RUB')===(values.currency||'RUB'))]),...(type==='expense'?transactionCategories(d,args,values,old):[]),choice('currency','Валюта суммы',currencies(d),{default:old?.currency||d.accounts.find(a=>a.id===values.accountId)?.currency||'RUB',advanced:true}),choice('paymentMethod','Способ оплаты',[['card','Карта'],['sbp','СБП'],['cash','Наличные'],['bank','Перевод'],['unknown','Не указан']],{default:old?.paymentMethod||'unknown',advanced:true})]),...common.map(f=>f.key==='note'?{...f,default:type==='lunch'?'Обед компании':type==='income'?'Доход':'Покупка'}:f)];}
  if(op==='account')return [text('name','Название'),choice('kind','Тип',[['regular','Повседневный счёт'],['savings','Накопления'],['deposit','Вклад']],{default:args.savings?'savings':'regular'}),choice('currency','Валюта',currencies(d),{default:'RUB'}),...(values.kind&&values.kind!=='regular'?[choice('funding','Откуда накопления',[['existing','Уже отложено — указать остаток'],['transfer','Отложить с моего счёта']],{default:'existing'})]:[]),...(values.kind!=='regular'&&values.funding==='transfer'?[choice('from','Откуда отложить',accounts(d,a=>!isSavings(a)&&(a.currency||'RUB')===(values.currency||'RUB'))),num('amount','Сколько отложить'),date('date','Дата перевода',{default:today})]:[num('balance','Уже имеющийся остаток',{default:0})]),choice('storageKind','Где хранятся деньги',[['bank','В банке'],['cash','Наличными'],['other','Другое']],{default:'bank'}),...(values.kind==='deposit'?[num('annualRate','Годовая ставка, %',{optional:true,default:''}),date('maturityDate','Дата окончания',{optional:true,default:''})]:[])];
  if(op==='rename')return [text('name','Новое название')];
  if(op==='classify')return [choice('kind','Тип накоплений',[['savings','Накопления'],['deposit','Вклад']]),choice('storageKind','Где хранятся деньги',[['bank','В банке'],['cash','Наличными'],['other','Другое']],{default:'bank'}),num('annualRate','Годовая ставка, %',{optional:true,default:''}),date('maturityDate','Дата окончания',{optional:true,default:''})];
@@ -72,6 +103,10 @@ export function fieldsFor(d,op,args={},values={}){
  if(op==='linkPlan')return [choice('transactionId','Уже записанная операция — без повторного списания',plannedLinkCandidates(d,args.id,args.period).map(t=>[t.id,`${t.date} · ${t.amount} ${t.currency||'RUB'} · ${t.note||'Без описания'}`]))];
  if(op==='rate')return [choice('currency','Валюта',currencies(d).filter(([c])=>c!=='RUB')),num('rate','Рублей за единицу валюты')];
  if(op==='dayOff')return [date('date','Дата',{default:today}),choice('ratio','Работал в этот день?',[[1,'Да · полный день'],[0.5,'Да · полдня'],[0,'Нет · выходной / отпуск'],['reset','Как в обычном графике']],{hint:'Можно отметить работу в выходной или праздник. Лимит на обед добавится один раз за эту дату.'})];
+ if(op==='lunchPeriod')return [
+  choice('mode','Вид периода',Object.entries(LUNCH_PERIOD_LABELS)),
+  date('from','Начало',{default:today}),date('to','Конец включительно')
+ ];
  if(op==='calculator')return [text('items','Блюда: каждое с новой строки, например Суп;150;1',{type:'items'})];
  if(op==='setting'){const s=Object.values(SETTING_GROUPS).flat().find(([k])=>k===args.key);if(!s)throw Error('Настройка не найдена');let options=s[2]==='bool'?yesno:s[2]==='style'?[['calm','Спокойный'],['funny','С юмором'],['rough','Пожёстче'],['custom','Свой текст']]:s[2]==='calendar'?[['ru-production','Производственный РФ'],['weekly','Свой недельный график']]:null;return [text('value',s[1],{type:options?'choice':s[2],...(options?{choices:options}:{}),optional:['text','date'].includes(s[2]),default:d.settings[args.key]??''})];}
  if(op==='importRow'){const type=values.type||'expense';return [choice('type','Тип',[['expense','Расход'],['income','Доход'],['transfer','Перевод'],['lunch','Обед компании']]),date('date','Дата'),num('amount','Сумма'),choice('currency','Валюта',currencies(d)),...(type==='lunch'?[]:type==='transfer'?[choice('from','Откуда',accounts(d)),choice('to','Куда',accounts(d)),num('fee','Комиссия',{default:0})]:[choice('account','Счёт',accounts(d)),...(type==='expense'?[choice('category','Категория',cats(d))]:[])]),text('note','Описание',{optional:true,default:''})];}
@@ -99,7 +134,21 @@ export function parseField(field,value){
 export function applyBotAction(d,op,args={},v={}){
  const today=todayMoscow(d.settings.timeZone);
  if(args.calendarEvent&&!scheduledEvent(d,today,args.calendarEvent))throw Error('Событие уже выполнено или перенесено. Обнови календарь.');
- if(op==='tx'){validateLunchEntry(d,args,v);if(args.checkDay&&isPlannedEntry(v,today))throw Error('В проверке дня запиши фактический расход. Будущий расход добавь обычным вводом.');const old=args.id?source(d,args,'id',d.transactions):null,type=old?.type||args.type||'expense',a=d.accounts.find(a=>a.id===v.accountId);return submitEntry(d,{...old,...v,id:old?.id||args.newId||v.id,...(args.lunchCheckDay?{_lunchCheckDay:args.lunchCheckDay}:{}),type,cat:type==='lunch'?'lunch':type==='income'?'income':v.cat||'other',currency:type==='lunch'?'RUB':v.currency||old?.currency||a?.currency||'RUB',tags:old?.tags||v.tags||(args.ownLunch?['обед-за-свои']:[]),accountId:type==='lunch'?undefined:v.accountId},today);}
+ if(op==='tx'){
+  validateLunchEntry(d,args,v);
+  if(args.checkDay&&isPlannedEntry(v,today))throw Error('В проверке дня запиши фактический расход. Будущий расход добавь обычным вводом.');
+  const old=args.id?source(d,args,'id',d.transactions):null,type=old?.type||args.type||'expense';
+  const account=d.accounts.find(a=>a.id===v.accountId);
+  const {categoryDistribution,categoryAllocations,...values}=v;
+  const {categoryAllocations:oldParts,...original}=old||{};
+  const parts=botExpenseAllocations(d,v,old);
+  return submitEntry(d,{
+   ...original,...values,id:old?.id||args.newId||v.id,...(args.lunchCheckDay?{_lunchCheckDay:args.lunchCheckDay}:{}),
+   type,cat:type==='lunch'?'lunch':type==='income'?'income':parts?.[0]?.cat||v.cat||'other',
+   ...(parts?{categoryAllocations:parts}:{}),currency:type==='lunch'?'RUB':v.currency||old?.currency||account?.currency||'RUB',
+   tags:old?.tags||v.tags||(args.ownLunch?['обед-за-свои']:[]),accountId:type==='lunch'?undefined:v.accountId,
+  },today);
+ }
  if(op==='installmentChange')return changeInstallmentPayment(d,args.id,v.paymentId,v);
  if(op==='installmentReturn')return installmentReturnStatus(d,args.id,v.status);
  if(op==='installmentRefund')return refundInstallment(d,args.id,{...v,id:args.newId});
@@ -143,6 +192,9 @@ export function applyBotAction(d,op,args={},v={}){
  if(op==='homeLayout')return customizeHome(d,args);
  if(op==='setting'){const settings=reminderSettingsFromDraft({...d.settings,[args.key]:v.value});return {...d,settings:{...settings,...(args.key==='expenseCheckEnabled'&&v.value?{checkStartedDate:today}:{}),reminders:false}};}
  if(op==='dayOff')return setLunchWorkday(d,v.date,v.ratio==='reset'?'calendar':v.ratio);
+ if(op==='lunchPeriod')return saveLunchPeriod(d,{...v,id:args.id},args.newId);
+ if(op==='lunchPeriodDelete')return deleteLunchPeriod(d,args.id);
+ if(op==='lunchPeriodResume')return resumeLunchPeriod(d,args.id,today);
  if(op==='import')return commitBotImport(d,v,args);
  if(op==='restore'){if(v.ack!=='ВОССТАНОВИТЬ')throw Error('Напиши ВОССТАНОВИТЬ для подтверждения');const b=JSON.parse(v.content);if(!b.settings||!b.rates||!Array.isArray(b.accounts)||!Array.isArray(b.transactions))throw Error('Нужен полный бэкап');return migrateData(b,EMPTY);}
  throw Error('Действие не найдено');
@@ -152,4 +204,4 @@ export function botImportPreview(d,v,args={}){
  return {data:d,rows:previewImport(d,content,v.accountId),json:false,sources:[]};
 }
 export function commitBotImport(d,v,args={}){const p=botImportPreview(d,v,args);if(p.sources.length)throw Error('Сначала сопоставь счета');if(p.json)return commitJsonImport(p.data,p.doc,{affectBalances:v.affectBalances,excluded:args.excluded||[],forced:args.forced||[]});return commitImport(d,p.rows.map(r=>({...r,force:args.forced?.includes(r.line)})).filter(r=>!args.excluded?.includes(r.line)),{affectBalances:v.affectBalances});}
-export function initialValues(d,op,args){let old;if(op==='tx'&&args.id)old=d.transactions.find(t=>t.id===args.id);if(op==='wish'&&args.id)old=(d.wishes||[]).find(t=>t.id===args.id);if(op==='editTransfer'&&args.id)old=d.transfers.find(t=>t.id===args.id);if(op==='plan'&&args.id)old=d.recurring.find(t=>t.id===args.id);return old?{...old}:{};}
+export function initialValues(d,op,args){let old;if(op==='tx'&&args.id)old=d.transactions.find(t=>t.id===args.id);if(op==='wish'&&args.id)old=(d.wishes||[]).find(t=>t.id===args.id);if(op==='editTransfer'&&args.id)old=d.transfers.find(t=>t.id===args.id);if(op==='plan'&&args.id)old=d.recurring.find(t=>t.id===args.id);if(op==='lunchPeriod'&&args.id)old=source(d,args,'id',d.lunchPeriods||[]);return old?{...old}:{};}

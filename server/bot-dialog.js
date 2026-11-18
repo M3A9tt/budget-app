@@ -4,6 +4,7 @@ import {CATEGORIES,money,todayMoscow} from '../src/mini-model.js';
 import {entryDefaults} from '../src/entry-assist.js';
 import {debtRemaining} from '../src/debt-state.js';
 import {goalSaved,installmentRemaining} from '../src/finance-tools.js';
+import {botExpenseAllocations} from './bot-catalog.js';
 export function quickDefaults(data,args){
  const type=args.type||'expense';
  const source=args.accountCurrency?{...data,accounts:data.accounts.filter(a=>(a.currency||'RUB')===args.accountCurrency)}:data;
@@ -11,10 +12,13 @@ export function quickDefaults(data,args){
 }
 export function compactTransaction(data,p){
  const v=p.values,type=p.values.type||p.args.type||'expense',account=data.accounts.find(a=>a.id===v.accountId),cat=CATEGORIES.concat(data.customCats||[]).find(c=>c.id===v.cat);
+ const split=botExpenseAllocations(data,v);
+ const categories=new Map(CATEGORIES.concat(data.customCats||[]).map(item=>[item.id,item.name]));
+ const distribution=split?.map(part=>categories.get(part.cat)+' · '+money(part.minor/100,v.currency||'RUB'))||[];
  const extra=[];if(isPlannedEntry(v,todayMoscow(data.settings.timeZone)))extra.push('Будущий '+(type==='income'?'доход':'расход')+' · сохранится в календаре. Остатки сейчас не изменятся.');if(type==='lunch'){const day=lunchBudget(data,v.date.slice(0,7),todayMoscow(data.settings.timeZone)).days.find(d=>d.date===v.date);extra.push(...(p.args.recognizedLunch?.parsed?.warning||[]));if(day&&p.args.recognizedLunch)extra.push(`Остаток лимита дня после записи: ${money(day.limit-day.company-Number(v.amount||0))}`);if(day?.ratio===0)extra.push('За эту дату лимит 0 ₽. Если работал, отметь дату: Обеды → Рабочий день / выходной.');}
- return [`${type==='income'?'+':type==='expense'?'−':''}${money(v.amount,v.currency||'RUB')} · ${type==='lunch'?'Обед компании':type==='income'?'Доход':cat?.name||'Другое'}`,
+ return [`${type==='income'?'+':type==='expense'?'−':''}${money(v.amount,v.currency||'RUB')} · ${type==='lunch'?'Обед компании':type==='income'?'Доход':split?'Покупка по категориям':cat?.name||'Другое'}`,
   type==='lunch'?'Оплачивает компания':account?`${account.name} · ${money(account.balance,account.currency)}`:'Без счёта — остатки счетов не изменятся',
-  v.note||'',...extra,`${v.date===todayMoscow(data.settings.timeZone)?'Сегодня':v.date}${v.paymentMethod==='sbp'?' · СБП':''}`].filter(Boolean);
+  v.note||'',...distribution,...extra,`${v.date===todayMoscow(data.settings.timeZone)?'Сегодня':v.date}${v.paymentMethod==='sbp'?' · СБП':''}`].filter(Boolean);
 }
 export function actionDestination(p){if(p.op==='homeLayout')return {name:'homeLayout',args:{}};if(p.op==='module')return {name:'modules',args:{}};
  if(p.op==='moveCalendarEvent')return {name:'calendar',args:{}};

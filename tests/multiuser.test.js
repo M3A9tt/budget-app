@@ -385,6 +385,31 @@ test('Old queued checks are discarded after editing, completion, disable or resc
  }
 });
 
+test('A lunch pause cancels queued questions in both delivery modes and the next eligible day resumes',async()=>{
+ const {ensureNotificationOutbox,deliverNotifications}=await import('../server/notification-outbox.js');
+ const {lunchReminder}=await import('../server/notifications.js');
+ const {saveLunchPeriod}=await import('../src/lunch-schedule.js');
+ const day='2026-11-02',tomorrow='2026-11-03';
+ for(const widgets of [false,true]){
+  const {env,data,db}=fixture();
+  const d=data(1000);
+  d.settings={...d.settings,lunchAskEnabled:true,modules:{lunch:true}};
+  const paused=saveLunchPeriod(d,{mode:'pause',from:day,to:day},'quiet');
+  await ensureNotificationOutbox(env);
+  db.prepare('INSERT INTO user_notification_outbox VALUES(?,?,?,?,0)').run(
+   '222','lunch-ask:'+day,day,JSON.stringify({kind:'lunch',body:lunchReminder(day)})
+  );
+  const sent=[],send=async(_env,method,body)=>sent.push({method,body});
+  await deliverNotifications(env,'222',day,paused,[],[],send,()=>'',setDayCheck,{widgets});
+  assert.equal(sent.length,0);
+  assert.equal(db.prepare('SELECT count(*) n FROM user_notification_outbox').get().n,0);
+  const report={id:'lunch-ask:'+tomorrow,kind:'lunch',day:tomorrow,...lunchReminder(tomorrow)};
+  await deliverNotifications(env,'222',tomorrow,paused,[report],[],send,()=>'',setDayCheck,{widgets});
+  assert.equal(sent.length,1);
+  assert.equal(sent[0].method,widgets?'sendWidget':'sendMessage');
+ }
+});
+
 test('Retried expense reminder refreshes additions and deletions while retaining its rotation attempt',async()=>{
  const {deliverNotifications}=await import('../server/notification-outbox.js'),{expenseReminder}=await import('../server/notifications.js');
  const {env,data,db}=fixture(),day=moscowDate(),d=data(1000);d.settings.expenseCheckEnabled=true;

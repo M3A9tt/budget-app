@@ -12,6 +12,7 @@ import {validateModules} from './modules.js';
 import {plannedPaid,planPeriod,planType,validPlannedPeriod,validatePlannedLinks} from './planned-model.js';
 import {validateReminderSettings} from './reminder-settings.js';
 import {validateLunchSchedule} from './lunch-schedule.js';
+import {validateExpenseAllocations} from './expense-allocations.js';
 export const roundMoney = n => {
   if(!Number.isFinite(n))return n;
   // Decimal shifting keeps values such as 10.075 on the correct side of the
@@ -120,6 +121,7 @@ export function putTransaction(data, input) {
   if(input.installmentRefundId){const plan=data.installments.find(p=>p.id===input.installmentRefundId);if(!plan||input.type!=='income'||input.currency!==plan.currency||!input.accountId||input.debtId||input.installmentPaymentId||input.recurringId)throw Error('Возврат должен быть доходом в валюте графика и со счётом');}
   const {saveRecurringAmount,...fields}=input;
   const tx = prepare(next,{...fields,...(rule?{recurringPeriod:period}:{})});
+  validateExpenseAllocations(tx,data.customCats);
   if(rule&&saveRecurringAmount)next={...next,recurring:next.recurring.map(r=>r.id===rule.id?{...r,amount:tx.amount,variable:false}:r)};
   next = apply(next, tx, 1);
   next = {...next, transactions: old ? next.transactions.map(t => t.id === tx.id ? tx : t) : [...next.transactions,tx]};
@@ -242,6 +244,7 @@ export function migrateData(input, defaults) {
   for(const t of data.transfers){if(!currencies.has(t.currency||'RUB')||!moneyValid(t.amount,true)||!moneyValid(t.fee||0)||t.from&&!accountIds.has(t.from)||t.to&&!accountIds.has(t.to))throw Error('Неверная сумма, валюта или счёт перевода');}
   for(const tx of data.transactions.filter(t=>t.transferId)){const t=data.transfers.find(t=>t.id===tx.transferId);if(!t||tx.type!=='expense'||tx.accountId!==t.from||tx.currency!==(t.currency||'RUB')||tx.amount!==t.fee||tx.balanceEffect!==(t.balanceEffect||'normal'))throw Error('Комиссия не соответствует переводу');if(data.transactions.filter(x=>x.transferId===t.id).length!==1)throw Error('Дублирующая комиссия перевода');}
   for (const tx of data.transactions) {
+    validateExpenseAllocations(tx,data.customCats);
     if(tx.accountId&&!accountIds.has(tx.accountId))throw Error('Счёт операции отсутствует в бэкапе. Восстановите или сопоставьте счёт');
     for(const key of ['amountRub','accountAmount'])if(tx[key]!==undefined&&(!Number.isFinite(tx[key])||tx[key]<0||tx[key]>1e14||Math.abs(tx[key]*100-Math.round(tx[key]*100))>0.01))throw Error('Неверная сумма списания в бэкапе: '+key);
     if(tx.balanceEffect!==undefined&&!['normal','history-only'].includes(tx.balanceEffect))throw Error('Неверный режим остатка в бэкапе');

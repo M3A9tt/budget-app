@@ -3,6 +3,22 @@ export {companyLunch,personalLunch} from './lunch-records.js';
 import {parseMoney,roundMoney} from './ledger.js';
 import {lunchCalendar,lunchDayRatio,calendarLunchRatio,lunchCalendarVerified} from './lunch-schedule.js';
 export {CALENDAR_SOURCE,lunchCalendar,lunchDayRatio,lunchCalendarVerified} from './lunch-schedule.js';
+
+export function pastLunchAllowanceChange(data,next,today,periodId) {
+ const periods=[...(data.lunchPeriods||[]),...(next.lunchPeriods||[])].filter(period=>period.id===periodId&&period.mode==='absence'&&period.from<=today);
+ if(!periods.length)return 0;
+ const from=periods.map(period=>period.from).sort()[0];
+ const to=[today,periods.map(period=>period.to).sort().at(-1)].sort()[0];
+ const daily=data.settings?.lunchDaily??400;
+ const date=new Date(from+'T12:00:00Z');
+ let delta=0;
+ while(date.toISOString().slice(0,10)<=to){
+  const day=date.toISOString().slice(0,10);
+  delta+=roundMoney(daily*lunchDayRatio(next,day))-roundMoney(daily*lunchDayRatio(data,day));
+  date.setUTCDate(date.getUTCDate()+1);
+ }
+ return roundMoney(delta);
+}
 export function lunchBudget(data,month,today){
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||Number(month.slice(0,4))<2000||Number(month.slice(0,4))>2100)throw Error('Выберите месяц');
  const [year,m]=month.split('-').map(Number),daily=data.settings?.lunchDaily??400;
