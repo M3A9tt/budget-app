@@ -6,6 +6,8 @@ import {dashboard,EMPTY} from '../src/mini-model.js';
 import {matchesInsight,spendingReport} from '../src/analytics-report.js';
 import {activityNetRub,filterActivity} from '../src/activity-history.js';
 import {repeatEntry} from '../src/entry-assist.js';
+import {createPlanned,plannedLinkCandidates} from '../src/planned-operations.js';
+import {canLinkDebtTransaction} from '../src/debt-state.js';
 import {CATEGORIES} from '../src/categories.js';
 import {botView} from '../server/bot-views.js';
 import {applyBotAction} from '../server/bot-catalog.js';
@@ -69,6 +71,16 @@ test('split weights and historical ruble amounts keep rounding exact and determi
   const rubles=expenseCategoryAmounts(tx,tx.amountRub);
   assert.deepEqual(rubles,[{cat:'food',amount:460.92},{cat:'transport',amount:460}]);
   assert.equal(tx.amountRub,920.92);
+});
+
+test('custom bot categories accept names without emoji and split purchases stay out of settlement choices',()=>{
+  let data={...fixture(),customCats:[{id:'cat-study',name:'Учёба',emoji:'🎓'}]};
+  data=applyBotAction(data,'tx',{type:'expense',newId:'bot-split'},{...purchase,categoryDistribution:'food;5,01\nУчёба;5'});
+  assert.deepEqual(data.transactions[0].categoryAllocations,[{cat:'food',minor:501},{cat:'cat-study',minor:500}]);
+  assert.equal(canLinkDebtTransaction(data.transactions[0],{type:'my',currency:'RUB'}),false);
+  data=createPlanned(data,{id:'bill',type:'expense',frequency:'monthly',amount:10.01,startDate:day,accountId:'card',name:'Счёт'});
+  data=putTransaction(data,{...purchase,id:'regular',categoryAllocations:undefined});
+  assert.deepEqual(plannedLinkCandidates(data,'bill',day.slice(0,7)).map(tx=>tx.id),['regular']);
 });
 
 test('invalid allocations are rejected in both financial commands and restore',()=>{

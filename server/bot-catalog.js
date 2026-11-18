@@ -52,9 +52,13 @@ function parseBotDistribution(data,value,amount) {
  const rows=value.split('\n').filter(line=>line.trim()).map(line=>{
   const [name,raw,...rest]=line.split(';').map(field=>field.trim());
   const term=name.toLocaleLowerCase('ru');
-  const matches=options.filter(category=>category.id===name||category.name.toLocaleLowerCase('ru')===term);
-  if(matches.length!==1||!raw||rest.length)throw Error('Укажи точную категорию и долю через «;», по одной на строку');
-  return {cat:matches[0].id,amount:raw,percent:raw.endsWith('%')?raw.slice(0,-1).trim():''};
+  const matches=options.filter(category=>{
+   const plainName=category.emoji?category.name.slice(category.emoji.length+1):category.name;
+   return [category.name,plainName].some(label=>label.toLocaleLowerCase('ru')===term);
+  });
+  const category=options.find(item=>item.id===name)||(matches.length===1?matches[0]:undefined);
+  if(!category||!raw||rest.length)throw Error('Укажи точную категорию и долю через «;», по одной на строку');
+  return {cat:category.id,amount:raw,percent:raw.endsWith('%')?raw.slice(0,-1).trim():''};
  });
  const usePercent=rows.some(row=>row.amount.endsWith('%'));
  if(usePercent&&rows.some(row=>!row.percent))throw Error('Выбери один формат: суммы или проценты');
