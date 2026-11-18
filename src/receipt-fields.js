@@ -3,15 +3,28 @@ import {parseMoney} from './ledger.js';
 import {personalExpense} from './expense-groups.js';
 
 const totalLabel=/^(?:ИТОГ(?:О)?(?:\s+К\s+ОПЛАТЕ)?|ВСЕГО\s+К\s+ОПЛАТЕ|(?:СУММА\s+)?К\s+ОПЛАТЕ|AMOUNT\s+(?:DUE|PAID)|GRAND\s+TOTAL|TOTAL)(?=$|[\s:*=₽0-9])/iu;
-const moneyOnLine=/(?:^|[^\d.,-])((?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)[.,]\d{2})(?![\d.,])/gu;
+const numericToken=/(?<![\d.,])\d+(?:(?:[.,]|[ \u00a0\u202f]+)\d+)*(?![\d.,]|[ \u00a0\u202f]+\d)/gu;
+const decimalAmount=/^(?:\d+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+)[.,]\d{2}$/u;
+const groupedAmount=/^\d{1,3}([.,])\d{3}(?:\1\d{3})*([.,])\d{2}$/u;
 const currencyMarkers={
   RUB:/₽|\bRUB\b|(?:^|\s)РУБ(?:Л[ЯЬЕЙ]*)?(?=$|[\s.])/iu,
   USD:/\bUSD\b|US\$/iu,
   EUR:/€|\bEUR\b/iu,
   GBP:/£|\bGBP\b/iu,
   CNY:/\bCNY\b/iu,
-  TRY:/₺|\bTRY\b/iu
+  TRY:/₺|\bTRY\b/iu,
+  GEL:/₾|\bGEL\b/iu,
+  KZT:/₸|\bKZT\b/iu,
+  AMD:/֏|\bAMD\b/iu,
+  BYN:/\bBYN\b/iu
 };
+
+function parseReceiptAmount(value) {
+  if(decimalAmount.test(value))return parseMoney(value);
+  const grouped=groupedAmount.exec(value);
+  if(grouped&&grouped[1]!==grouped[2])return parseMoney(value.replaceAll(grouped[1],''));
+  return NaN;
+}
 
 export function receiptFields(text) {
   const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
@@ -24,11 +37,11 @@ export function receiptFields(text) {
       const tail=continued?lines[index+1]||'':inline;
       const markers=Object.entries(currencyMarkers).filter(([,marker])=>marker.test(tail));
       const bare=markers.reduce((value,[,marker])=>value.replace(marker,' '),tail).trim();
-      const amountOnly=/^\d+(?:[ \u00a0\u202f]\d{3})*[.,]\d{2}$/u;
       let foundAmount=false;
-      if((!continued||amountOnly.test(bare))&&!/[-−–()]\s*\d|\d\s*\)/u.test(tail)) {
-        for(const match of tail.matchAll(moneyOnLine)) {
-          const amount=parseMoney(match[1]);
+      if(!/[-−–()]\s*\d|\d\s*\)/u.test(tail)) {
+        const candidates=continued?[bare]:[...tail.matchAll(numericToken)].map(([token])=>token);
+        for(const token of candidates) {
+          const amount=parseReceiptAmount(token);
           if(Number.isFinite(amount)&&amount>0) {
             totals.add(amount.toFixed(2));
             foundAmount=true;

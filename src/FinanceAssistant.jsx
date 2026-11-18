@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {money} from './mini-model.js';
 import {moveDate} from './finance-events.js';
+import {paymentDate} from './payment-copy.js';
 import {financeAnalysis,verifyAssistantSelection} from './finance-assistant.js';
 import {apiRequest} from './mini-api.js';
 
@@ -14,7 +15,9 @@ function explain(fact,analysis) {
     case 'comparison': return fact.amount===0?'Записанные расходы за оба периода совпали.':'В предыдущем периоде записано '+rubles(fact.previous)+'. Сейчас '+(fact.amount>0?'больше':'меньше')+' на '+rubles(Math.abs(fact.amount))+'.';
     case 'category': return 'Самое заметное изменение в том же направлении — '+analysis.categoryName+' ('+(fact.amount>0?'+':'−')+rubles(Math.abs(fact.amount))+').';
     case 'safe': return analysis.safe.shortfall
-      ?'Без ожидаемых доходов первый дефицит по этому сценарию возникнет '+analysis.safe.shortfall+'.'
+      ?analysis.baselineShortfall===analysis.safe.shortfall
+        ?'Первый дефицит приходится на '+paymentDate(analysis.safe.shortfall)+' и в исходном прогнозе, и с покупкой.'
+        :'Без ожидаемых доходов первый дефицит по этому сценарию возникнет '+paymentDate(analysis.safe.shortfall)+'.'
       :'Без ожидаемых доходов после покупки останется '+rubles(fact.onDate)+', а до конца прогноза остаток не опустится ниже '+rubles(fact.minimum)+'.';
     case 'income': return 'С ожидаемыми поступлениями на '+rubles(fact.amount)+' минимальный остаток составит '+rubles(fact.minimum)+'.';
     case 'pace': return 'Прогноз учитывает текущий темп расходов '+rubles(fact.amount)+' в день по записям за '+fact.days+' из последних 30 дней.';
@@ -25,6 +28,7 @@ function explain(fact,analysis) {
 function AnalysisResult({analysis,selection}) {
   const essentials=analysis.mode==='spending'?['spent','comparison','coverage']:['safe','income','pace'];
   const ids=selection||analysis.facts.map(fact=>fact.id).filter(id=>!essentials.includes(id));
+  const plannedIncome=analysis.facts.find(fact=>fact.id==='income')?.amount;
   return <div className="finance-pilot-result" aria-live="polite">
     {analysis.mode==='spending'?<>
       <strong>Расходы · {period(analysis.period)}</strong>
@@ -35,14 +39,23 @@ function AnalysisResult({analysis,selection}) {
       <p>{explain(analysis.facts.find(fact=>fact.id==='coverage'),analysis)}</p>
     </>:<>
       <strong>{analysis.unknown?'Предварительный прогноз':analysis.safe.shortfall?'Прогноз показывает дефицит':'По прогнозу денег хватит'}</strong>
-      <p>{rubles(analysis.amount)} · {analysis.date} · прогноз до {analysis.lastDay}</p>
+      <p>{rubles(analysis.amount)} · {paymentDate(analysis.date)} · прогноз до {paymentDate(analysis.lastDay)}</p>
+      <strong>Без ожидаемых доходов</strong>
       <dl>
-        <dt>После покупки без ожидаемых доходов</dt><dd>{rubles(analysis.safe.balanceOnPurchase)}</dd>
-        <dt>Минимум без ожидаемых доходов</dt><dd>{rubles(analysis.safe.minimum)}</dd>
-        <dt>Первый дефицит без ожидаемых доходов</dt><dd>{analysis.safe.shortfall||'Нет'}</dd>
-        <dt>Минимум с ожидаемыми доходами</dt><dd>{rubles(analysis.expected.minimum)}</dd>
-        <dt>Первый дефицит с ожидаемыми доходами</dt><dd>{analysis.expected.shortfall||'Нет'}</dd>
+        <dt>Остаток после покупки</dt><dd>{rubles(analysis.safe.balanceOnPurchase)}</dd>
+        <dt>Минимальный остаток</dt><dd>{rubles(analysis.safe.minimum)}</dd>
+        <dt>Первый дефицит с покупкой</dt><dd>{analysis.safe.shortfall?paymentDate(analysis.safe.shortfall):'Нет'}</dd>
+        {analysis.baselineShortfall&&<>
+          <dt>Первый дефицит без покупки</dt><dd>{paymentDate(analysis.baselineShortfall)}</dd>
+        </>}
       </dl>
+      {plannedIncome>0&&<>
+        <strong>С ожидаемыми доходами</strong>
+        <dl>
+          <dt>Минимальный остаток</dt><dd>{rubles(analysis.expected.minimum)}</dd>
+          <dt>Первый дефицит с покупкой</dt><dd>{analysis.expected.shortfall?paymentDate(analysis.expected.shortfall):'Нет'}</dd>
+        </dl>
+      </>}
       <p>В расчёте свободные деньги без накопительных счетов и известные будущие расходы.</p>
       <p>{explain(analysis.facts.find(fact=>fact.id==='pace'),analysis)}</p>
     </>}

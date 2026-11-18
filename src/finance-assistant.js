@@ -47,6 +47,7 @@ export function financeAnalysis(data,today,input) {
     };
   };
   const safe=evaluate('balance'),expected=evaluate('expectedBalance');
+  const baselineShortfall=points.find(point=>point.balance<0)?.date||null;
   const unknown=estimate.events.filter(event=>event.spendable&&event.type==='expense'&&event.amountRub===null).length;
   const facts=[
     {id:'safe',minimum:safe.minimum,onDate:safe.balanceOnPurchase,deficit:!!safe.shortfall},
@@ -54,7 +55,7 @@ export function financeAnalysis(data,today,input) {
     {id:'pace',amount:cents(estimate.daily),days:estimate.activeDays}
   ];
   if(unknown)facts.push({id:'unknown',count:unknown});
-  return {mode:input.mode,facts,safe,expected,unknown,amount:purchase,date,lastDay};
+  return {mode:input.mode,facts,safe,expected,baselineShortfall,unknown,amount:purchase,date,lastDay};
 }
 
 export function assistantPrompt(analysis) {

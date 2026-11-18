@@ -54,6 +54,7 @@ test('purchase scenario projects each day in cents without using reserves or com
   const original=structuredClone(data),base=forecast(data,today);
   const analyze=(amount,date)=>financeAnalysis(data,today,{mode:'purchase',amount,date});
   const now=analyze('700.01',today);
+  assert.equal(now.baselineShortfall,null);
   assert.equal(now.safe.balanceOnPurchase,-5002);
   assert.equal(now.safe.minimum,-5002);
   assert.equal(now.safe.shortfall,today);
@@ -148,6 +149,36 @@ test('purchase boundary preserves exact cents and rejects invalid values without
     assert.throws(()=>analyze('1',when),/30 дней/);
   }
   assert.deepEqual(data,original);
+});
+
+test('receipt supports common foreign currencies and grouping without guessing malformed totals',()=>{
+  for(const [line,amount,currency] of [
+    ['ИТОГО 1.234,56 ₾','1234.56','GEL'],
+    ['TOTAL:\n1,234.56 GEL','1234.56','GEL'],
+    ['TOTAL 1,234,567.89 USD','1234567.89','USD'],
+    ['TOTAL 123.45 ₸','123.45','KZT'],
+    ['TOTAL 123.45 ֏','123.45','AMD'],
+    ['TOTAL 123.45 BYN','123.45','BYN'],
+  ])assert.deepEqual(receiptFields(line),{totals:[amount],dates:[],currency,merchant:''});
+  for(const line of ['TOTAL 12 34.56 USD','TOTAL .123.45 USD','TOTAL 1,234,56 USD','TOTAL 1,23.45 USD']) {
+    assert.deepEqual(receiptFields(line).totals,[],line);
+  }
+  const mixed=receiptFields('TOTAL 12.34 USD / 56.78 EUR');
+  assert.deepEqual(mixed.totals,['12.34','56.78']);
+  assert.equal(mixed.currency,'');
+});
+
+test('purchase calculation distinguishes existing and accelerated shortfalls',()=>{
+  const dueDate=moveDate(today,5);
+  const data=createPlanned(fixture(),{
+    id:'due',name:'Платёж',type:'expense',amount:'1100',startDate:dueDate,accountId:account.id,frequency:'once'
+  });
+  const later=financeAnalysis(data,today,{mode:'purchase',amount:'50',date:moveDate(today,7)});
+  assert.equal(later.baselineShortfall,dueDate);
+  assert.equal(later.safe.shortfall,dueDate);
+  const now=financeAnalysis(data,today,{mode:'purchase',amount:'1050',date:today});
+  assert.equal(now.baselineShortfall,dueDate);
+  assert.equal(now.safe.shortfall,today);
 });
 
 test('model validator rejects malformed and inapplicable claims even on very small balances',()=>{

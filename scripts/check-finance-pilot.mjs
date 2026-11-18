@@ -5,6 +5,8 @@ import {preview} from 'vite';
 import {chromium} from 'playwright-core';
 import {EMPTY,todayMoscow} from '../src/mini-model.js';
 import {moveDate} from '../src/finance-events.js';
+import {createPlanned} from '../src/planned-operations.js';
+import {paymentDate} from '../src/payment-copy.js';
 
 const out=process.env.PILOT_SCREENSHOT_DIR||'/tmp/burget-finance-pilot';
 await mkdir(out,{recursive:true});
@@ -169,6 +171,26 @@ try {
       await page.getByText('Операция удалена',{exact:true}).waitFor();
       assert.equal(data.transactions.length,0);
       assert.equal(data.accounts[0].balance,1000);
+
+      const dueDate=moveDate(today,5);
+      data=createPlanned(data,{
+        id:'fictional-payment',name:'Будущий платёж',type:'expense',amount:'1100',
+        startDate:dueDate,accountId:'fictional-card',frequency:'once'
+      });
+      revision++;
+      await page.setViewportSize({width:390,height:844});
+      await page.reload();
+      await navigate('Аналитика');
+      await page.getByRole('button',{name:'Хватит ли на покупку?'}).click();
+      await page.getByLabel('Сумма покупки, ₽').fill('1050');
+      await page.getByRole('button',{name:'Рассчитать',exact:true}).click();
+      const result=page.locator('.finance-pilot-result');
+      await result.getByText('Прогноз показывает дефицит').waitFor();
+      assert.equal(await result.getByText('Первый дефицит с покупкой',{exact:true}).locator('xpath=following-sibling::dd[1]').textContent(),paymentDate(today));
+      assert.equal(await result.getByText('Первый дефицит без покупки',{exact:true}).locator('xpath=following-sibling::dd[1]').textContent(),paymentDate(dueDate));
+      assert.equal(await result.getByText('С ожидаемыми доходами',{exact:true}).count(),0);
+      await shot('purchase-existing-shortfall-390');
+      assert.equal(writes.size,2);
       assert.deepEqual(errors,[]);
     } catch(error) {
       await shot('failure').catch(()=>{});
