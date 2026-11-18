@@ -133,6 +133,15 @@ test('OCR leaves tax, change, refunds and unreadable totals for manual review',(
   assert.deepEqual(receiptFields('TOTAL 99.99 EUR\nTOTAL TAX 1.00 USD\nTOTAL 99.99 EUR').totals,['99.99']);
 });
 
+test('OCR refuses refund and discount totals, mixed date separators and unassigned currencies',()=>{
+  assert.deepEqual(receiptFields('ИТОГО К ВОЗВРАТУ 123,45 RUB\nTOTAL DISCOUNT 23.45 EUR\n19.11/2026').totals,[]);
+  assert.deepEqual(receiptFields('19.11/2026\n19/11/2026\n20.11.2026\n2026-11-21').dates,['2026-11-19','2026-11-20','2026-11-21']);
+  const ambiguous=receiptFields('TOTAL 123.45\nTOTAL 234.56 USD');
+  assert.deepEqual(ambiguous.totals,['123.45','234.56']);
+  assert.equal(ambiguous.currency,'');
+  assert.equal(receiptFields('TOTAL 123.45 USD\nTOTAL 234.56 USD').currency,'USD');
+});
+
 test('purchase boundary preserves exact cents and rejects invalid values without changing the profile',()=>{
   const date='2028-02-29',data=fixture();
   data.accounts=[{...account,balance:0.01}];

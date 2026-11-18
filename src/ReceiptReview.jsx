@@ -52,10 +52,11 @@ export default function ReceiptReview({data,draft,today,onApply,onReview}) {
       if(controller.signal.aborted)return;
       previewUrl.current=URL.createObjectURL(file);
       setFound(result);
+      const supported=Object.hasOwn(data.rates,result.currency);
       setFields({
-        amount:result.totals.length===1?result.totals[0]:'',
+        amount:result.totals.length===1&&(!result.currency||supported)?result.totals[0]:'',
         date:result.dates.length===1?result.dates[0]:'',
-        currency:Object.hasOwn(data.rates,result.currency)?result.currency:'',
+        currency:supported?result.currency:'',
         note:result.merchant
       });
       setStage('review');
@@ -74,6 +75,7 @@ export default function ReceiptReview({data,draft,today,onApply,onReview}) {
   const future=validDate(fields.date)&&fields.date>today;
   const valid=amount>0&&validDate(fields.date)&&fields.date>='1900-01-01'&&!future&&Object.hasOwn(data.rates,fields.currency);
   const duplicate=valid&&receiptDuplicate(data.transactions,fields);
+  const unsupportedCurrency=found?.currency&&!Object.hasOwn(data.rates,found.currency);
   return <div className="receipt-review">
     <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={scan}/>
     {stage==='idle'?<button type="button" className="mini-text-button" onClick={()=>input.current?.click()}>Распознать чек</button>:<>
@@ -87,7 +89,10 @@ export default function ReceiptReview({data,draft,today,onApply,onReview}) {
         <strong>Проверь данные чека</strong>
         <details><summary>Посмотреть снимок</summary><img src={previewUrl.current} alt="Снимок чека"/></details>
         {!found.totals.length&&<p className="mini-small">Итог не распознан. Введи сумму вручную.</p>}
-        {found.totals.length>1&&<div className="pilot-actions" aria-label="Возможные итоги">
+        {unsupportedCurrency&&<p className="mini-warning" role="status">
+          {found.totals.join(' / ')} {found.currency} · Валюта чека недоступна для записи. Укажи сумму фактического списания и её валюту.
+        </p>}
+        {found.totals.length>1&&!unsupportedCurrency&&<div className="pilot-actions" aria-label="Возможные итоги">
           {found.totals.map(value=><button type="button" className="mini-secondary" key={value} onClick={()=>setFields({...fields,amount:value})}>{value.replace('.',',')}</button>)}
         </div>}
         <label>Итог чека<input inputMode="decimal" value={fields.amount} onChange={change('amount')}/></label>

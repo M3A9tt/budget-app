@@ -84,7 +84,7 @@ try {
         assert.equal(await page.getByRole('button',{name:'Распознать чек'}).count(),0);
         continue;
       }
-      const image=await page.evaluate(date=>{
+      const image=async currency=>page.evaluate(({date,currency})=>{
         const canvas=document.createElement('canvas');
         canvas.width=1000;
         canvas.height=540;
@@ -93,19 +93,31 @@ try {
         context.fillRect(0,0,1000,540);
         context.fillStyle='black';
         context.font='54px Arial';
-        ['ООО МАГАЗИН','КАССОВЫЙ ЧЕК',date,'ПЕЧЕНЬЕ 123,45','ИТОГО 123,45 RUB'].forEach((line,index)=>context.fillText(line,60,90+index*90));
+        ['ООО МАГАЗИН','КАССОВЫЙ ЧЕК',date,'ПЕЧЕНЬЕ 123,45','ИТОГО 123,45 '+currency].forEach((line,index)=>context.fillText(line,60,90+index*90));
         return canvas.toDataURL('image/png').split(',')[1];
-      },today.split('-').reverse().join('.'));
-      const file={name:'receipt.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')};
-      const scan=async()=>{
+      },{date:today.split('-').reverse().join('.'),currency});
+      const file=async currency=>({name:'receipt.png',mimeType:'image/png',buffer:Buffer.from(await image(currency),'base64')});
+      const readReceipt=async currency=>{
         const chooser=page.waitForEvent('filechooser');
         await page.getByRole('button',{name:'Распознать чек'}).click();
-        await (await chooser).setFiles(file);
+        await (await chooser).setFiles(await file(currency));
         await page.getByText('Проверь данные чека').waitFor({timeout:45_000});
+      };
+      const scan=async()=>{
+        await readReceipt('RUB');
         assert.equal(await page.getByLabel('Итог чека').inputValue(),'123.45');
         assert.equal(await page.getByLabel('Дата чека').inputValue(),today);
         assert.equal(await page.locator('select[aria-label="Валюта чека"]').inputValue(),'RUB');
       };
+      await page.locator('#amount').fill('90');
+      await readReceipt('GEL');
+      await page.getByText(/123\.45 GEL · Валюта чека недоступна/).waitFor();
+      assert.equal(await page.getByLabel('Итог чека').inputValue(),'');
+      assert.equal(await page.locator('select[aria-label="Валюта чека"]').inputValue(),'');
+      assert.equal(await page.getByRole('button',{name:'Перенести в черновик'}).isDisabled(),true);
+      await page.getByRole('button',{name:'Отмена',exact:true}).click();
+      assert.equal(await page.locator('#amount').inputValue(),'90');
+      assert.equal(writes.size,0);
       await scan();
       const receiptImage=page.locator('.receipt-review img');
       await page.getByText('Посмотреть снимок').click();
