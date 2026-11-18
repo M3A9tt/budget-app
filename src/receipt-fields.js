@@ -18,16 +18,24 @@ export function receiptFields(text) {
   const totals=new Set(),dates=new Set(),currencies=new Set();
   for(const [index,line] of lines.entries()) {
     const label=totalLabel.exec(line);
-    if(label&&!/^(?:TOTAL\s+(?:TAX|VAT|BEFORE)|ИТОГО\s+(?:НДС|НАЛОГ))/iu.test(line)) {
+    if(label&&!/^(?:TOTAL\s+(?:TAX|VAT|BEFORE|REFUND)|ИТОГ(?:О)?\s+(?:НДС|НАЛОГ|ВОЗВРАТ))/iu.test(line)) {
       const inline=line.slice(label[0].length).trim();
-      const tail=/^[:=*\s]*$/.test(inline)?lines[index+1]||'':inline;
-      for(const match of tail.matchAll(moneyOnLine)) {
-        const amount=parseMoney(match[1]);
-        if(Number.isFinite(amount)&&amount>0)totals.add(amount.toFixed(2));
+      const continued=/^[:=*\s]*$/.test(inline);
+      const tail=continued?lines[index+1]||'':inline;
+      const markers=Object.entries(currencyMarkers).filter(([,marker])=>marker.test(tail));
+      const bare=markers.reduce((value,[,marker])=>value.replace(marker,' '),tail).trim();
+      const amountOnly=/^\d+(?:[ \u00a0\u202f]\d{3})*[.,]\d{2}$/u;
+      let foundAmount=false;
+      if((!continued||amountOnly.test(bare))&&!/[-−–()]\s*\d|\d\s*\)/u.test(tail)) {
+        for(const match of tail.matchAll(moneyOnLine)) {
+          const amount=parseMoney(match[1]);
+          if(Number.isFinite(amount)&&amount>0) {
+            totals.add(amount.toFixed(2));
+            foundAmount=true;
+          }
+        }
       }
-      for(const [currency,marker] of Object.entries(currencyMarkers)) {
-        if(marker.test(tail))currencies.add(currency);
-      }
+      if(foundAmount)for(const [currency] of markers)currencies.add(currency);
     }
     for(const match of line.matchAll(/\b(?:(\d{4})-(\d{2})-(\d{2})|(\d{2})[./](\d{2})[./](\d{4}))\b/g)) {
       const date=match[1]?match[1]+'-'+match[2]+'-'+match[3]:match[6]+'-'+match[5]+'-'+match[4];

@@ -117,3 +117,46 @@ test('Worker rejects mismatched browser profiles and gives consented analysis a 
   assert.deepEqual(await response.json(),{ids:['safe']});
   assert.deepEqual(selects.filter(row=>row.sql.includes('user_finance_state')).flatMap(row=>row.args),['1']);
 });
+
+test('OCR leaves tax, change, refunds and unreadable totals for manual review',()=>{
+  for(const tail of ['НДС 12,34 RUB','СДАЧА 12,34 RUB','КАРТА 12,34 RUB','- 12,34 RUB','−12,34 RUB','(12,34) RUB','12,345 RUB','0,00 RUB','1000000000000,01 RUB']) {
+    assert.deepEqual(receiptFields('ИТОГО\n'+tail).totals,[],tail);
+  }
+  for(const tail of ['−12,34 RUB','(12,34) RUB','- 12,34 RUB']) {
+    assert.deepEqual(receiptFields('ИТОГО '+tail).totals,[],tail);
+  }
+  assert.deepEqual(receiptFields('ИТОГО ВОЗВРАТА 12,34 RUB\nTOTAL REFUND 12.34 EUR').totals,[]);
+  assert.deepEqual(receiptFields('ИТОГО\n1 234,56 ₽\n29.02.2024\n29.02.2025'),{
+    totals:['1234.56'],dates:['2024-02-29'],currency:'RUB',merchant:''
+  });
+  assert.deepEqual(receiptFields('TOTAL 99.99 EUR\nTOTAL TAX 1.00 USD\nTOTAL 99.99 EUR').totals,['99.99']);
+});
+
+test('purchase boundary preserves exact cents and rejects invalid values without changing the profile',()=>{
+  const date='2028-02-29',data=fixture();
+  data.accounts=[{...account,balance:0.01}];
+  const original=structuredClone(data);
+  const analyze=(amount,when=date)=>financeAnalysis(data,date,{mode:'purchase',amount,date:when});
+  assert.equal(analyze('0,01').safe.minimum,0);
+  assert.equal(analyze('0.01').safe.shortfall,null);
+  assert.equal(analyze('0.02').safe.minimum,-1);
+  assert.equal(analyze('0.02',moveDate(date,30)).safe.shortfall,moveDate(date,30));
+  for(const amount of ['-0','-0.01','0.001','1e3','∞','NaN','1,2.3','１００','1000000000000.01',null]) {
+    assert.throws(()=>analyze(amount),/сумму/);
+  }
+  for(const when of ['2028-02-30','2028-02-28','2028-3-01','2028-03-01T00:00:00Z',moveDate(date,31)]) {
+    assert.throws(()=>analyze('1',when),/30 дней/);
+  }
+  assert.deepEqual(data,original);
+});
+
+test('model validator rejects malformed and inapplicable claims even on very small balances',()=>{
+  const analysis=financeAnalysis(fixture(),today,{mode:'purchase',amount:'0.01',date:today});
+  for(const response of [
+    '{"ids":["safe"]} trailing','```json\n{"ids":["safe"]}\n```',' '.repeat(1001),
+    'null','[{"ids":["safe"]}]',{ids:[]},{ids:['safe',null]},
+    {ids:['safe','__proto__']},{ids:['safe','unknown']},{ids:['income']},
+    {ids:['safe'],amount:1},{ids:'safe'}
+  ])assert.equal(verifyAssistantSelection(response,analysis),null);
+  assert.deepEqual(verifyAssistantSelection({ids:['safe','pace']},analysis),['safe','pace']);
+});
