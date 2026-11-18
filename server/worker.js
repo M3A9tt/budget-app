@@ -2,6 +2,7 @@ import {scheduledEvents,moveDate} from '../src/finance-events.js';
 import {answerCalendarWidget,calendarWidget,sendDatedEntryWidget} from './calendar-widget.js';
 import {fetchExchangeRates} from './exchange-rates.js';
 import {financialCommand} from './financial-command.js';
+import {cloudFinanceAssistant,pilotFeatures} from './finance-assistant.js';
 import {recordOperation,operationsReport,pruneOperations} from './operations.js';
 import {periodSummary} from './period-summary.js';
 import {createBackupDownload,backupFile,pruneBackupDownloads} from './backup-download.js';
@@ -52,6 +53,11 @@ async function equalSecret(a,b) {
   for(let i=0;i<aa.length;i++)mismatch|=aa[i]^bb[i];return mismatch===0;
 }
 export function moscowDate(date=new Date()) {return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(date);}
+async function readStoredState(env,userId) {
+  const row=await env.DB.prepare('SELECT revision,data FROM user_finance_state WHERE user_id=?').bind(String(userId)).first();
+  if(!row)return null;
+  return {revision:row.revision,data:JSON.parse(row.data),userId:String(userId),isOwner:String(userId)===String(env.TELEGRAM_OWNER_ID),uninitialized:row.revision===0};
+}
 async function readState(env,userId) {
   if(!await hasAccess(env,userId))throw new RequestError('Нет доступа',403);
   // One-time copy, only for the configured owner; old tables stay untouched.
@@ -63,8 +69,7 @@ async function readState(env,userId) {
     env.DB.prepare('INSERT OR IGNORE INTO legacy_owner_migrations(user_id,created_at) VALUES(?,?)').bind(String(userId),Date.now())
   ]);
   await env.DB.prepare('INSERT OR IGNORE INTO user_finance_state(user_id,revision,data,updated_at) VALUES(?,0,?,?)').bind(String(userId),JSON.stringify(initialProfile(EMPTY)),new Date().toISOString()).run();
-  const row=await env.DB.prepare('SELECT revision,data FROM user_finance_state WHERE user_id=?').bind(String(userId)).first();
-  return {revision:row.revision,data:JSON.parse(row.data),userId:String(userId),isOwner:String(userId)===String(env.TELEGRAM_OWNER_ID),uninitialized:row.revision===0};
+  return readStoredState(env,userId);
 }
 async function writeTransaction(env,userId,input,key) {
   if(!key||key.length>160)throw new RequestError('Нужен уникальный Idempotency-Key');
@@ -343,7 +348,15 @@ export default {
        if(request.method==='POST'){const input=await readJsonObject(request);if(input.all===true){await env.DB.prepare('DELETE FROM user_web_sessions WHERE user_id=?').bind(userId).run();return json({ok:true});}if(typeof input.id!=='string'||!/^[a-f0-9]{64}$/.test(input.id))throw new RequestError('Неверный сеанс');await env.DB.prepare('DELETE FROM user_web_sessions WHERE user_id=? AND hash=?').bind(userId,input.id).run();return json({ok:true});}
       }
       if(request.method==='POST'&&url.pathname==='/api/v1/feedback')return json(await sendFeedback(env,userId,await readJsonObject(request),telegram));
-      if(request.method==='GET'&&url.pathname==='/api/v1/state')return json(await readState(env,userId));
+      if(request.method==='GET'&&url.pathname==='/api/v1/state'){
+        const state=await readState(env,userId),features=pilotFeatures(env,userId);
+        return json(features.receipt||features.assistant?{...state,features}:state);
+      }
+      if(request.method==='POST'&&url.pathname==='/api/v1/finance-assistant'){
+        if(apiAccess||expectedProfile!==userId)throw new RequestError('Открой помощника из своего профиля.',403);
+        const input=parseJsonObject(await readRequestText(request,2048));
+        return json(await cloudFinanceAssistant(env,userId,input,readStoredState));
+      }
       if(request.method==='POST'&&url.pathname==='/api/v1/backup/download')return json(await createBackupDownload(env,userId,await readState(env,userId),await readJsonObject(request),url.origin));
       if(request.method==='PUT'&&url.pathname==='/api/v1/state') {
         const text=await readRequestText(request);

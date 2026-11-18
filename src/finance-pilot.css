@@ -1,0 +1,52 @@
+.finance-pilot,
+.receipt-review {
+  display: grid;
+  gap: 12px;
+}
+.receipt-review {
+  margin-block: 8px;
+}
+.receipt-review img {
+  display: block;
+  max-width: 100%;
+  max-height: 380px;
+  object-fit: contain;
+}
+.entry-fields.receipt-active > :not(.receipt-review) {
+  display: none;
+}
+.pilot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.finance-pilot .pilot-actions > button,
+.receipt-review .pilot-actions > button {
+  width: auto;
+  min-width: 0;
+}
+.finance-pilot p,
+.receipt-review p {
+  margin: 0;
+}
+.finance-pilot-result {
+  display: grid;
+  gap: 8px;
+}
+.finance-pilot-result dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 0;
+}
+.finance-pilot-result dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.finance-pilot-result ul {
+  margin-block: 0;
+  padding-inline-start: 20px;
+}
