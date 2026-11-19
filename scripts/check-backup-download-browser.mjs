@@ -15,7 +15,13 @@ const root=process.cwd(),out=resolve(process.env.AUDIT_SCREENSHOT_DIR||'/tmp/bur
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 const beforeSha=git('rev-parse','79c7053ead0af898f8c35ad6edf6f3569edae7a2'),afterSha=git('rev-parse','HEAD');
 const temporary=await mkdtemp(join(tmpdir(),'burget-backup-')),oldRoot=join(temporary,'before');
-const fixture={...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:1,legacyInterfaceOptIn:true},accounts:[{id:'bank',name:'Основной счёт',balance:777,currency:'RUB'}]};
+const fixture={
+ ...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:1,legacyInterfaceOptIn:true},
+ accounts:[{id:'bank',name:'Основной счёт',balance:777,currency:'RUB'}],
+ transactions:[{id:'purchase',type:'expense',cat:'food',date:'2026-10-23',currency:'RUB',amount:20.01,amountRub:20.01,accountId:'bank',accountAmount:20.01,revision:1,
+  categoryAllocations:[{cat:'food',minor:1001},{cat:'transport',minor:1000}]}],
+ lunchPeriods:[{id:'vacation',mode:'absence',from:'2026-10-27',to:'2026-11-02'}],
+};
 const sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync('server/schema.sql','utf8'));
 sqlite.prepare('INSERT INTO user_finance_state VALUES(?,7,?,?)').run('111',JSON.stringify(fixture),'test');
 sqlite.prepare('INSERT INTO legacy_owner_migrations VALUES(?,0)').run('111');

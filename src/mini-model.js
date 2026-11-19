@@ -1,7 +1,8 @@
-import {transactionRub,sumMoney} from './ledger.js';
+import {roundMoney,transactionRub,sumMoney} from './ledger.js';
 import {cashTimeline,spendingPlan} from './finance-events.js';
 import {accountTotals} from './account-balances.js';
 import {CATEGORIES,categoryCatalog} from './categories.js';
+import {expenseCategoryAmounts} from './expense-allocations.js';
 export {CATEGORIES} from './categories.js';
 export const EMPTY={schemaVersion:2,transactions:[],accounts:[],debts:[],goals:[],wishes:[],customCats:[],transfers:[],recurring:[],history:[],lunchDayOff:[],lunchDayMod:{},categoryBudgets:{},settings:{budget:0,lunchDaily:400,workDays:22,reserveRub:0,nextIncomeDate:''},rates:{RUB:1,USD:92,EUR:100,GBP:117,CNY:12.7,TRY:2.8}};
 export const todayMoscow=(zone='Europe/Moscow')=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(new Date());
@@ -12,7 +13,11 @@ export function dashboard(data,today=todayMoscow(data.settings?.timeZone)) {
   const expenses=txs.filter(t=>t.type==='expense'&&t.cat!=='lunch'),income=sumMoney(txs.filter(t=>t.type==='income'),rub);
   const spent=sumMoney(expenses,rub),balance=sumMoney([accountTotals(data).spendable]);
   const plan=spendingPlan(data,today),{reserve,free,obligations,plannedExpenses,obligationItems,unknown,days}=plan,end=plan.until,hasPayday=plan.exclusive;
-  const categories=categoryCatalog(data.customCats).map(c=>({...c,value:sumMoney(expenses.filter(t=>t.cat===c.id),rub)})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
+  const categoryTotals=new Map();
+  for(const expense of expenses)for(const {cat,amount} of expenseCategoryAmounts(expense,rub(expense))){
+    categoryTotals.set(cat,roundMoney((categoryTotals.get(cat)||0)+amount));
+  }
+  const categories=categoryCatalog(data.customCats).map(c=>({...c,value:categoryTotals.get(c.id)||0})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
   const daily=Array.from({length:7},(_,i)=>{const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-6+i);const date=d.toISOString().slice(0,10);return{date,label:new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:'UTC'}).format(d),amount:sumMoney(data.transactions.filter(t=>t.date===date&&t.type==='expense'&&t.cat!=='lunch'),rub)};});
   return {firstShortage:cashTimeline(data,today,30).firstExpectedNegative,balance,spent,income,free,reserve,obligations,plannedExpenses,budgetUntil:end,budgetHorizon:hasPayday?'payday':'30-days',obligationItems:obligationItems.sort((a,b)=>a.date.localeCompare(b.date)),unknown,days,daily,categories};
 }

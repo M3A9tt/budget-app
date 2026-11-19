@@ -1,3 +1,4 @@
+import './finance-pilot.css';
 import AppErrorBoundary from './AppErrorBoundary.jsx';
 import React,{lazy,Suspense} from 'react';
 import ReactDOM from 'react-dom/client';

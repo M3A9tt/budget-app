@@ -71,3 +71,45 @@
 .mini-shell.personal-entry .mini-tabs{gap:4px}.mini-shell.personal-entry .mini-tabs button{padding:8px;font-size:var(--type-caption)}
 .mini-shell.personal-entry .entry-note input,.mini-shell.personal-entry .entry-visible-date input{font-size:var(--type-body)}
 .mini-shell.personal-entry .entry-note input:focus{outline:none}.mini-shell.personal-entry .entry-note:focus-within{border-bottom-color:#bcdccd;box-shadow:0 1px #bcdccd;background:none}
+.entry-allocation {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line, #b7d5ca38);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #b7d5ca0a, transparent);
+}
+.entry-allocation-head, .entry-allocation-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.entry-allocation-head {justify-content: space-between}
+.entry-allocation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(64px, 20vw, 86px) auto;
+  padding-block: 6px;
+  border-bottom: 1px solid var(--mini-line);
+}
+.mini-shell .entry-allocation-row .entry-picker-compact {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 7px;
+  gap: 5px;
+  border: 1px solid var(--mini-line);
+  border-radius: 10px;
+  background: var(--glass-field, var(--mini-panel));
+}
+.mini-shell .entry-picker-compact strong {flex: 1;min-width: 0;margin: 0;gap: 5px}
+.entry-picker-compact-value {min-width: 0;white-space: nowrap;overflow: hidden;text-overflow: ellipsis}
+.entry-picker-compact .entry-picker-selected-symbol {width: 22px;height: 22px;border: 0}
+.entry-picker-compact > svg {flex: none}
+.entry-allocation-part {display: grid;gap: 4px;min-width: 0;font-size: var(--type-caption)}
+.entry-allocation-part input {min-width: 0;text-align: right;font-variant-numeric: tabular-nums}
+.entry-allocation-part small {text-align: right;color: var(--mini-muted)}
+.entry-allocation-remove {min-width: 36px;padding: 0!important}
+.entry-allocation .entry-timing {display: flex;gap: 4px;margin: 0}
+.entry-allocation .entry-timing button, .entry-allocation .mini-text-button {min-height: 44px}
+.entry-allocation-toggle {justify-self: start}

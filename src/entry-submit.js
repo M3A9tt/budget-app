@@ -4,6 +4,7 @@ export const isPlannedEntry=(entry,today)=>entry.timing==='planned'||entry.date>
 // Direction stays expense/income; timing chooses a future plan or a financial fact.
 export function submitEntry(data,entry,today){
  if(isPlannedEntry(entry,today)){
+  if(entry.categoryAllocations!==undefined)throw Error('Распределение по категориям доступно после оплаты');
   if(!['expense','income'].includes(entry.type)||data.transactions.some(t=>t.id===entry.id)||['recurringId','installmentPaymentId','debtId','lunchId','installmentRefundId','_lunchCheckDay'].some(k=>entry[k]))throw Error('Существующую оплату нельзя превратить в план. Измени исходный план отдельно.');
   const account=data.accounts.find(a=>a.id===entry.accountId);if(!account)throw Error('Для будущей операции выбери счёт');
   if((entry.currency||'RUB')!==(account.currency||'RUB'))throw Error('Валюта плана должна совпадать с валютой счёта');

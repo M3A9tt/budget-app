@@ -1,6 +1,7 @@
 import {editBotCard} from './bot-message.js';
 import {personalInterface} from '../src/interface-settings.js';
-import {accountMentions} from '../src/input-intent.js';
+import {accountMentions,unsignedExpenseInput} from '../src/input-intent.js';
+import {isFreeTransaction} from '../src/transaction-roles.js';
 import {operationsReport,operationsLines} from './operations.js';
 import {load,create,replace,pendingForm} from './bot-drafts.js';
 import {moduleEnabled} from '../src/modules.js';
@@ -19,6 +20,8 @@ import {lunchReminder} from './notifications.js';
 import {setDayCheck} from './habits.js';
 import {botView,view,act} from './bot-views.js';
 import {fieldsFor,parseField,applyBotAction,initialValues,botImportPreview} from './bot-catalog.js';
+import {pastLunchAllowanceChange} from '../src/lunch-budget.js';
+import {lunchQuestionsPaused} from '../src/lunch-schedule.js';
 import {botKeyboard,BOT_SECTIONS,buttonRows,miniAppButton,configureMiniAppMenu,extraMenu} from './bot-navigation.js';
 import {EMPTY,money,todayMoscow} from '../src/mini-model.js';
 import {migrateData} from '../src/ledger.js';
@@ -132,7 +135,7 @@ async function prompt(env,userId,api,id,p,page=0){
  const loaded=await load(env,userId,id);if(loaded.p.step===p.step&&loaded.p.status==='form')await replace(env,userId,loaded.row,{...loaded.p,promptId:message?.message_id});
  return message;
 }
-const actionTitles={tx:'Запись операции',account:'Новый счёт',transfer:'Перевод своим',editTransfer:'Изменение перевода',reverseTransfer:'Отмена перевода и комиссии',notificationMode:'Режим уведомлений',moveCalendarEvent:'Перенести событие календаря',schedulePlan:'Назначить дату платежа',reschedulePlan:'Перенос платежа',paymentReminder:'Разовое напоминание',lunchAnswer:'Ответ об обеде',reconcile:'Сверка остатка',wish:'Заметка о покупке',debt:'Существующий долг',repay:'Возврат долга',linkDebt:'Связать возврат',plan:'План операции',installment:'График обязательства',restore:'Замена бюджета',import:'Импорт операций',feedback:'Обратная связь'};
+const actionTitles={tx:'Запись операции',account:'Новый счёт',transfer:'Перевод своим',editTransfer:'Изменение перевода',reverseTransfer:'Отмена перевода и комиссии',notificationMode:'Режим уведомлений',moveCalendarEvent:'Перенести событие календаря',schedulePlan:'Назначить дату платежа',reschedulePlan:'Перенос платежа',paymentReminder:'Разовое напоминание',lunchAnswer:'Ответ об обеде',lunchPeriod:'Период без вопросов',lunchPeriodDelete:'Удалить период',lunchPeriodResume:'Завершить период сегодня',reconcile:'Сверка остатка',wish:'Заметка о покупке',debt:'Существующий долг',repay:'Возврат долга',linkDebt:'Связать возврат',plan:'План операции',installment:'График обязательства',restore:'Замена бюджета',import:'Импорт операций',feedback:'Обратная связь'};
 export async function preview(env,userId,api,id,p){
  const s=await api.readState(env,userId),fields=fieldsFor(s.data,p.op,p.args,p.values);let lines=[],error='';
  try{
@@ -141,8 +144,19 @@ export async function preview(env,userId,api,id,p){
    const next={...parent,values,status:'confirm',cardId:p.cardId,cardPhoto:p.cardPhoto,cardVersion:p.cardVersion,args:{...parent.args,excluded:(parent.args.excluded||[]).filter(x=>x!==p.args.index)}};delete next.row;const loaded=await load(env,userId,id);await replace(env,userId,loaded.row,next);return importPreview(env,userId,api,id,next,next.importPage||0);
   }
   if(p.op==='search'){await cancelBotFlow(env,userId,api);return showBotView(env,userId,api,'history',{query:p.values.query});}
+  if(['lunchPeriod','lunchPeriodDelete','lunchPeriodResume'].includes(p.op)){
+   const next=applyBotAction(s.data,p.op,p.args,p.values);
+   const id=p.args.id||p.args.newId,today=todayMoscow(s.data.settings.timeZone);
+   const delta=pastLunchAllowanceChange(s.data,next,today,id);
+   const period=next.lunchPeriods.find(item=>item.id===id)||s.data.lunchPeriods?.find(item=>item.id===id);
+   lines=[period.from+' — '+period.to+' включительно',
+    p.op==='lunchPeriodDelete'?'Период будет удалён.':
+    p.op==='lunchPeriodResume'?'С сегодняшнего дня этот период больше не действует.':
+    period.mode==='absence'?'Вопросов не будет. Лимит начислится только за явно отмеченные рабочие дни.':'Вопросов не будет. Лимит начисляется по графику.',
+    ...(delta?['Начислено по сегодня: '+(delta>0?'+':'−')+money(Math.abs(delta))]:[])];
+  }else
   if(p.op==='calculator'){const items=p.values.items.split('\n').filter(Boolean).map(line=>{const [name,price,count='1']=line.split(';');return {name,price,count:Number(count)};});const total=lunchCalculator(items);await cancelBotFlow(env,userId,api);return render(env,userId,api,{title:'🍽 Калькулятор',lines:[...items.map(i=>`${i.name} × ${i.count} · ${i.price}`),`Итого: ${money(total)}`],actions:[act('Записать обед компании','tx',{type:'lunch',prefill:{amount:total,note:items.map(i=>i.name+' × '+i.count).join(', ')}}),view('Обеды','lunch')]});}
-  if(p.op==='moderate'){if(!s.isOwner)throw Error('Только владелец');lines=[p.args.action==='approve'?'Одобрить правило распознавания':p.args.action==='reject'?'Отклонить пример':'Отключить правило'];}
+  else if(p.op==='moderate'){if(!s.isOwner)throw Error('Только владелец');lines=[p.args.action==='approve'?'Одобрить правило распознавания':p.args.action==='reject'?'Отклонить пример':'Отключить правило'];}
   else if(p.op==='feedback'){if(p.values.message.length<5)throw Error('Опиши проблему подробнее');lines=[p.values.message,'Будет отправлено владельцу Бюрджета.'];}
   else if(p.op==='import')return importPreview(env,userId,api,id,p);
   else {const next=migrateData(applyBotAction(structuredClone(s.data),p.op,p.args,p.values),EMPTY);lines=fields.filter(f=>f.key!=='content').map(f=>{const v=p.values[f.key]??f.default;return `${f.label}: ${f.choices?.find(([x])=>String(x)===String(v))?.[1]??v??''}`;});if(p.op==='installment'){const plan=next.installments.at(-1),rows=plan.payments,currency=plan.currency;lines=[p.values.name,`Осталось: ${money(plan.total,currency)} · платежей: ${rows.length}`,...rows.slice(0,5).map(row=>`• ${row.date} — ${money(row.amount,currency)}`),...(rows.length>5?[`Ещё ${rows.length-5}. Последний: ${rows.at(-1).date}`]:[]),`Счёт: ${s.data.accounts.find(a=>a.id===p.values.accountId)?.name}`,'Создание графика не списывает деньги. Подтверждай платежи после списания. Всю покупку отдельным расходом не записывай.'];}else if(p.op==='restore')lines=[`Счета: ${s.data.accounts.length} → ${next.accounts.length}`,`Операции: ${s.data.transactions.length} → ${next.transactions.length}`,'Нынешний бюджет будет заменён. Копия перед заменой отправлена файлом.'];else if(p.op==='homeLayout')lines=['На главной:',...homeBlocks(next).map(id=>'• '+HOME_BLOCKS.find(([key])=>key===id)[1])];else if(!fields.length){const tx=s.data.transactions.find(t=>t.id===p.args.id),plan=s.data.recurring.find(t=>t.id===p.args.id),wish=(s.data.wishes||[]).find(t=>t.id===p.args.id);lines=[tx?`${tx.note||'Операция'} · ${money(tx.amount,tx.currency)} · ${tx.date}`:plan?.name||wish?.name||p.args.key||'Подтверди действие.',p.op==='repeat'?'Будет создана новая операция на сегодня.':p.op==='deleteTx'?'Запись будет удалена. Итоги пересчитаются по правилам операции.':''];if(p.op==='deleteTx'){const related=next.history[0]?.relatedBefore||[];if(related.length)lines.push(`Связанных доплат: ${related.length}. Они тоже будут удалены.`,...related.map(t=>`• ${t.note||'Доплата'} · ${money(t.amount,t.currency)}`));for(const after of next.accounts){const before=s.data.accounts.find(a=>a.id===after.id);if(before&&before.balance!==after.balance)lines.push(`${after.name}: ${money(before.balance,after.currency)} → ${money(after.balance,after.currency)}`);}}}}
@@ -150,9 +164,11 @@ export async function preview(env,userId,api,id,p){
  }catch(e){error=e.message;lines=[error];}
  if(!error&&p.op==='notificationMode')lines=[p.args.mode==='manual'?'Только вручную: автоматические вопросы и сводки отключатся. Разовые напоминания, которые ты назначил сам, сохранятся.':'Одна общая сводка в выбранное время. При отсутствии дел бот молчит. Отдельные вопросы отключатся.'];
  if(!error&&p.op==='tx')lines=compactTransaction(s.data,p);
+ const allocationStep=fields.findIndex(field=>field.key==='categoryDistribution');
  const loaded=await load(env,userId,id);if(loaded.row.payload!==JSON.stringify(p))throw Error('Карточка изменилась. Открой последний шаг.');const updated={...loaded.p,status:'confirm',revision:s.revision};await replace(env,userId,loaded.row,updated);
  const quickFields=p.op==='tx'?fields.map((f,i)=>(personalInterface(s.data)?['amount','accountId','cat','date','note']:['accountId','cat','note']).includes(f.key)?{text:(personalInterface(s.data)?{amount:'Сумма',accountId:'Счёт',cat:'Категория',date:'Дата',note:'Комментарий'}:{accountId:'💳 Счёт',cat:'🏷 Категория',note:'💬 Комментарий'})[f.key],callback_data:`b:j:${id}:${i}`}:null).filter(Boolean):[];
- return formCard(env,userId,api,id,`${error?'⚠️ Проверь поля':'🔎 '+(actionTitles[p.op]||'Проверь действие')}\n\n${lines.join('\n').slice(0,3200)}\n\n${error?'Исправь поля перед записью.':p.op==='tx'?'':'Изменения применятся после подтверждения.'}`,{inline_keyboard:[...(!error?[ [{text:'✅ Подтвердить',callback_data:'b:c:'+id}] ]:[]),...(quickFields.length?(personalInterface(s.data)?buttonRows(quickFields,{columns:2}):[quickFields]):[]),[{text:'✏️ Изменить поля',callback_data:'b:z:'+id},{text:'✕ Отмена',callback_data:'b:x:'+id}]]},p.values);
+ if(allocationStep>=0)quickFields.push({text:'Распределить по категориям',callback_data:`b:j:${id}:${allocationStep}`});
+ return formCard(env,userId,api,id,`${error?'⚠️ Проверь поля':'🔎 '+(actionTitles[p.op]||'Проверь действие')}\n\n${lines.join('\n').slice(0,3200)}\n\n${error?'Исправь поля перед записью.':p.op==='tx'?'':'Изменения применятся после подтверждения.'}`,{inline_keyboard:[...(!error?[ [{text:'✅ Подтвердить',callback_data:'b:c:'+id}] ]:[]),...(quickFields.length?(personalInterface(s.data)?buttonRows(quickFields,{columns:2}):buttonRows(quickFields,{columns:3})):[]),[{text:'✏️ Изменить поля',callback_data:'b:z:'+id},{text:'✕ Отмена',callback_data:'b:x:'+id}]]},p.values);
 }
 async function importPreview(env,userId,api,id,p,page=0){
  const s=await api.readState(env,userId),preview=botImportPreview(s.data,p.values,p.args),rows=preview.rows,pageRows=rows.slice(page*6,page*6+6),included=rows.filter(r=>!r.excluded&&!p.args.excluded?.includes(r.index??r.line)),errors=included.filter(r=>r.error),fresh=included.filter(r=>!r.error&&(!r.duplicate||r.force||p.args.forced?.includes(r.line))),buttons=[];
@@ -189,7 +205,7 @@ async function route(env,userId,api,r){
    return result;
   }catch(error){if(error.pictureDelivery)throw error;return render(env,userId,api,{title:'🖼 Снимок миниаппы',lines:[PICTURE_ERROR],origin:{name:'pictures',args:{textOnly:true}},actions:[{label:'Повторить',special:'picture',args:r.args},view('Картинки','pictures'),view('Главная','home')]});}
  }
- if(r.special==='lunchQuestion'){const day=r.args?.day||todayMoscow(s.data.settings.timeZone);await setDayCheck(env,userId,day,'lunch','open');const body=lunchReminder(day);return send(api,env,userId,body.text,body.reply_markup);}
+ if(r.special==='lunchQuestion'){const day=r.args?.day||todayMoscow(s.data.settings.timeZone);if(lunchQuestionsPaused(s.data,day))return send(api,env,userId,'В эту дату вопросы об обеде на паузе.');await setDayCheck(env,userId,day,'lunch','open');const body=lunchReminder(day);return send(api,env,userId,body.text,body.reply_markup);}
  if(r.special==='example')return api.sendFile(env,userId,IMPORT_EXAMPLE,'byurdzhet-operations-example.json');
  if(r.special==='export')return api.sendFile(env,userId,s.data,'byurdzhet-backup-'+todayMoscow(s.data.settings.timeZone)+'.json');
  if(r.special==='prompt')return api.sendFile(env,userId,importPrompt(s.data),'byurdzhet-import-prompt.txt');
@@ -277,7 +293,15 @@ export async function botChat(update,env,userId,api){
  if(f.key==='amount'&&!message.reply_to_message&&accountMentions(text,s.data.accounts).length){let intent;try{intent=parseEntry(text,s.data.accounts,CATEGORIES.concat(s.data.customCats||[]),todayMoscow(s.data.settings.timeZone),{allowMissingAccount:true,companyLunchEnabled:moduleEnabled(s.data,'lunch')});}catch{}if(intent){await pauseBotForm(env,userId,api);await openQuickEntry(env,userId,api,text);return true;}}
  if(f.type==='choice'){await prompt(env,userId,api,row.id,p);return true;}
  if(message.document&&f.type!=='document')throw Error('Сейчас нужен ответ на поле, а не файл');
- const value=message.document?await api.readDocument(env,message.document,f.max):text;const parsed=parseField(f,value);const next={...p,values:{...p.values,[f.key]:parsed},step:p.editing?fieldsFor(s.data,p.op,p.args,{...p.values,[f.key]:parsed}).length:p.step+1,editing:false,lastUpdate:update.update_id};await replace(env,userId,row,next);await prompt(env,userId,api,row.id,next);return true;
+ const value=message.document?await api.readDocument(env,message.document,f.max):text;
+ const plainAmount=f.key==='amount'&&p.op==='tx'&&!p.args.id&&!p.args.calendarEvent&&!p.args.checkDay&&!p.args.lunchCheckDay&&!p.args.ownLunch&&
+  ['expense','income'].includes(p.args.type)&&isFreeTransaction(p.values)?unsignedExpenseInput(value):undefined;
+ const parsed=parseField(f,plainAmount??value);
+ const switchToExpense=plainAmount!==undefined&&p.args.type==='income';
+ const args=switchToExpense?{...p.args,type:'expense'}:p.args;
+ const values={...p.values,...(switchToExpense?{type:'expense',cat:quickDefaults(s.data,args).cat}:{}),[f.key]:parsed};
+ const next={...p,args,values,step:p.editing?fieldsFor(s.data,p.op,args,values).length:p.step+1,editing:false,lastUpdate:update.update_id};
+ await replace(env,userId,row,next);await prompt(env,userId,api,row.id,next);return true;
 }
 
 export async function openQuickEntry(env,userId,api,text){

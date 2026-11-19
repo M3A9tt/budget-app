@@ -1,6 +1,6 @@
 // A transaction can settle one financial source, never several unrelated ones.
 const links=['transferId','debtId','recurringId','installmentPaymentId','installmentRefundId','lunchId'];
-export const isFreeTransaction=tx=>!links.some(key=>tx[key])&&tx.type!=='lunch'&&tx.cat!=='lunch';
+export const isFreeTransaction=tx=>!tx.categoryAllocations&&!links.some(key=>tx[key])&&tx.type!=='lunch'&&tx.cat!=='lunch';
 export function validateTransactionRoles(tx){
  if(links.filter(key=>tx[key]).length>1)throw Error('Операция уже связана с другим источником. Комиссия, долг и план учитываются отдельно');
  if(tx.transferId&&(tx.type!=='expense'||tx.cat==='lunch'||!tx.accountId))throw Error('Комиссия должна оставаться расходом по переводу');

@@ -1,5 +1,6 @@
 import {putTransaction,parseMoney} from './ledger.js';
 import {plannedOccurrences,planType,plannedPaid,validPlannedPeriod,validatePlannedOverrides} from './planned-model.js';
+import {isFreeTransaction} from './transaction-roles.js';
 function plannedValues(data,values){
  const account=data.accounts.find(a=>a.id===values.accountId),amount=values.type==='income'&&values.variable===true?0:parseMoney(values.amount),date=values.startDate||'';
  const validDate=typeof date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date+'T12:00:00Z'))&&new Date(date+'T12:00:00Z').toISOString().slice(0,10)===date;
@@ -70,7 +71,7 @@ export function plannedLinkCandidates(data,id,period){
  const rule=data.recurring.find(r=>r.id===id);
  if(!rule?.active||!validPlannedPeriod(rule,period)||plannedPaid(data,rule,period)||(rule.skippedPeriods||[]).includes(period))return [];
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:data.settings?.timeZone||'Europe/Moscow'}).format(new Date());
- return data.transactions.filter(t=>t.date<=today&&t.type===planType(rule)&&t.cat!=='lunch'&&!t.lunchId&&!t._lunchCheckDay&&!t.recurringId&&!t.installmentPaymentId&&!t.installmentRefundId&&!t.debtId&&!t.transferId&&t.accountId===rule.accountId&&(t.currency||'RUB')===(rule.currency||'RUB')).sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id));
+ return data.transactions.filter(t=>t.date<=today&&t.type===planType(rule)&&isFreeTransaction(t)&&!t._lunchCheckDay&&t.accountId===rule.accountId&&(t.currency||'RUB')===(rule.currency||'RUB')).sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id));
 }
 export function linkPlannedTransaction(data,id,period,transactionId){
  const old=data.transactions.find(t=>t.id===transactionId);

@@ -285,6 +285,16 @@ test('Quick entry keeps one bot card, shows exact result, and undo returns to th
  await f.press('💬 Комментарий');assert.equal(f.last().message_id,card);await f.update('Кофе');assert.equal(f.last().message_id,card);await f.press('✅ Подтвердить');assert.equal(f.last().message_id,card);assert.match(f.last().text,/Кофе/);assert.match(f.last().text,/9.?820/);assert.equal(f.snapshot().accounts[0].balance,9820);
  await f.press('↩️ Отменить изменение');assert.equal(f.snapshot().accounts[0].balance,9820);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,10000);assert.equal(f.snapshot().transactions.length,0);
 }));
+test('A leading minus changes a new income draft into a positive expense before confirmation',()=>run(async f=>{
+ await f.update('/add');await f.press(/Доход/);await f.update('-180,50');
+ assert.match(f.last().text,/−180,5/);
+ assert.equal(f.snapshot().transactions.length,0);
+ await f.press('✅ Подтвердить');
+ const data=f.snapshot(),tx=data.transactions[0];
+ assert.equal(tx.type,'expense');
+ assert.equal(tx.amount,180.5);
+ assert.equal(data.accounts[0].balance,9819.5);
+}));
 test('Paused forms reject silent replacement, resume unchanged, require fresh review after another device, and expire safely',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('287.50');await f.press('💬 Комментарий');await f.update('Покупка');await f.update('/history');
  const active=f.sqlite.prepare("SELECT * FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get();assert.equal(JSON.parse(active.payload).paused,true);
@@ -694,6 +704,35 @@ test('Modern review edits amount and comment directly, invalidates stale confirm
  const labels=f.last().reply_markup.inline_keyboard.flat().map(b=>b.text);for(const key of ['Сумма','Счёт','Категория','Дата','Комментарий'])assert(labels.includes(key));assert(f.last().reply_markup.inline_keyboard.every(row=>row.length<=2));
  await f.press('Сумма');await f.update('200');await f.update('',stale);assert.equal(f.snapshot().transactions.length,0);
  await f.update('Записать');await f.press('▶️ Продолжить запись');await f.press('Комментарий');await f.update('Проверка нового бота');const confirm=f.button('✅ Подтвердить');await f.update('',confirm);await f.update('',confirm);assert.equal(f.snapshot().transactions.length,1);assert.equal(f.snapshot().transactions[0].amount,200);assert.equal(f.snapshot().transactions[0].note,'Проверка нового бота');assert.equal(f.snapshot().accounts[0].balance,9800);
+}));
+
+test('Bot form confirms a multi-category purchase once and exposes its shares in the original transaction',()=>run(async f=>{
+ const data=f.snapshot();
+ data.settings.interfaceVersion=2;
+ f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(data));
+ await f.update('Записать');await f.press('↓ Расход');await f.update('10,01');
+ await f.press('Распределить по категориям');await f.update('Еда;50%\nТранспорт;50%');
+ assert.match(f.last().text,/Еда · 5,01\s*₽/);
+ assert.match(f.last().text,/Транспорт · 5\s*₽/);
+ const confirm=f.button('✅ Подтвердить');
+ await f.update('',confirm);await f.update('',confirm);
+ assert.equal(f.snapshot().transactions.length,1);
+ assert.equal(f.snapshot().accounts[0].balance,9989.99);
+ assert.deepEqual(f.snapshot().transactions[0].categoryAllocations,[{cat:'food',minor:501},{cat:'transport',minor:500}]);
+}));
+
+test('Bot lunch menu creates and resumes a period without changing balances or adding meals',()=>run(async f=>{
+ const data=f.snapshot();
+ data.settings.modules={...data.settings.modules,lunch:true};
+ f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(data));
+ await f.update('/lunch');await f.press('Периоды без вопросов');await f.press('Добавить период');
+ await f.press('Пауза вопросов');await f.update(today);await f.update(moveDate(today,5));
+ assert.match(f.last().text,/Лимит начисляется по графику/);
+ await f.press('✅ Подтвердить');await f.press('↩️ Вернуться в раздел');await f.press(/Пауза вопросов ·/);
+ await f.press('Завершить сегодня');await f.press('✅ Подтвердить');
+ assert.deepEqual(f.snapshot().lunchPeriods,[]);
+ assert.deepEqual(f.snapshot().accounts,data.accounts);
+ assert.deepEqual(f.snapshot().transactions,data.transactions);
 }));
 test('Modern grouped settings and analytics navigate through real callbacks without losing expense filters',()=>run(async f=>{
  const d=f.snapshot();d.settings.interfaceVersion=2;d.transactions=[{id:'navigation-expense',type:'expense',cat:'food',date:today,amount:180,currency:'RUB',accountId:'bank',note:'Кофе для проверки'}];f.sqlite.prepare("UPDATE user_finance_state SET data=? WHERE user_id='111'").run(JSON.stringify(d));const before=f.snapshot();

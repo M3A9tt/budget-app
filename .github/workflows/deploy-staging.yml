@@ -54,6 +54,10 @@ jobs:
       - name: Configure existing staging Worker
         env:
           STAGING_FRIEND_IDS: ${{ vars.TELEGRAM_ALLOWED_IDS }}
+          STAGING_FINANCE_PILOT_IDS: ${{ vars.STAGING_FINANCE_PILOT_IDS }}
+          STAGING_RECEIPT_OCR_PILOT: ${{ vars.STAGING_RECEIPT_OCR_PILOT }}
+          STAGING_FINANCE_ASSISTANT_PILOT: ${{ vars.STAGING_FINANCE_ASSISTANT_PILOT }}
+          STAGING_FINANCE_ASSISTANT_WORKERS_FREE: ${{ vars.STAGING_FINANCE_ASSISTANT_WORKERS_FREE }}
         run: >-
           node scripts/configure-staging.mjs
           --owner 800154021

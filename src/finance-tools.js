@@ -62,7 +62,7 @@ export function forecast(data,today,days=30){
  const past=new Date(today+'T12:00:00Z');past.setUTCDate(past.getUTCDate()-29);const from=past.toISOString().slice(0,10);
  const rows=data.transactions.filter(t=>t.type==='expense'&&t.cat!=='lunch'&&!t.recurringId&&!t.installmentPaymentId&&!t.debtId&&t.date>=from&&t.date<=today),daily=sumMoney(rows,t=>transactionRub(data,t))/30;
  const timeline=cashTimeline(data,today,days,daily),overdue=timeline.points[0].due;
- return {...timeline,points:timeline.points.slice(1),plannedIncome:timeline.plannedIncome,plannedExpense:roundMoney(timeline.points.slice(1).reduce((n,p)=>n+p.due,0)),overdue,daily:roundMoney(daily),activeDays:new Set(rows.map(t=>t.date)).size};
+ return {...timeline,todayPoint:timeline.points[0],points:timeline.points.slice(1),plannedIncome:timeline.plannedIncome,plannedExpense:roundMoney(timeline.points.slice(1).reduce((n,p)=>n+p.due,0)),overdue,daily:roundMoney(daily),activeDays:new Set(rows.map(t=>t.date)).size};
 }
 // RFC-style quoted CSV, semicolon/tab/comma delimiters; no evaluation of formulas.
 export function csvRows(text){

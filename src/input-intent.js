@@ -5,6 +5,11 @@ const boundary='[\\p{L}\\p{N}]';
 // identity escapes such as \- outside a character class are invalid.
 const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
+export function unsignedExpenseInput(value){
+ const text=value.trimStart(),prefix=text.match(/^[-−]\s*(?=\d|$)/u);
+ return prefix?text.slice(prefix[0].length):undefined;
+}
+
 export function accountMentions(text,accounts=[]){
  const candidates=[];
  for(const a of accounts){

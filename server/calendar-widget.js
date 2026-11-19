@@ -16,6 +16,7 @@ import {iconShape} from '../src/mini-icon-shapes.js';
 import {isIcon} from '../src/icon-catalog.js';
 import {hasAccess} from './users.js';
 import {widgetGlass,widgetPrimary} from './widget-glass.js';
+import {expenseCategoryLabel} from '../src/expense-allocations.js';
 import {widgetBrand} from './widget-brand.js';
 import {accountWidgetData} from './accounts-widget-data.js';
 import {accountsWidgetHtml} from './notification-widget.js';
@@ -23,13 +24,9 @@ import {dayChecks} from './habits.js';
 import {lunchEntryArgs} from './lunch-entry.js';
 
 export async function sendDatedEntryWidget(env,userId,state,day,telegram,lunch){
- const {data,revision}=state;
- const view=JSON.parse(widgetData(data,'add',widgetBrand,revision));
- view.rows=[];
- view.draft.day=day;
- view.draft.dateLabel=paymentDate(day);
- if(lunch)view.draft.lunch=lunch;
- await telegram(env,'sendWidget',{chat_id:userId,html:expenseEntryHtml,chat_data:JSON.stringify(view),
+ const draft={revision:state.revision,type:'e',amount:'',day,dateLabel:paymentDate(day),lunch};
+ const chat_data=JSON.stringify({page:'add',rows:[],brand:widgetBrand,draft});
+ await telegram(env,'sendWidget',{chat_id:userId,html:expenseEntryHtml,chat_data,
   allow_queries:true,protect_content:true});
 }
 
@@ -40,7 +37,7 @@ body{margin:0;color:#e8eff4;font:15px system-ui}
 .panel{padding:13px}
 h3{display:flex;align-items:center;gap:8px;margin:0 0 10px}
 h3:before,h3:after{content:'';flex:1;height:1px;background:#ffffff25}
-h4{text-align:center}
+h4{text-align:center;margin:8px 0}
 ol{margin:0;padding:0;list-style:none}
 li{display:flex;align-items:center;gap:8px;padding:5px 7px}
 li+li{border-top:1px solid #ffffff22}
@@ -52,7 +49,8 @@ time,strong{white-space:nowrap}
 .income strong{color:#bde3cb}.expense strong{color:#f1bfbb}
 footer,.picker-nav{display:flex;justify-content:space-between}
 footer{margin-top:8px}
-button{min-height:44px;padding:0 8px;border:1px solid #ffffff24;border-radius:10px;background:#ffffff09;color:#d6e4e8;font:inherit}
+button,.amount{border:1px solid #ffffff24;border-radius:10px}
+button{min-height:44px;padding:0 8px;background:#ffffff09;color:#d6e4e8;font:inherit}
 button:active{opacity:.8}
 nav{display:flex;margin-bottom:12px;border-bottom:1px solid #ffffff24}
 nav button{flex:1;padding:0;border:0;border-radius:0;background:none;font-size:12px}
@@ -60,20 +58,23 @@ nav button+button{border-left:1px solid #ffffff24}
 nav button[aria-pressed=true]{background:linear-gradient(#b7d5ca26,transparent)}
 nav button:last-child{flex:none;width:32px;font-size:20px}
 .balance{display:block;text-align:center;font-size:30px;margin:12px 0}
-#balance:before{content:'На обычных счетах';display:block;font:13px system-ui;color:#b6c5d3}
+#balance:before,.amount:before{display:block;font:13px system-ui;color:#b6c5d3}
+#balance:before{content:'На обычных счетах'}
+.amount{margin:0;padding:8px;background:#bde3cb14}
+.amount:before{content:'Сумма'}
 .event summary{font-weight:bold}
 .entry{display:grid;gap:8px}
-.entry-tools,.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.entry-tools,.keypad{display:grid;gap:5px}
 .entry-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
-.entry-tools.picker button:last-child:nth-child(odd){grid-column:span 2}
-.keypad button{text-align:center;font-size:19px}
+.entry-tools button:last-child:nth-child(odd){grid-column:span 2}
+.keypad{grid-template-columns:repeat(3,minmax(0,1fr));text-align:center;font-size:19px}
 .review:enabled{${widgetPrimary}}
 .choice svg{width:16px;margin-right:5px}
 .out{color:#f1bfbb}.in{color:#bde3cb}
 .entry-tools [aria-pressed=true]{background:#ffffff19}
 @media(max-width:245px){li,nav{flex-wrap:wrap}}
 @media(prefers-reduced-motion:no-preference){
-li,.entry>*,.event small{animation:appear .22s}
+li,.entry>*{animation:appear .22s}
 @keyframes appear{from{opacity:0}}
 }
 </style>
@@ -85,11 +86,10 @@ li,.entry>*,.event small{animation:appear .22s}
 <button type="button" id="refresh" hidden>Обновить</button></footer></section>
 <script>
 const widget=window.TelegramWidget;
-const payments=document.getElementById('payments');
-const status=document.getElementById('status');
-const nav=document.getElementById('nav'),title=document.getElementById('title'),balance=document.getElementById('balance'),refresh=document.getElementById('refresh');
-const entry=document.getElementById('entry');
-const buttons=Array.from(nav.querySelectorAll('button'));
+const get=id=>document.getElementById(id);
+const payments=get('payments'),status=get('status'),nav=get('nav');
+const title=get('title'),balance=get('balance'),refresh=get('refresh'),entry=get('entry');
+const buttons=[...nav.children];
 const visited=new Map();
 let view,pending=false,saving=false,selected,draft;
 const privateChat=widget&&widget.chatType==='private'&&!widget.isForward&&!widget.isPreview;
@@ -136,7 +136,7 @@ function request(page,force=false){
 }
 function node(parent,tag,text='',className=''){
  const el=document.createElement(tag);
- el.className=className;el.textContent=text;parent.appendChild(el);return el;
+ Object.assign(el,{className,textContent:text});parent.append(el);return el;
 }
 function svg(shape,color='currentColor'){
  return '<svg viewBox="0 0 24 24" fill="none" stroke="'+color+'" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shape+'</svg>';
@@ -191,20 +191,20 @@ function entryForm(){
  entryPanel(${expenseEntry?"(draft.lunch==='company'?'Обед компании':draft.lunch?'Обед за свои':'Расход')+' · '+draft.dateLabel":"'Новая запись'"});
  ${expenseEntry?'':`
  const types=group('entry-tools');
- for(const [type,label,icon,tone] of [['e','Расход','<path d="M12 4v16m-6-6 6 6 6-6"/>','out'],['i','Доход','<path d="M12 20V4m-6 6 6-6 6 6"/>','in']]){
-  const button=control(types,label,()=>{draft.type=type;entryForm();},icon);
-  button.classList.add(tone);button.setAttribute('aria-pressed',String(draft.type===type));
+ for(const [type,label,tone] of [['e','↓ Расход','out'],['i','↑ Доход','in']]){
+  const button=control(types,label,()=>{draft.type=type;entryForm();});
+  button.className=tone;button.setAttribute('aria-pressed',String(draft.type===type));
  }`}
- const amount=node(entry,'strong','','balance');
- const fields=group('entry-tools picker');
+ const amount=node(entry,'strong','','balance amount');
+ const fields=group('entry-tools');
  ${expenseEntry?"if(draft.lunch!=='company')":''}control(fields,draft.account?.[1]||'Выбрать счёт',()=>pick(${expenseEntry?"draft.lunch?'L':'A'":"'A'"},0),draft.account?.[4],draft.account?.[3],draft.account?.[5]);
  if(draft.type==='e'${expenseEntry?'&&!draft.lunch':''})control(fields,draft.category?.[1]||'Выбрать категорию',()=>pick('C',0),draft.category?.[4],draft.category?.[3]);
- const keypad=group('picker keypad');
+ const keypad=group('keypad');
  for(const key of ['1','2','3','4','5','6','7','8','9',',','0','⌫'])control(keypad,key,()=>{
-  const value=key==='⌫'?draft.amount.slice(0,-1):draft.amount+(key===','?'.':key);
+  const value=key==='⌫'?draft.amount.slice(0,-1):draft.amount+key.replace(',','.');
   if(/^\d{0,10}(?:\.\d{0,2})?$/.test(value)){draft.amount=value.startsWith('.')?'0'+value:value;updateAmount();}
  });
- const review=control(entry,'Проверить запись',()=>${expenseEntry?String.raw`query((draft.lunch?['bl',draft.day,draft.lunch==='own'?'o':'c',draft.revision,draft.account?.[0]||0]:['be',draft.day,draft.revision,draft.account[0],draft.category[0]]).concat(draft.amount.replace(/\.$/,'')).join(':'),showPreview)`:String.raw`ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview)`});
+ const review=control(entry,'К подтверждению',()=>${expenseEntry?String.raw`query((draft.lunch?['bl',draft.day,draft.lunch==='own'?'o':'c',draft.revision,draft.account?.[0]||0]:['be',draft.day,draft.revision,draft.account[0],draft.category[0]]).concat(draft.amount.replace(/\.$/,'')).join(':'),showPreview)`:String.raw`ask(['p',draft.type,draft.revision,draft.account[0],draft.category?.[0]||0,draft.amount.replace(/\.$/,'')].join(':'),showPreview)`});
  review.className='review';
  function updateAmount(){
   amount.textContent=(draft.amount||'0').replace('.',',')+' '+(draft.account?.[2]||'');
@@ -216,7 +216,7 @@ function pick(kind,offset){
  ask(kind+':'+offset,result=>{
   if(result.revision!==draft.revision){draft=null;entryPanel('Данные изменились');control(entry,'К записи',startEntry);return;}
   entryPanel(kind==='C'?'Категория':'Счёт');
-  const choices=group('entry-tools picker');
+  const choices=group('entry-tools');
   for(const option of result.options)control(choices,option[1]+(option[2]?' · '+option[2]:''),()=>{
    draft[kind==='C'?'category':'account']=option;entryForm();
   },option[4],option[3],option[5]);
@@ -228,8 +228,8 @@ function pick(kind,offset){
 }
 function showPreview(preview){
  draft.preview=preview;
- entryPanel('Проверь запись');
- node(entry,'strong',preview.amount,'balance');
+ entryPanel('Подтверждение записи');
+ node(entry,'strong',preview.amount,'balance amount');
  node(entry,'small',[preview.account,preview.category,preview.date].join(' · '));
  const save=control(entry,draft.confirming?'Проверить сохранение':'Записать',()=>{
   draft.confirming=true;save.textContent='Проверить сохранение';edit.disabled=true;
@@ -264,7 +264,7 @@ function widgetData(data,page,brand,revision){
  const rows=source.slice(0,page==='home'?2:4).map(item=>{
   const transfer=item.type==='transfer';
   const appearance=history?cats.find(cat=>cat.id===item.cat):calendarEventCategory(data,item);
-  const category=appearance?.name;
+  const category=item.categoryAllocations?expenseCategoryLabel(item,cats):appearance?.name;
   const label=history?item.note||(transfer?transferDetails(data,item).route:category||(item.type==='income'?'Доход':'Расход')):item.name;
   const amount=item.amount===null?'Уточнить':(transfer?'↔ ':item.type==='income'?'+':'−')+money(item.amount,item.currency);
   const detail=transfer?transferDetails(data,item).route:account(item.accountId);

@@ -63,6 +63,11 @@ jobs:
         run: npm run test:browser
         env:
           BROWSER_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa
+      - name: Check receipt OCR and financial assistant in Chromium
+        if: runner.os == 'Linux' && matrix.suite == 'core'
+        run: npm run test:pilot
+        env:
+          PILOT_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/finance-pilot
       - name: Check reliability scenarios in Chromium
         if: runner.os == 'Linux' && matrix.suite == 'core'
         run: npm run test:reliability

@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EMPTY,dashboard} from '../src/mini-model.js';
-import {lunchBudget} from '../src/lunch-budget.js';
-import {lunchReminderDay,setLunchWorkday} from '../src/lunch-schedule.js';
+import {lunchBudget,pastLunchAllowanceChange} from '../src/lunch-budget.js';
+import {deleteLunchPeriod,lunchReminderDay,resumeLunchPeriod,saveLunchPeriod,setLunchWorkday} from '../src/lunch-schedule.js';
+import {attentionItems} from '../src/attention.js';
+import {habitCallback} from '../server/habits.js';
 import {putTransaction,deleteTransaction,migrateData} from '../src/ledger.js';
 import {notificationJobs} from '../server/notifications.js';
 import {applyBotAction,fieldsFor} from '../server/bot-catalog.js';
@@ -37,4 +39,37 @@ test('Bot workday commands share the app model and display the resulting allowan
 test('Invalid workday overrides cannot enter through commands or backup restore',()=>{
  const d=base();for(const [date,ratio] of [['2026-02-30',1],[sunday,2],[sunday,-1],[sunday,'1'],['bad',0.5]])assert.throws(()=>setLunchWorkday(d,date,ratio));
  for(const extra of [{lunchDayOff:['2026-02-30']},{lunchDayMod:{[sunday]:-1}},{lunchDayMod:{[sunday]:2}},{lunchDayMod:{[sunday]:'1'}},{lunchDayMod:{bad:1}}])assert.throws(()=>migrateData({...d,...extra},EMPTY));assert.deepEqual(migrateData(d,EMPTY).accounts,d.accounts);
+});
+test('absence and quiet periods overlap, preserve transactions and round-trip through backup',()=>{
+ const fixture=putTransaction(base(),{type:'lunch',cat:'lunch',amount:100,date:'2026-10-30'});
+ const quiet=saveLunchPeriod(fixture,{mode:'pause',from:'2026-10-29',to:'2026-11-02'},'quiet');
+ const absent=saveLunchPeriod(quiet,{mode:'absence',from:'2026-10-30',to:'2026-11-03'},'absence');
+ assert.equal(lunchBudget(quiet,'2026-10','2026-10-30').accrued,lunchBudget(fixture,'2026-10','2026-10-30').accrued);
+ assert.equal(pastLunchAllowanceChange(quiet,absent,'2026-10-30','absence'),-400);
+ assert.equal(lunchBudget(absent,'2026-11','2026-11-03').accrued,0);
+ assert.equal(lunchBudget(absent,'2026-10','2026-10-30').spent,100);
+ assert.deepEqual(absent.transactions,fixture.transactions);
+ const adjusted=setLunchWorkday(absent,'2026-11-03',0.5);
+ assert.equal(lunchBudget(adjusted,'2026-11','2026-11-03').accrued,200);
+ assert.equal(lunchReminderDay(adjusted,'2026-11-03'),false);
+ assert.equal(lunchReminderDay(adjusted,'2026-11-05'),true);
+ assert.equal(notificationJobs(adjusted,new Date('2026-11-03T08:00:00Z')).some(job=>job.kind==='lunch'),false);
+ assert.equal(attentionItems(adjusted,'2026-11-03').some(item=>item.kind==='lunch'&&item.date>='2026-10-29'),false);
+ const resumed=resumeLunchPeriod(adjusted,'absence','2026-11-02');
+ assert.equal(lunchReminderDay(resumed,'2026-11-02'),false);
+ assert.equal(lunchReminderDay(deleteLunchPeriod(resumed,'quiet'),'2026-11-02'),true);
+ assert.equal(resumed.lunchPeriods.find(period=>period.id==='absence').to,'2026-11-01');
+ assert.deepEqual(migrateData(JSON.parse(JSON.stringify(resumed)),EMPTY).lunchPeriods,resumed.lunchPeriods);
+ assert.throws(()=>migrateData({...fixture,lunchPeriods:[{mode:'pause',id:'x',from:'2026-11-04',to:'2026-11-03'}]},EMPTY));
+});
+
+test('a previously sent question cannot reopen a day check during a lunch pause',async()=>{
+ const data=saveLunchPeriod(base(),{mode:'pause',from:sunday,to:sunday},'quiet');
+ for(const action of ['company','skip','off']){
+  const answers=[];
+  assert.equal(await habitCallback({},1,{id:'callback',data:'lunch:'+sunday+':'+action},{
+   readState:async()=>({data}),answer:async message=>answers.push(message),
+  }),true);
+  assert.match(answers[0],/вопросы об обеде на паузе/);
+ }
 });

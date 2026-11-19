@@ -1,8 +1,21 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {deflateSync} from 'node:zlib';
-import {answerCalendarWidget,calendarWidget} from '../server/calendar-widget.js';
+import {answerCalendarWidget,calendarWidget,sendDatedEntryWidget} from '../server/calendar-widget.js';
 import {EMPTY,todayMoscow} from '../src/mini-model.js';
+
+test('dated expense and lunch entry keep the complete draft within the widget payload limit',async()=>{
+ const day='2026-11-19';
+ for(const lunch of [undefined,'own','company']){
+  await sendDatedEntryWidget({},1,{data:EMPTY,revision:12345},day,async(_env,method,payload)=>{
+   assert.equal(method,'sendWidget');
+   assert.ok(Buffer.byteLength(payload.chat_data)<=1024);
+   assert.ok(deflateSync(payload.html,{level:9}).length<=4096);
+   const {draft}=JSON.parse(payload.chat_data);
+   assert.deepEqual({revision:draft.revision,day:draft.day,lunch:draft.lunch},{revision:12345,day,lunch});
+  },lunch);
+ }
+});
 
 test('widget history keeps amounts and titles ahead of optional account details',async()=>{
  const accountId='card',date=todayMoscow();
