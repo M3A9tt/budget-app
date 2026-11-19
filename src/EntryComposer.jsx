@@ -10,7 +10,8 @@ import {parseMoney,roundMoney} from './ledger.js';
 import AccountVisibility from './AccountVisibility.jsx';
 import {orderedAccounts,isSavingAccount} from './account-balances.js';
 import React,{useEffect,useMemo,useState,useId} from 'react';
-import {categoryShortlist} from './entry-assist.js';
+import {categoryShortlist,entryDefaults} from './entry-assist.js';
+import {unsignedExpenseInput} from './input-intent.js';
 import Icon from './mini-icons.jsx';
 import {money,todayMoscow} from './mini-model.js';
 export default function EntryComposer({draft,setDraft,cats,data,busy,onSave,onRepeat,onDelete,onConvert,suggestions=[],personal=false,receiptEnabled=false}){
@@ -21,6 +22,13 @@ export default function EntryComposer({draft,setDraft,cats,data,busy,onSave,onRe
  const patch=values=>setDraft({...draft,...values});
  const account=data.accounts.find(a=>a.id===draft.accountId),linked=!!(draft.recurringId||draft.installmentPaymentId||draft.debtId||draft.lunchId||draft.installmentRefundId);
  const flexible=!draft.id&&!linked&&['expense','income'].includes(draft.type),planned=flexible&&isPlannedEntry(draft,today);
+ const changeAmount=event=>{
+  const value=event.target.value;
+  const amount=flexible&&!draft._lunchCheckDay?unsignedExpenseInput(value):undefined;
+  if(amount!==undefined&&draft.type==='income'){
+   patch({type:'expense',cat:entryDefaults(data,'expense',today,cats).cat,amount});
+  }else patch({amount:amount??value});
+ };
  const canReadReceipt=receiptEnabled&&flexible&&!planned&&!draft.installmentRefundId&&!draft._lunchCheckDay&&draft.type==='expense';
  const allocation=draft._categoryAllocationDraft===undefined
   ?draft.categoryAllocations&&expenseAllocationDraft(draft.categoryAllocations)
@@ -40,7 +48,7 @@ export default function EntryComposer({draft,setDraft,cats,data,busy,onSave,onRe
  {draft.recurringId&&<div className={personal?"entry-plan-note":"entry-lunch-note"}><Icon name="calendar" size={16}/>{personal?"Проверь фактическую сумму и дату":"Подтверждение плана · проверь фактические сумму и дату"}</div>}
  {draft.debtId&&<div className="entry-lunch-note"><Icon name="wallet"/> Возврат долга · {data.debts.find(d=>d.id===draft.debtId)?.person}</div>}
  <div className={personal&&draft.type!=='lunch'?"entry-account-field":undefined} data-entry-type={draft.type}> {personal&&draft.type!=='lunch'&&<><EntryPicker colors={account?.colors} label="Счёт" value={account?.name||'Без счёта'} options={[...accounts.map(a=>({id:a.id,name:a.name,colors:a.colors,icon:a.icon||'wallet',emoji:a.emoji||'',detail:money(a.balance,a.currency)+(isSavingAccount(a)?' · накопления':''),selected:a.id===draft.accountId})),{id:'',name:'Без счёта',selected:!draft.accountId}]} disabled={busy} onChange={accountId=>patch({accountId})}/>{account&&account.currency!==draft.currency&&<p className="mini-small">Сумма в {draft.currency}; счёт в {account.currency}. Пересчёт по курсу из настроек.</p>}</>}
-</div>{personal?<EntryMoney showTotal amount={draft.amount} unit={draft.currency==='RUB'?'₽':draft.currency} onAmount={e=>patch({amount:e.target.value})} fee={draft.fee||""} onFee={draft.type==="expense"&&!planned&&!linked&&!draft.id?e=>patch({fee:e.target.value}):undefined} autoFocus/>:<div className="entry-amount"><label htmlFor="amount">{personal?'Сумма':planned?'Сумма '+(draft.type==='income'?'дохода':'расхода'):draft.type==='income'?'Получено':draft.type==='lunch'?'Стоимость обеда':'Сколько потратил?'}</label><div><input id="amount" value={draft.amount} onChange={e=>patch({amount:e.target.value})} placeholder="0" inputMode="decimal" required autoFocus/><span>{draft.currency==='RUB'?'₽':draft.currency}</span></div></div>}
+</div>{personal?<EntryMoney showTotal amount={draft.amount} unit={draft.currency==='RUB'?'₽':draft.currency} onAmount={changeAmount} fee={draft.fee||""} onFee={draft.type==="expense"&&!planned&&!linked&&!draft.id?e=>patch({fee:e.target.value}):undefined} autoFocus/>:<div className="entry-amount"><label htmlFor="amount">{personal?'Сумма':planned?'Сумма '+(draft.type==='income'?'дохода':'расхода'):draft.type==='income'?'Получено':draft.type==='lunch'?'Стоимость обеда':'Сколько потратил?'}</label><div><input id="amount" value={draft.amount} onChange={changeAmount} placeholder="0" inputMode="decimal" required autoFocus/><span>{draft.currency==='RUB'?'₽':draft.currency}</span></div></div>}
  {flexible&&<div className="entry-timing" role="group" aria-label="Когда учитывать">{[['actual',personal?'Уже '+(draft.type==='income'?'получено':'оплачено'):'В историю'],['planned',personal?'Запланировать':'В план']].map(([id,label])=><button type="button" key={id} aria-pressed={planned===(id==='planned')} onClick={()=>patch({timing:id,...(id==='actual'&&draft.date>today?{date:today}:{})})}>{label}</button>)}</div>}
  {canReadReceipt&&<ReceiptReview data={data} draft={draft} today={today} onReview={setReviewingReceipt} onApply={patch}/>}
  {possibleReceiptDuplicate&&!reviewingReceipt&&<p className="mini-warning" role="status">В истории уже есть похожий расход. Проверь запись перед сохранением.</p>}

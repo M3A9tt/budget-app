@@ -210,7 +210,15 @@ try {
       assert.equal(writes.size,2);
 
       await navigate('Записать');
-      await page.locator('#amount').fill('10.01');
+      const direction=page.getByRole('group',{name:'Тип операции'});
+      await direction.getByRole('button',{name:'Доход',exact:true}).click();
+      const expense=direction.getByRole('button',{name:'Расход',exact:true});
+      const entryAmount=page.locator('#amount');
+      await entryAmount.fill('');
+      await entryAmount.focus();
+      await page.keyboard.type('-10.01');
+      assert.equal(await expense.getAttribute('aria-pressed'),'true');
+      assert.equal(await entryAmount.inputValue(),'10.01');
       await page.getByRole('button',{name:'Разделить по категориям'}).click();
       const split=page.getByRole('region',{name:'Распределение покупки'});
       const chooseCategory=async(index,name)=>{

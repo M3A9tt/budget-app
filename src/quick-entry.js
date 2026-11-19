@@ -1,6 +1,6 @@
-import {accountMentions,classifyFinancialIntent} from './input-intent.js';
+import {accountMentions,classifyFinancialIntent,unsignedExpenseInput} from './input-intent.js';
 export {accountMentions} from './input-intent.js';
-export function entryType(text){return /(?<![\p{L}\d])\+\s*\d/u.test(text)||/зарплат|аванс|доход/iu.test(text)||/(?<!\p{L})(?:зп|получил(?:а)?)(?!\p{L})/iu.test(text)?'income':'expense';}
+export function entryType(text){return unsignedExpenseInput(text)!==undefined?'expense':/(?<![\p{L}\d])\+\s*\d/u.test(text)||/зарплат|аванс|доход/iu.test(text)||/(?<!\p{L})(?:зп|получил(?:а)?)(?!\p{L})/iu.test(text)?'income':'expense';}
 function without(text,spans){for(const x of [...spans].sort((a,b)=>b.start-a.start))text=text.slice(0,x.start)+' '+text.slice(x.end);return text;}
 function datePart(value,today){
  let date=today;
@@ -12,12 +12,12 @@ function datePart(value,today){
 }
 function amountPart(value){
  const number='(?:\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|\\d+)(?:[.,]\\d{1,2})?',unit='(?:₽|руб(?:лей|ля|ль|\\.)?|р\\.?|RUB|USD|EUR|GBP|CNY|TRY|\\$|€)';
- const re=new RegExp(`(?<![\\p{L}\\p{N}.,])([+−-]?)(${number})(?:\\s*(${unit})(?!\\p{L})|(?![\\p{L}\\p{N}.,]))`,'giu'),matches=[...value.matchAll(re)];
+ const re=new RegExp(`(?<![\\p{L}\\p{N}.,])(?:([+−-])\\s*)?(${number})(?:\\s*(${unit})(?!\\p{L})|(?![\\p{L}\\p{N}.,]))`,'giu'),matches=[...value.matchAll(re)];
  if(!matches.length)throw Error('Напиши сумму и покупку: кофе 180 или −180 кофе');
  if(matches.length>1)throw Error('Вижу несколько чисел. Пришли одну операцию с общей суммой, например: два кофе 360');
  const m=matches[0],amount=Number(m[2].replace(/[ \u00a0\u202f]/g,'').replace(',','.'));if(!Number.isFinite(amount)||amount<=0||amount>1e12)throw Error('Сумма должна быть больше нуля и не больше 1 трлн');
  const u=(m[3]||'').toUpperCase(),currency=!u?null:/^(?:₽|РУБ|Р\.?|RUB)/u.test(u)?'RUB':u==='$'?'USD':u==='€'?'EUR':u;
- return {amount,currency,sign:m[1],note:value.slice(0,m.index)+' '+value.slice(m.index+m[0].length)};
+ return {amount,currency,sign:m[1]||'',note:value.slice(0,m.index)+' '+value.slice(m.index+m[0].length)};
 }
 export function parseEntry(text,accounts,categories,today,defaults={}){
  if(typeof text!=='string'||text.length>2000)throw Error('Одна операция — сообщение до 2000 символов');

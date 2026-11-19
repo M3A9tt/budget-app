@@ -1,6 +1,7 @@
 import {editBotCard} from './bot-message.js';
 import {personalInterface} from '../src/interface-settings.js';
-import {accountMentions} from '../src/input-intent.js';
+import {accountMentions,unsignedExpenseInput} from '../src/input-intent.js';
+import {isFreeTransaction} from '../src/transaction-roles.js';
 import {operationsReport,operationsLines} from './operations.js';
 import {load,create,replace,pendingForm} from './bot-drafts.js';
 import {moduleEnabled} from '../src/modules.js';
@@ -292,7 +293,15 @@ export async function botChat(update,env,userId,api){
  if(f.key==='amount'&&!message.reply_to_message&&accountMentions(text,s.data.accounts).length){let intent;try{intent=parseEntry(text,s.data.accounts,CATEGORIES.concat(s.data.customCats||[]),todayMoscow(s.data.settings.timeZone),{allowMissingAccount:true,companyLunchEnabled:moduleEnabled(s.data,'lunch')});}catch{}if(intent){await pauseBotForm(env,userId,api);await openQuickEntry(env,userId,api,text);return true;}}
  if(f.type==='choice'){await prompt(env,userId,api,row.id,p);return true;}
  if(message.document&&f.type!=='document')throw Error('Сейчас нужен ответ на поле, а не файл');
- const value=message.document?await api.readDocument(env,message.document,f.max):text;const parsed=parseField(f,value);const next={...p,values:{...p.values,[f.key]:parsed},step:p.editing?fieldsFor(s.data,p.op,p.args,{...p.values,[f.key]:parsed}).length:p.step+1,editing:false,lastUpdate:update.update_id};await replace(env,userId,row,next);await prompt(env,userId,api,row.id,next);return true;
+ const value=message.document?await api.readDocument(env,message.document,f.max):text;
+ const plainAmount=f.key==='amount'&&p.op==='tx'&&!p.args.id&&!p.args.calendarEvent&&!p.args.checkDay&&!p.args.lunchCheckDay&&!p.args.ownLunch&&
+  ['expense','income'].includes(p.args.type)&&isFreeTransaction(p.values)?unsignedExpenseInput(value):undefined;
+ const parsed=parseField(f,plainAmount??value);
+ const switchToExpense=plainAmount!==undefined&&p.args.type==='income';
+ const args=switchToExpense?{...p.args,type:'expense'}:p.args;
+ const values={...p.values,...(switchToExpense?{type:'expense',cat:quickDefaults(s.data,args).cat}:{}),[f.key]:parsed};
+ const next={...p,args,values,step:p.editing?fieldsFor(s.data,p.op,args,values).length:p.step+1,editing:false,lastUpdate:update.update_id};
+ await replace(env,userId,row,next);await prompt(env,userId,api,row.id,next);return true;
 }
 
 export async function openQuickEntry(env,userId,api,text){

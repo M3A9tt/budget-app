@@ -285,6 +285,16 @@ test('Quick entry keeps one bot card, shows exact result, and undo returns to th
  await f.press('💬 Комментарий');assert.equal(f.last().message_id,card);await f.update('Кофе');assert.equal(f.last().message_id,card);await f.press('✅ Подтвердить');assert.equal(f.last().message_id,card);assert.match(f.last().text,/Кофе/);assert.match(f.last().text,/9.?820/);assert.equal(f.snapshot().accounts[0].balance,9820);
  await f.press('↩️ Отменить изменение');assert.equal(f.snapshot().accounts[0].balance,9820);await f.press('✅ Подтвердить');assert.equal(f.snapshot().accounts[0].balance,10000);assert.equal(f.snapshot().transactions.length,0);
 }));
+test('A leading minus changes a new income draft into a positive expense before confirmation',()=>run(async f=>{
+ await f.update('/add');await f.press(/Доход/);await f.update('-180,50');
+ assert.match(f.last().text,/−180,5/);
+ assert.equal(f.snapshot().transactions.length,0);
+ await f.press('✅ Подтвердить');
+ const data=f.snapshot(),tx=data.transactions[0];
+ assert.equal(tx.type,'expense');
+ assert.equal(tx.amount,180.5);
+ assert.equal(data.accounts[0].balance,9819.5);
+}));
 test('Paused forms reject silent replacement, resume unchanged, require fresh review after another device, and expire safely',()=>run(async f=>{
  await f.update('/add');await f.press('− Расход');await f.update('287.50');await f.press('💬 Комментарий');await f.update('Покупка');await f.update('/history');
  const active=f.sqlite.prepare("SELECT * FROM telegram_drafts WHERE id GLOB 'bf_*' AND consumed=0").get();assert.equal(JSON.parse(active.payload).paused,true);
