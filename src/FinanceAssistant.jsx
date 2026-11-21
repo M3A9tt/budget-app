@@ -65,7 +65,7 @@ function AnalysisResult({analysis,selection}) {
   </div>;
 }
 
-export default function FinanceAssistant({data,today,query,profile,revision,cloud}) {
+export default function FinanceAssistant({data,today,query,profile,revision,cloud,modelEnabled=true}) {
   const [mode,setMode]=useState(''),[amount,setAmount]=useState(''),[date,setDate]=useState(today);
   const [analysis,setAnalysis]=useState(null),[request,setRequest]=useState(null),[selection,setSelection]=useState(null);
   const [device,setDevice]=useState('checking'),[error,setError]=useState(''),[progress,setProgress]=useState(''),[cloudConfirm,setCloudConfirm]=useState(false);
@@ -82,9 +82,9 @@ export default function FinanceAssistant({data,today,query,profile,revision,clou
         if(active)setDevice('unavailable');
       }
     };
-    if(mode)void probe();
+    if(mode&&modelEnabled)void probe();
     return()=>{active=false;};
-  },[mode]);
+  },[mode,modelEnabled]);
   useEffect(()=>()=>{job.current?.abort();job.current=null;},[]);
 
   function clear() {
@@ -168,12 +168,12 @@ export default function FinanceAssistant({data,today,query,profile,revision,clou
     </form>}
     {analysis&&<>
       <AnalysisResult analysis={analysis} selection={selection}/>
-      {device==='checking'&&<p role="status" className="mini-small">Проверяем поддержку модели на устройстве…</p>}
-      {device==='ready'&&!selection&&<div className="mini-form">
+      {modelEnabled&&device==='checking'&&<p role="status" className="mini-small">Проверяем поддержку модели на устройстве…</p>}
+      {modelEnabled&&device==='ready'&&!selection&&<div className="mini-form">
         <p className="mini-small">Первый запуск скачает около 880 МБ. Финансовые данные обрабатываются на устройстве.</p>
         <button type="button" className="mini-secondary" disabled={!!progress} onClick={()=>run('local')}>Объяснить локальной моделью</button>
       </div>}
-      {['unavailable','failed'].includes(device)&&!selection&&<div className="mini-form">
+      {modelEnabled&&['unavailable','failed'].includes(device)&&!selection&&<div className="mini-form">
         {device==='unavailable'&&<p className="mini-small">На этом устройстве локальная модель недоступна.</p>}
         {device==='failed'&&!cloudConfirm&&<button type="button" className="mini-text-button" disabled={!!progress} onClick={()=>run('local')}>Повторить локальный запуск</button>}
         {cloud&&!cloudConfirm&&<button type="button" className="mini-secondary" disabled={!!progress} onClick={()=>setCloudConfirm(true)}>Объяснить в бесплатном облаке</button>}

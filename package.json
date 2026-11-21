@@ -1,7 +1,7 @@
 {
   "name": "finance-app",
   "private": true,
-  "version": "5.1.24",
+  "version": "5.1.25",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,7 +23,8 @@
     "test:entry": "node scripts/check-unified-entry.mjs",
     "test:layout": "node scripts/check-entry-layout.mjs",
     "test:bot-cards": "node scripts/check-bot-cards.mjs",
-    "test:pilot": "node scripts/check-finance-pilot.mjs"
+    "test:pilot": "node scripts/check-finance-pilot.mjs",
+    "test:workflows": "node scripts/check-budget-workflows.mjs"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "0.2.89",

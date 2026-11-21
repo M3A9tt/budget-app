@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {migrateData} from '../src/ledger.js';
+import {deriveClassicKey as deriveKey, encryptClassicData, decryptClassicData} from '../src/classic-crypto.js';
 const source=fs.readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
 const defaults={transactions:[],accounts:[],debts:[],goals:[],customCats:[],transfers:[],recurring:[],history:[],lunchDayOff:[],settings:{},rates:{RUB:1}};
 function context(){
   const store=new Map();
   const localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)};
-  const ctx=vm.createContext({localStorage,DEFAULT_DATA:defaults,migrateData,structuredClone,crypto,TextEncoder,TextDecoder,Uint8Array,btoa,atob,console});
+  const ctx=vm.createContext({localStorage,DEFAULT_DATA:defaults,migrateData,structuredClone,deriveKey,encryptClassicData,decryptClassicData,crypto,TextEncoder,TextDecoder,Uint8Array,btoa,atob,console});
   const code=source.slice(source.indexOf("const LOCAL_V2="),source.indexOf('async function loadCloud()'));
   vm.runInContext(code+'\nthis.api={deriveKey,setEncKey,saveLocal,readLocalUnlocked,encryptData,decryptData,localRecoverySnapshot};',ctx);
   return {api:ctx.api,store,localStorage};

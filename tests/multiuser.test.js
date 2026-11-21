@@ -620,3 +620,40 @@ test('Scheduled visual summary checkpoints photo and retries only full text with
   assert.deepEqual(JSON.parse(db.prepare("SELECT data FROM user_finance_state WHERE user_id='222'").get().data),before);
  }finally{globalThis.fetch=original;}
 });
+
+test('A reminder widget launches a contextual Mini App link only in its authorized private chat',async()=>{
+ const {env,call,data}=fixture(),day=moscowDate(),profile=data(1000);
+ env.MINI_APP_URL='https://budget.test/';
+ profile.settings.expenseCheckEnabled=true;
+ await call('222','state','PUT',{expectedRevision:0,data:profile});
+ const {deliverNotifications}=await import('../server/notification-outbox.js');
+ const {expenseReminder}=await import('../server/notifications.js');
+ const {readMiniAppLink}=await import('../src/mini-app-link.js');
+ const deliveries=[],reminder=expenseReminder(profile,day);
+ await deliverNotifications(env,'222',day,profile,[{id:'check:'+day+':1200',kind:'expense',day,...reminder}],[],
+  async(_,method,body)=>{deliveries.push({method,body});return {message_id:1};},()=>'',setDayCheck,{widgets:true});
+ assert.equal(deliveries[0].method,'sendWidget');
+ const card=JSON.parse(deliveries[0].body.chat_data);
+ const [,action]=card.controls.find(([label])=>label==='Операции в Бюрджете');
+ assert.equal(action,'app:h:'+day);
+ const click=chat=>worker.fetch(new Request('https://budget.test/telegram/webhook',{
+  method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':'test-webhook'},body:JSON.stringify({
+   widget_query:{id:'open-operations',data:action,from:{id:222},chat,message_id:1,type:{type:'data'}}
+  }),
+ }),env);
+ await botTest(async messages=>{
+  await click({id:111,type:'private'});
+  await click({id:222,type:'group'});
+  assert.equal(messages.length,0);
+  await click({id:222,type:'private'});
+  assert.equal(messages.length,2);
+  assert.ok(messages[0].url.endsWith('/sendMessage'));
+  assert.equal(String(messages[0].body.chat_id),'222');
+  const {url}=messages[0].body.reply_markup.inline_keyboard[0][0].web_app;
+  assert.deepEqual(readMiniAppLink(new URL(url).search),{section:'history',date:day,eventId:null,range:null});
+  assert.ok(messages[1].url.endsWith('/answerWidgetQuery'));
+ });
+ const current=await(await call('222')).json();
+ assert.equal(current.data.accounts[0].balance,1000);
+ assert.equal(current.revision,1);
+});

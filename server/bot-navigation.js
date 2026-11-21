@@ -1,10 +1,12 @@
+import {writeMiniAppLink} from '../src/mini-app-link.js';
 import {personalInterface} from '../src/interface-settings.js';
 import {moduleEnabled} from '../src/modules.js';
 export const BOT_BUTTONS={attention:'📌 Что требует внимания',home:'💰 Бюджет',add:'✍️ Записать',history:'🕘 История',payments:'📅 Планы',lunch:'🍽 Обеды',more:'🧩 Ещё',app:'📱 Миниаппа',summary:'📊 Сводки',reminders:'🔔 Напоминания'};
 export function botKeyboard(appUrl,data){if(data&&personalInterface(data))return {keyboard:[['Главная','Операции'],['Записать','Календарь'],['Ещё']].map(row=>row.map(text=>({text}))),resize_keyboard:true,is_persistent:false,one_time_keyboard:false,input_field_placeholder:'Кофе 180 или действие'};return {keyboard:[[BOT_BUTTONS.home,BOT_BUTTONS.add,BOT_BUTTONS.attention],[BOT_BUTTONS.payments,data&&!moduleEnabled(data,'lunch')?'💳 Счета':BOT_BUTTONS.lunch,BOT_BUTTONS.more]].map(row=>row.map(text=>({text}))),resize_keyboard:true,is_persistent:false,one_time_keyboard:false,input_field_placeholder:'Кофе 180 или выбери действие'};}
-export function miniAppButton(appUrl,text=BOT_BUTTONS.app){
+export function miniAppButton(appUrl,text=BOT_BUTTONS.app,target){
  if(!appUrl)return null;
  const url=new URL(appUrl);if(url.protocol!=='https:'||url.username||url.password)throw Error('Для миниаппы нужен HTTPS-адрес без учётных данных');
+ if(target)writeMiniAppLink(url.searchParams,target);
  return {text,web_app:{url:url.href}};
 }
 export async function configureMiniAppMenu(env,userId,telegram){

@@ -7,7 +7,8 @@ import {receiptDuplicate} from './receipt-fields.js';
 const empty={amount:'',date:'',currency:'',note:''};
 
 export default function ReceiptReview({data,draft,today,onApply,onReview}) {
-  const input=useRef(null),job=useRef(null),previewUrl=useRef(null);
+  const input=useRef(null),trigger=useRef(null),reviewHeading=useRef(null),cancelButton=useRef(null);
+  const job=useRef(null),previewUrl=useRef(null);
   const [stage,setStage]=useState('idle'),[progress,setProgress]=useState(null);
   const [found,setFound]=useState(null),[fields,setFields]=useState(empty),[error,setError]=useState('');
   function releasePreview() {
@@ -15,6 +16,10 @@ export default function ReceiptReview({data,draft,today,onApply,onReview}) {
     previewUrl.current=null;
   }
   useEffect(()=>()=>{job.current?.abort();releasePreview();},[]);
+  useEffect(()=>{
+    if(stage==='reading')cancelButton.current?.focus();
+    if(stage==='review')reviewHeading.current?.focus();
+  },[stage]);
 
   function reset() {
     job.current?.abort();
@@ -25,6 +30,7 @@ export default function ReceiptReview({data,draft,today,onApply,onReview}) {
     setFields(empty);
     setError('');
     onReview(false);
+    requestAnimationFrame(()=>trigger.current?.focus());
   }
 
   async function scan(event) {
@@ -76,17 +82,21 @@ export default function ReceiptReview({data,draft,today,onApply,onReview}) {
   const valid=amount>0&&validDate(fields.date)&&fields.date>='1900-01-01'&&!future&&Object.hasOwn(data.rates,fields.currency);
   const duplicate=valid&&receiptDuplicate(data.transactions,fields);
   const unsupportedCurrency=found?.currency&&!Object.hasOwn(data.rates,found.currency);
-  return <div className="receipt-review">
+  return <div className="receipt-review" onKeyDown={event=>{
+    if(event.key!=='Escape'||stage==='idle'||event.target.closest('dialog[open]'))return;
+    event.preventDefault();
+    reset();
+  }}>
     <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={scan}/>
-    {stage==='idle'?<button type="button" className="mini-text-button" onClick={()=>input.current?.click()}>Распознать чек</button>:<>
+    {stage==='idle'?<button ref={trigger} type="button" className="mini-text-button" onClick={()=>input.current?.click()}>Распознать чек</button>:<>
       <div className="pilot-actions">
         {stage!=='reading'&&<button type="button" className="mini-text-button" onClick={()=>input.current?.click()}>Выбрать другой снимок</button>}
-        <button type="button" className="mini-text-button" onClick={reset}>Отмена</button>
+        <button ref={cancelButton} type="button" className="mini-text-button" data-entry-receipt-cancel onClick={reset}>Отмена</button>
       </div>
       {stage==='reading'&&<p role="status" className="mini-small">{progress===null?'Подготавливаем распознавание…':'Читаем чек · '+progress+'%'}</p>}
       {error&&<p role="alert" className="mini-warning">{error}</p>}
       {stage==='review'&&<div className="mini-form">
-        <strong>Проверь данные чека</strong>
+        <h2 ref={reviewHeading} tabIndex={-1}>Проверь данные чека</h2>
         <details><summary>Посмотреть снимок</summary><img src={previewUrl.current} alt="Снимок чека"/></details>
         {!found.totals.length&&<p className="mini-small">Итог не распознан. Введи сумму вручную.</p>}
         {unsupportedCurrency&&<p className="mini-warning" role="status">

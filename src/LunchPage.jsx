@@ -11,7 +11,7 @@ import {lunchBudget,lunchCalculator,companyLunch,personalLunch} from './lunch-bu
 function LunchCellStatus({pending=false}){
  return <span className={pending?'lunch-cell-pending':undefined}><span aria-hidden="true">{pending?'?':'—'}</span><span className="desktop-sr-only">{pending?'День не отмечен':'Будущий день'}</span></span>;
 }
-export default function LunchPage({data,mutate,busy,onAdd,onEdit,onBack,initialMonth,selectedDate='',onSelectDate=()=>{}}){
+export default function LunchPage({data,mutate,busy,onAdd,onEdit,onBack,onHistory,initialMonth,selectedDate='',onSelectDate=()=>{}}){
  const today=todayMoscow(data.settings.timeZone),[month,setMonth]=useState(initialMonth||selectedDate.slice(0,7)||today.slice(0,7)),[mode,setMode]=useState(selectedDate?'day':'table'),[date,setDate]=useState(selectedDate||today),[items,setItems]=useState([{name:'',price:'',count:'1'}]),[error,setError]=useState('');
  const b=lunchBudget(data,month,today),title=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(month+'-01T12:00:00Z'));
  const orphans=orphanedLunchTopups(data).filter(t=>t.date.startsWith(month));
@@ -32,7 +32,7 @@ export default function LunchPage({data,mutate,busy,onAdd,onEdit,onBack,initialM
  {mode==='table'?<header className="lunch-import-heading lunch-table-heading">
    {onBack&&<button type="button" className="icon-button lunch-header-back" aria-label="К операциям" onClick={onBack}><Icon name="back"/></button>}
    <div className="history-heading"><h1 className="mini-title">Обеды</h1></div>
-   <button type="button" className="icon-button lunch-header-import" aria-label="Импорт обедов из JSON" onClick={openImport}><Icon name="upload" size={17}/><span>Импорт</span></button>
+
  </header>:mode!=='json'&&<header className="lunch-import-heading lunch-table-heading">
    <button type="button" className="icon-button" aria-label="К таблице" onClick={()=>{setReturningToTable(true);setMode('table');onSelectDate('');}}><Icon name="back"/></button>
    <div className="history-heading lunch-detail-title"><h1>{mode==='calculator'?'Обед по прайсу':'Обеды'}</h1></div>
@@ -41,6 +41,10 @@ export default function LunchPage({data,mutate,busy,onAdd,onEdit,onBack,initialM
  <LunchPeriods data={data} today={today} month={month} mutate={mutate} busy={busy}/>
  <div className="lunch-metrics">{[['Лимит месяца',b.budget],['Потрачено',b.spent],['Осталось',b.remaining],[b.difference>=0?'Профицит':'Дефицит',Math.abs(b.difference)]].map(([label,value],i)=><div key={label}><small>{label}{i===3&&b.unrecorded?' *':''}</small><strong className={i===3?(b.difference<0?'ins-danger':'mini-income'):''}>{money(value)}</strong></div>)}</div>
  <div className="lunch-toolbar"><button className="mini-primary" disabled={busy} onClick={()=>onAdd({type:'lunch',date:today})}><Icon name="plus" size={17}/> Записать обед</button><button className="mini-secondary lunch-price-action" onClick={()=>setMode('calculator')}><Icon name="food" size={17}/> По прайсу</button></div>
+ <div className="lunch-secondary-actions">
+  {onHistory&&<button type="button" className="mini-text-button" onClick={()=>onHistory(month)}><Icon name="history" size={17}/> История обедов</button>}
+  <button type="button" className="mini-text-button" aria-label="Импорт обедов из JSON" onClick={openImport}><Icon name="upload" size={17}/> Импорт</button>
+ </div>
  <button type="button" className="mini-text-button lunch-extra-entry" onClick={()=>selectDay(month===today.slice(0,7)?today:month+'-01')}><Icon name="calendar" size={17}/> Работал в выходной</button><p className="lunch-caption">{b.workDays} раб. дн. × {money(b.daily)}{b.extraDays>0?` · дополнительных выходов: ${b.extraDays} дн., уже в лимите`:""}</p>{!b.verified&&<p role="alert" className="mini-small">Календарь этого года ещё не проверен: лимит предварительный по графику.</p>}
  <div key={month} className="lunch-table-scroll view-slide"><table className="lunch-table"><caption className="desktop-sr-only">{`Обеды · ${title}`}</caption><thead><tr><th>Дата</th><th>Доступно</th><th>Потрачено</th><th>± день</th><th>Баланс</th></tr></thead><tbody>{rows.map(r=><tr key={r.date} onClick={()=>selectDay(r.date)} className={(r.date===today?'today ':'')+(!r.past?'future ':'')+(r.ratio===0?'off':'')}><th scope="row"><button type="button" ref={r.date===date?returnRow:null} className="lunch-date" aria-current={r.date===today?"date":undefined} aria-label={r.date+' · блюда и стоимость'}>{r.date.slice(8)} <small>{new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:'UTC'}).format(new Date(r.date+'T12:00:00Z'))}</small></button></th><td>{num(r.available)}</td><td>{!r.past?<LunchCellStatus/>:r.confirmed||r.company||r.ratio===0?num(r.company):<LunchCellStatus pending/>}</td><td className={r.difference<0?'ins-danger':'mini-income'}>{!r.past?<LunchCellStatus/>:!r.confirmed&&r.ratio>0?<LunchCellStatus pending/>:signed(r.difference)}</td><td className={r.cumulative<0?'ins-danger':''}><strong>{signed(r.cumulative)}</strong></td></tr>)}</tbody><tfoot><tr><th>Итого</th><td>{num(b.accrued)}</td><td>{num(b.spent)}</td><td>—</td><td>{signed(b.difference)}</td></tr></tfoot></table></div>
  {b.unrecorded>0&&<p className="lunch-caption lunch-pending">* Баланс предварительный, пока есть дни без отметки.</p>}

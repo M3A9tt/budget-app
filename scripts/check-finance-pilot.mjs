@@ -75,7 +75,7 @@ try {
       await page.goto(origin);
       await navigate('Аналитика');
       await page.getByRole('heading',{name:'Здесь будут твои расходы'}).waitFor();
-      assert.equal(await page.getByRole('button',{name:'Хватит ли на покупку?'}).count(),Number(enabled));
+      assert.equal(await page.getByRole('button',{name:'Хватит ли на покупку?'}).count(),1);
       await shot(enabled?'after-analytics-390':'before-analytics-390');
       await navigate('Записать');
       await page.locator('#amount').waitFor();
@@ -120,8 +120,9 @@ try {
       assert.equal(await page.getByLabel('Итог чека').inputValue(),'');
       assert.equal(await page.locator('select[aria-label="Валюта чека"]').inputValue(),'');
       assert.equal(await page.getByRole('button',{name:'Перенести в черновик'}).isDisabled(),true);
-      await page.getByRole('button',{name:'Отмена',exact:true}).click();
+      await page.locator('.entry-screen-heading').getByRole('button',{name:'Назад',exact:true}).click();
       assert.equal(await page.locator('#amount').inputValue(),'90');
+      await page.waitForFunction(()=>document.activeElement?.textContent.trim()==='Распознать чек');
       assert.equal(writes.size,0);
       await scan();
       const receiptImage=page.locator('.receipt-review img');
@@ -256,6 +257,45 @@ try {
       assert.equal(writes.size,4);
       await page.setViewportSize({width:390,height:844});
       await shot('lunch-pause-390');
+
+      await navigate('Записать');
+      await page.locator('#amount').fill('1,01');
+      await page.getByText('Комиссия',{exact:true}).click();
+      await page.getByLabel('Комиссия, ₽',{exact:true}).fill('0,02');
+      const date=page.getByLabel('Дата',{exact:true});
+      const timing=page.getByRole('group',{name:'Когда учитывать'});
+      await date.fill(moveDate(today,1));
+      assert.equal(await timing.getByRole('button',{name:'Запланировать'}).getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('.entry-money-total').count(),0);
+      await date.fill(today);
+      assert.equal(await timing.getByRole('button',{name:'Уже оплачено'}).getAttribute('aria-pressed'),'true');
+      const confirmCommission=page.getByRole('button',{name:/^Записать · 1,03/});
+      await confirmCommission.waitFor();
+      assert.match(await page.locator('.entry-money-total').textContent(),/1,03\s*₽/);
+      for(const width of [320,390]){
+        await page.setViewportSize({width,height:844});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+        await shot('expense-commission-'+width);
+      }
+      await confirmCommission.click();
+      await page.getByText('Операция сохранена',{exact:true}).waitFor();
+      assert.equal(data.transactions.at(-1).amount,1.03);
+      assert.equal(data.accounts[0].balance,988.96);
+      assert.equal(writes.size,5);
+
+      await navigate('Записать');
+      await scan();
+      await page.getByRole('button',{name:'Перенести в черновик'}).click();
+      await page.getByText('Комиссия',{exact:true}).click();
+      await page.getByLabel('Комиссия, ₽',{exact:true}).fill('0,02');
+      await page.getByRole('button',{name:/^Записать · 123,47/}).click();
+      await page.getByText('Операция сохранена',{exact:true}).waitFor();
+      assert.equal(data.transactions.length,3);
+      assert.equal(data.transactions.at(-1).amount,123.47);
+      assert.equal(data.accounts[0].balance,865.49);
+      assert.equal(writes.size,6);
+      await navigate('Аналитика');
+      await page.getByRole('button',{name:/^Расходы 134,51/}).waitFor();
       assert.deepEqual(errors,[]);
     } catch(error) {
       await shot('failure').catch(()=>{});

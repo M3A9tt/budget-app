@@ -1,3 +1,4 @@
+import {deriveClassicKey as deriveKey, hashClassicPin as hashPin, encryptClassicData, decryptClassicData} from './classic-crypto.js';
 import AppSelect from './AppSelect.jsx';
 import QuickEntry from "./QuickEntry.jsx";
 import { parseMoney, putTransaction, deleteTransaction, undoTransaction, transferMoney, migrateData, historicalRub } from "./ledger.js";
@@ -179,42 +180,19 @@ async function readLocalUnlocked() {
 /* ═══════════════════ ENCRYPTION ═══════════════════ */
 // PBKDF2 -> AES-GCM encryption keyed by PIN
 let _encKey = null;
-async function deriveKey(pin) {
-  const enc = new TextEncoder();
-  const baseKey = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: enc.encode('finance-app-salt-2026-v1'), iterations: 100000, hash: 'SHA-256' },
-    baseKey,
-    { name: 'AES-GCM', length: 256 },
-    false, ['encrypt', 'decrypt']
-  );
-}
-
 function setEncKey(key) { _encKey = key; }
 function getEncKey() { return _encKey; }
 function clearEncKey() { _encKey = null; }
 
 async function encryptData(obj,key=_encKey) {
   if (!key) throw new Error("Нет ключа шифрования");
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const enc = new TextEncoder().encode(JSON.stringify(obj));
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
-  // Combine IV + ciphertext as base64
-  const combined = new Uint8Array(iv.length + ct.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(ct), iv.length);
-  let binary='';for(let i=0;i<combined.length;i+=8192)binary+=String.fromCharCode(...combined.subarray(i,i+8192));return btoa(binary);
+  return encryptClassicData(obj,key);
 }
 
 async function decryptData(b64) {
   if (!_encKey || !b64) return null;
-  try {
-    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    const iv = bytes.slice(0, 12);
-    const ct = bytes.slice(12);
-    const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, _encKey, ct);
-    return JSON.parse(new TextDecoder().decode(dec));
-  } catch (e) { return null; }
+  try { return await decryptClassicData(b64,_encKey); }
+  catch { return null; }
 }
 
 async function loadCloud() {
@@ -695,12 +673,6 @@ function QuickAddModal({data, allCats, upd, msg, toR, onClose}) {
 
 /* ═══════════════════ MAIN APP ═══════════════════ */
 /* ═══════════════════ AUTH ═══════════════════ */
-async function hashPin(pin) {
-  const buf = new TextEncoder().encode(pin + '|finance-salt-2026');
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
 function getStoredPinHash() {
   try { return localStorage.getItem('finance-pin-hash') || null; } catch (e) { return null; }
 }
