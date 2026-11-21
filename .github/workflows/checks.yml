@@ -101,6 +101,11 @@ jobs:
         run: npm run test:personal
         env:
           PERSONAL_SCREENSHOT_DIR: ${{ runner.temp }}/burget-browser-qa/personal
+      - name: Check budget workflows and capture revision comparisons
+        if: runner.os == 'Linux' && matrix.suite == 'workflows'
+        run: npm run test:workflows
+        env:
+          WORKFLOWS_SCREENSHOTS: ${{ runner.temp }}/burget-browser-qa/workflows
       - name: Save UI screenshots
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
