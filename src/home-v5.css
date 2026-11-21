@@ -106,3 +106,7 @@
  .mini-shell.personal-ui .ins-home:has(>.home-money-links)>.home-budget{grid-row:3/5}
  .mini-shell.personal-ui .ins-home:has(>.home-money-links)>.personal-next{grid-row:3}
 }
+
+.mini-shell.personal-home .personal-budget-horizon { margin: 0 0 14px; }
+.mini-shell.personal-home .personal-budget-details summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; }
+.mini-shell.personal-home .personal-balance-context { color: #b2c9c8; font-variant-numeric: tabular-nums; }

@@ -1664,3 +1664,15 @@
 }
 .lunch-period-row .lunch-period-delete {color: #e6a9ab}
 .lunch-period-form {padding-block: 10px}
+
+.home-start { margin-bottom: 18px; }
+.home-start h2 { margin: 0 0 6px; }
+.home-start-actions, .lunch-secondary-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.home-start-actions > button { flex: 1 1 190px; min-height: 44px; }
+.lunch-secondary-actions > button, .history-active-filters > .mini-text-button { min-height: 44px; }
+.history-active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 4px 0 12px; }
+.history-active-filters > .history-filter-back { margin-inline-end: 4px; }
+.history-filter-tag { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; min-height: 44px; min-width: 0; max-width: 100%; border-radius: 10px; background: var(--glass-field, #1c2837); border: 1px solid var(--mini-line); color: inherit; text-align: left; }
+.history-filter-tag span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-data-choices .mini-tx-center { min-width: 0; }
+.settings-data-choices .mini-tx-center small { white-space: normal; }

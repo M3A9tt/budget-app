@@ -45,8 +45,8 @@ try{for(const version of [1,2]){
   assert.equal(await page.locator('.account-action-panel').count(),0);
   await page.getByRole('button',{name:'Все операции',exact:true}).click();
   await inspectAndReturn();
-  await page.locator('.ins-filter-chip').getByText('Основная карта',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Сбросить ×',exact:true}).click();
+  await page.locator('.history-active-filters').getByText('Основная карта',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Снять фильтр: Основная карта',exact:true}).click();
   await page.getByRole('button',{name:'К счёту',exact:true}).click();
   await page.locator('.account-detail-heading').getByRole('button',{name:'Назад'}).click();
   await page.locator('.ins-home').waitFor();
@@ -54,10 +54,10 @@ try{for(const version of [1,2]){
   await nav('Аналитика').click();
   await page.getByRole('button',{name:'7 дней',exact:true}).click();
   await page.locator('.report-category').filter({hasText:'Еда'}).click();
-  await page.locator('.ins-filter-chip').getByText(/Еда/).waitFor();
+  await page.locator('.history-active-filters').getByText(/Еда/).waitFor();
   await inspectAndReturn();
-  await page.locator('.ins-filter-chip').getByText(/Еда/).waitFor();
-  await page.getByRole('button',{name:'Сбросить ×',exact:true}).click();
+  await page.locator('.history-active-filters').getByText(/Еда/).waitFor();
+  await page.getByRole('button',{name:'Сбросить все',exact:true}).click();
   await page.getByRole('button',{name:'К аналитике',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'7 дней',exact:true}).getAttribute('aria-pressed'),'true');
   await nav('Главная').click();
@@ -74,7 +74,7 @@ try{for(const version of [1,2]){
  if(version===2){await add().click();await page.locator('#amount').fill('400');await page.getByLabel('Комментарий',{exact:true}).fill('Книга');await page.getByLabel('Дата',{exact:true}).fill(future);await page.locator('.entry-submit').getByRole('button',{name:'Запланировать',exact:true}).click();await page.locator('.money-calendar').waitFor();assert.equal(data.accounts[0].balance,46690);assert.equal(data.recurring.length,2);await nav('Главная').click();await page.locator('.home-money-links').getByRole('button',{name:'Конвертер',exact:true}).click();await page.locator('.currency-converter').waitFor();await fit('converter');await nav('Главная').click();await page.locator('.home-money-links').getByRole('button',{name:'Счета',exact:true}).click();await fit('accounts');await page.locator('.mini-header-menu summary').click();await page.locator('.mini-header-menu').getByRole('button',{name:'Настройки',exact:true}).click();await page.getByRole('button',{name:/Вид приложения/}).click();await page.getByRole('button',{name:'Прежний вид',exact:true}).click();await page.locator('.mini-shell:not(.personal-ui)').waitFor();assert.equal(data.accounts[0].balance,46690);assert.equal(data.transactions.length,3);assert.equal(data.recurring.length,2);assert.deepEqual(data.settings.modules,seed.settings.modules);
  financialResult={balance:data.accounts[0].balance,transactions:data.transactions.length,plans:data.recurring.length};await page.getByRole('button',{name:'Новый вид',exact:true}).click();await page.locator('.personal-ui').waitFor();await page.getByRole('button',{name:'Прежний вид',exact:true}).click();await page.locator('.mini-shell:not(.personal-ui)').waitFor();
  // A lower revision from a different owner replaces the profile and clears entry context.
- await nav('Записать').click();await page.locator('#amount').fill('987');userId='fictional-new-owner';data={...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:2,interfaceGuideSeen:true}};revision=1;await page.getByRole('button',{name:'Обновить данные',exact:true}).click();await page.locator('.mini-page[data-page=overview]').waitFor();assert.equal(await page.locator('#amount').count(),0);assert(await page.getByRole('button',{name:'Добавить счёт',exact:true}).isVisible());await add().click();assert.equal(await page.locator('#amount').inputValue(),'');await page.getByRole('button',{name:'Назад',exact:true}).click();await page.getByRole('button',{name:'Добавить счёт',exact:true}).click();await page.getByLabel('Название',{exact:true}).fill('Первая карта');await page.getByLabel('Текущий остаток',{exact:true}).fill('5000');await page.getByRole('button',{name:'Добавить счёт',exact:true}).click();await page.locator('.account-action-panel').waitFor({state:'hidden'});assert.equal(data.accounts[0].balance,5000);await nav('Главная').click();assert.equal(await page.locator('.interface-guide').count(),0);await add().click();await page.locator('#amount').fill('100');assert(await page.getByText('Без счёта — только история. Остатки не изменятся.',{exact:true}).isVisible());await page.locator('.entry-picker-trigger').filter({hasText:'Счёт'}).click();await page.getByRole('dialog').getByRole('button',{name:/Первая карта/}).click();await page.getByRole('button',{name:/^Записать.*100/}).click();await page.locator('.ins-home').waitFor();assert.equal(data.accounts[0].balance,4900);assert.equal(data.transactions.length,1);
+ await nav('Записать').click();await page.locator('#amount').fill('987');userId='fictional-new-owner';data={...structuredClone(EMPTY),settings:{...EMPTY.settings,interfaceVersion:2,interfaceGuideSeen:true}};revision=1;await page.getByRole('button',{name:'Обновить данные',exact:true}).click();await page.locator('.mini-page[data-page=overview]').waitFor();assert.equal(await page.locator('#amount').count(),0);assert(await page.getByRole('button',{name:'Начать с текущих остатков',exact:true}).isVisible());await add().click();assert.equal(await page.locator('#amount').inputValue(),'');await page.getByRole('button',{name:'Назад',exact:true}).click();await page.getByRole('button',{name:'Начать с текущих остатков',exact:true}).click();await page.getByLabel('Название',{exact:true}).fill('Первая карта');await page.getByLabel('Текущий остаток',{exact:true}).fill('5000');await page.getByRole('button',{name:'Добавить счёт',exact:true}).click();await page.locator('#amount').waitFor();assert.equal(data.accounts[0].balance,5000);assert.match(await page.locator('.entry-picker-trigger').filter({hasText:'Счёт'}).innerText(),/Первая карта/);await page.locator('#amount').fill('100');await page.getByRole('button',{name:/^Записать.*100/}).click();await page.locator('.ins-home').waitFor();assert.equal(data.accounts[0].balance,4900);assert.equal(data.transactions.length,1);
  }
  if(version===2){
   const beforeBack=revision;

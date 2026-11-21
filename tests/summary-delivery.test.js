@@ -24,3 +24,12 @@ test('Shared summary model separates corporate lunches and transfers and uses hi
  const r=periodSummaryData(d,report.from,report.to,report.title);assert.equal(r.expense,800);assert.equal(r.income,200);assert.equal(r.lunch,400);assert.equal(r.actual,1000);assert.equal(r.savings,500);assert.equal(r.categories[0].value,r.expense);
  assert.match(periodSummary(d,report.from,report.to,report.title),/Обеды за счёт компании/);
 });
+
+test('Report message opens the same period in the Mini App',async()=>{
+ const env={MINI_APP_URL:'https://budget.test/'};
+ const sent=[];
+ await sendSummary(env,'1',EMPTY,report,async(_,method,body)=>sent.push({method,body}));
+ const button=sent[0].body.reply_markup.inline_keyboard[0][0];
+ assert.equal(button.text,'Аналитика в Бюрджете');
+ assert.equal(button.web_app.url,'https://budget.test/?analytics=1&from=2026-10-12&to=2026-10-18');
+});

@@ -1,3 +1,4 @@
+import {readWidgetLink,summaryLink,withNotificationLink,withWidgetLink} from './notification-links.js';
 import {scheduledEvents,moveDate} from '../src/finance-events.js';
 import {answerCalendarWidget,calendarWidget,sendDatedEntryWidget} from './calendar-widget.js';
 import {fetchExchangeRates} from './exchange-rates.js';
@@ -118,7 +119,8 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
   const paymentForm=query&&paymentFormCommand.exec(query.data);
   const paymentList=query&&paymentListCommand.exec(query.data);
   const releaseAction=query&&/^(r|tr):([a-zA-Z0-9._-]+):(-1|\d{1,4})$/.exec(query.data);
-  if(query&&!lunchAction&&!expenseAction&&!testAction&&!notificationAction&&!releaseAction&&!paymentForm&&!paymentList&&!digestAction&&!reminderAction){
+  const appLink=query&&readWidgetLink(query.data);
+  if(query&&!appLink&&!lunchAction&&!expenseAction&&!testAction&&!notificationAction&&!releaseAction&&!paymentForm&&!paymentList&&!digestAction&&!reminderAction){
     return answerCalendarWidget(query,{env,readState,telegram,openAdd:()=>handleTelegram({message:{from:query.from,chat:query.chat,text:'/add'}},env,{preferWidget:false})});
   }
   if(query&&(typeof query.id!=='string'||query.inline_message_id||query.widget_id||!Number.isSafeInteger(query.message_id)||query.message_id<=0||query.type?.type!=='data'))return;
@@ -148,7 +150,8 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
     const title={day:'Итог дня',week:'Итог недели',month:'Итог месяца'}[period];
     const report={from,to:today,title,text:periodSummary(data,from,today,title),visual:period!=='month'};
     if(data.settings.calendarWidgetEnabled!==false){
-      return sendNotificationWidget(env,telegram,{chat_id:chat.id,text:report.text},summaryWidget(data,report));
+      const target=summaryLink(report),body=withNotificationLink(env,{chat_id:chat.id,text:report.text},target);
+      return sendNotificationWidget(env,telegram,body,withWidgetLink(env,summaryWidget(data,report),[],target));
     }
     return sendSummary(env,chat.id,data,report,telegram);
   };
@@ -166,7 +169,8 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
     const today=todayMoscow(data.settings.timeZone),responses=await notificationChecks(env,userId,today);
     const {count,...body}=attentionMessage(data,today,responses);
     const card={...digestWidget(data,today,responses),controls:notificationControls(body)};
-    await sendNotificationWidget(env,telegram,{chat_id:chat.id,...body},card);
+    const target={section:'calendar',date:today};
+    await sendNotificationWidget(env,telegram,withNotificationLink(env,{chat_id:chat.id,...body},target),withWidgetLink(env,card,card.controls,target));
     return true;
   };
   const botApi={readState:async(env,id)=>{const s=await readState(env,id);return {...s,data:migrateData(s.data,EMPTY)};},telegram,periodSummary,navigationCommand,sendFile:sendBotFile,readDocument:(env,doc,max)=>readBotDocument(env,doc,max,telegram),commitAction:(env,id,token,p)=>commitBotAction(env,id,token,p,readState),command:text=>handleTelegram({message:{from:source,chat,text}},env)};
@@ -178,6 +182,12 @@ async function handleTelegram(update,env,{preferWidget=true}={}) {
       const answer=result=>telegram(env,'answerWidgetQuery',{widget_query_id:query.id,data:JSON.stringify(result)});
       const state=await readState(env,userId),{data}=state;
       if(data.settings.calendarWidgetEnabled===false)return answer({error:'Виджеты отключены.'});
+      if(appLink){
+        const body=withNotificationLink(env,{chat_id:userId,text:'Открыть раздел в Бюрджете'},appLink);
+        if(!body.reply_markup)return answer({error:'Адрес Бюрджета недоступен.'});
+        await telegram(env,'sendMessage',body);
+        return answer({status:'Кнопка для перехода отправлена в чат.'});
+      }
       if(testAction)return answer({status:'Кнопка работает. Данные не изменены.'});
       if(reminderAction){
         try{return await answer(await answerReminderWidget(env,userId,state,query.message_id,reminderAction,readState));}

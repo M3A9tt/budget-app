@@ -1,6 +1,15 @@
-import {putTransaction} from './ledger.js';
+import {parseMoney,putTransaction,roundMoney} from './ledger.js';
 import {createPlanned} from './planned-operations.js';
 export const isPlannedEntry=(entry,today)=>entry.timing==='planned'||entry.date>today;
+
+// Use the same amount in the confirmation, allocation preview and journal.
+export function entryAmounts(entry,today){
+ const allowsCommission=entry.type==='expense'&&!entry.id&&!isPlannedEntry(entry,today)&&
+  !['recurringId','installmentPaymentId','installmentRefundId','debtId','lunchId'].some(key=>entry[key]);
+ const amount=parseMoney(entry.amount),commission=allowsCommission?parseMoney(entry.fee||0):0;
+ return {amount,commission,total:roundMoney(amount+commission),allowsCommission};
+}
+
 // Direction stays expense/income; timing chooses a future plan or a financial fact.
 export function submitEntry(data,entry,today){
  if(isPlannedEntry(entry,today)){

@@ -1,3 +1,5 @@
+import {scheduledEvents} from '../src/finance-events.js';
+import {summaryLink,withNotificationLink,withWidgetLink} from './notification-links.js';
 import {digestWidget,expenseWidget,lunchWidget,notificationControls,paymentsWidget,sendNotificationWidget,summaryWidget} from './notification-widget.js';
 import {failedDelivery,telegramFailureCode} from './delivery-state.js';
 import {recordOperation} from './operations.js';
@@ -45,15 +47,21 @@ export async function deliverNotifications(env,userId,day,data,reports,responses
     else if(payload.kind==='digest')card=digestWidget(data,day,responses);
     else if(currentOnce||planned)card=paymentsWidget(currentOnce?[paymentFromEvent(currentOnce)]:planned,currentOnce?.date||day);
    }
+   const event=currentOnce||(planned?.length===1?scheduledEvents(data,day,day)[0]:null);
+   const target=payload.report?summaryLink(payload.report):
+    payload.kind==='expense'?{section:'history',date:row.day}:
+    payload.kind==='lunch'?{section:'lunch',date:row.day}:
+    currentOnce||planned||payload.kind==='digest'?{section:'calendar',date:event?.date||day,eventId:event?.id}:null;
+   const body=withNotificationLink(env,payload.body,target);
    if(card){
-    const sent=await sendNotificationWidget(env,send,payload.body,{...card,controls:card.controls??notificationControls(payload.body)});
+    const sent=await sendNotificationWidget(env,send,body,withWidgetLink(env,card,card.controls??notificationControls(payload.body),target));
     payload.delivery.messageId=sent?.message_id;
    }else if(payload.report){
     await deliverSummary(env,userId,data,{...payload.report,text:payload.body.text},send,{priority:'background',progress:payload.progress||{},checkpoint:async progress=>{
      payload.progress=progress;await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();
     }});
    }else{
-    const sent=await send(env,'sendMessage',payload.body);payload.delivery.messageId=sent?.message_id;
+    const sent=await send(env,'sendMessage',body);payload.delivery.messageId=sent?.message_id;
    }
    payload.delivery.phase='delivered';await env.DB.prepare('UPDATE user_notification_outbox SET payload=? WHERE user_id=? AND id=?').bind(JSON.stringify(payload),userId,row.id).run();await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO user_reports_sent(user_id,id,created_at) VALUES(?,?,?)').bind(userId,row.id,Date.now()),env.DB.prepare('DELETE FROM user_notification_outbox WHERE user_id=? AND id=?').bind(userId,row.id)]);await recordOperation(env,'delivery','delivered',Date.now()-payload.delivery.startedAt);}catch(error){
    payload.delivery=failedDelivery(payload.delivery,error);

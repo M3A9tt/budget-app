@@ -1,3 +1,4 @@
+import {summaryLink,withNotificationLink} from './notification-links.js';
 import {getPicture,uploadPicture} from './bot-pictures.js';
 // Persist the photo step before sending the full text so a text retry does not
 // resend the image. Rendering is optional; failure must never suppress a report.
@@ -10,5 +11,5 @@ export async function sendSummary(env,userId,data,report,send,{progress={},check
   }catch{/* Full text remains available when rendering or photo delivery fails. */}
   if(progress.photoSent)await checkpoint(progress);
  }
- await send(env,'sendMessage',{chat_id:userId,text:report.text});
+ await send(env,'sendMessage',withNotificationLink(env,{chat_id:userId,text:report.text},summaryLink(report)));
 }

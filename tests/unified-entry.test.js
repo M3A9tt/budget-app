@@ -1,9 +1,19 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {EMPTY,todayMoscow,dashboard,CATEGORIES} from '../src/mini-model.js';
-import {submitEntry} from '../src/entry-submit.js';import {moveDate,scheduledEvents} from '../src/finance-events.js';
+import {entryAmounts,submitEntry} from '../src/entry-submit.js';import {moveDate,scheduledEvents} from '../src/finance-events.js';
 import {parseEntry,parseOwnTransfer} from '../src/quick-entry.js';import {prepareEvent} from '../src/event-actions.js';
 import {applyBotAction} from '../server/bot-catalog.js';import {compactTransaction,actionOutcome} from '../server/bot-dialog.js';
 const today=todayMoscow(),base=()=>({...structuredClone(EMPTY),accounts:[{id:'a',name:'Карта',currency:'RUB',balance:1000}]});
+test('The expense confirmation includes the same rounded commission posted to the account',()=>{
+ const draft={type:'expense',cat:'food',amount:'1,01',fee:'0,02',currency:'RUB',date:today,accountId:'a'};
+ assert.deepEqual(entryAmounts(draft,today),{amount:1.01,commission:.02,total:1.03,allowsCommission:true});
+ const actual=submitEntry(base(),{...draft,amount:entryAmounts(draft,today).total},today);
+ assert.equal(actual.transactions[0].amount,1.03);
+ assert.equal(actual.accounts[0].balance,998.97);
+ for(const extra of [{date:moveDate(today,1)},{timing:'planned'},{recurringId:'bill'},{id:'old'},{type:'income'}]){
+  assert.deepEqual(entryAmounts({...draft,...extra},today),{amount:1.01,commission:0,total:1.01,allowsCommission:false});
+ }
+});
 test('One expense entry routes actual and future dates to their existing financial states',()=>{
  const expense={id:'buy',type:'expense',cat:'food',amount:100,currency:'RUB',date:moveDate(today,2),accountId:'a',note:'Покупка'};let d=submitEntry(base(),expense,today);assert.equal(d.accounts[0].balance,1000);assert.equal(d.transactions.length,0);assert.equal(dashboard(d,today).obligations,100);assert.equal(d.recurring[0].type,'expense');assert.throws(()=>submitEntry(d,expense,today),/создан/);
  d=submitEntry(d,prepareEvent(d,scheduledEvents(d,today,expense.date)[0],today),today);assert.equal(d.accounts[0].balance,900);assert.equal(d.transactions[0].recurringId,'buy');assert.equal(dashboard(d,today).obligations,0);

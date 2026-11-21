@@ -12,7 +12,7 @@ export function previewBackup(input){
 // The screen orders accounts for display; account order alone is not a new financial state.
 const backupSignature=data=>JSON.stringify({...data,accounts:[...data.accounts].sort((a,b)=>String(a.id).localeCompare(String(b.id)))});
 
-export default function BackupPanel({data,revision,mutate,busy,demo}){
+export default function BackupPanel({data,revision,mutate,busy,demo,demoRestore=false}){
   const exportLock=useRef(false);
   const [exporting,setExporting]=useState(''),[status,setStatus]=useState('');
   const disabled=busy||!!exporting;
@@ -45,7 +45,7 @@ export default function BackupPanel({data,revision,mutate,busy,demo}){
     <button disabled={disabled} className="mini-secondary" onClick={()=>saveCopy()}>{exporting==='current'?'Готовим скачивание…':'Скачать текущий JSON'}</button>
     {telegramClient()?.initData&&!demo&&<p className="mini-small mini-muted">Telegram предложит сохранить файл. Если скачивание недоступно: в чате бота отправь /backup и выбери «Скачать полный JSON».</p>}
     {status&&<p role="status" className="mini-small">{status}</p>}
-    <label>Восстановить бэкап<input type="file" disabled={disabled||demo} accept=".json,application/json" onChange={async e=>{
+    <label>Восстановить бэкап<input type="file" disabled={disabled||(demo&&!demoRestore)} accept=".json,application/json" onChange={async e=>{
       const file=e.target.files[0];e.target.value='';if(!file)return;
       try{if(file.size>5_000_000)throw Error('Бэкап больше 5 МБ');setCandidate(previewBackup(JSON.parse(await file.text())));setSaved('');setConfirmed('');setError('');}
       catch(error){setCandidate(null);setError(error.message);}
